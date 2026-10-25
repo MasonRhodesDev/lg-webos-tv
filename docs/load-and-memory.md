@@ -17,22 +17,25 @@ vmstat 2 4
 
 Real CPU users are small: `tvservice` ~14 % of one core, `audpera` (realtime audio) ~10 %, then `WebAppMgr`, `dmr`, `cobalt` ~5 % each.
 
-## Memory is the real constraint
+## Memory is fine (correction)
 
-~1.6 GB visible to the kernel, ~26–45 MB free, ~470 MB available, 120–165 MB in swap. Largest resident processes:
+An earlier pass read "~45 MB free + swap in use" as memory pressure. It isn't:
 
-| RSS | Process |
-|---|---|
-| ~67 MB | `WebAppMgr` (several instances, 30–67 MB each) |
-| ~64 MB | `com.webos.app.i*` |
-| ~64 MB | `com.webos.app.h*` |
-| ~59 MB | `surface-manager` |
-| ~45 MB | `scd-service` |
-| ~40 MB | `GIBBON_MAIN` (Netflix, preloaded) |
-| ~40 MB | `cobalt` (YouTube, preloaded) |
+- `/proc/meminfo` `MemAvailable` ≈ 449 MB (buffers + cache ≈ 390 MB, reclaimable).
+- LG's memory manager: `luna-send -n 1 luna://com.webos.memorymanager/getCurrentMemState '{}'` → `"currentLevel":"normal","usable":694`.
+- Swap is **zram** (`/dev/zram0`): `getUnitList` reports `zramOrig 151, zramUsed 33` — ~151 MB of swapped pages cost ~33 MB of RAM.
+- Preloaded apps sit in the lowest kill-priority group (`PG_TYPE_BASE` / `UNIT_TYPE_PRELOAD` in `/etc/palm/memorymanager-conf.json`), so memchute closes them first when a launch needs memory.
 
-```sh
-ps -eo rss,user,comm --sort=-rss | head -12
-```
+Largest processes (RSS / PSS, MB):
 
-See [background-apps.md](background-apps.md) for why these stay resident.
+| Process | App | RSS / PSS | Notes |
+|---|---|---|---|
+| `com.webos.app.inputcommon` | `com.webos.app.hdmi2` | 66.5 / 40.5 | the **foreground** HDMI input being watched |
+| WAM browser + zygote | shared web runtime | 66.8 / 30.5, 28.0 / 8.7 | hosts all web apps |
+| `com.webos.app.home` | launcher | 63.9 / 37.9 | core UI |
+| `surface-manager` | compositor | ~59 RSS | core |
+| WAM renderer | `airplay` | 42.9 / 23.4 (+16 swap) | preload, see below |
+| `netflix.bin` | `netflix` | 40.9 / 33.8 | preload |
+| `cobalt` | `youtube.leanback.v4` | 39.7 / 24.1 | preload |
+
+See [background-apps.md](background-apps.md).
