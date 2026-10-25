@@ -2,7 +2,11 @@
 
 Read-only audit as root, 2026-10-25 (~20–25 min uptime). One scratch file was briefly created and removed on `/tmp`; nothing else was written, started or stopped.
 
-## ⚠ Security findings first
+## Security findings
+
+**Status 2026-10-25: items 1–2 fixed.** Created `/var/luna/preferences/webosbrew_telnet_disabled` and rebooted. After the reboot, no `telnetd` runs, port 23 is closed, `/etc/shadow` is no longer bind-mounted (no `alpine` password), key SSH works, and the custom-user `init.d` script ran at boot (its `/etc/passwd` bind mount is present and the user can log in).
+
+Gotcha: `reboot` backgrounded inside an SSH command (`(sleep 1; reboot) &`) dies when the session closes. Run `sync; reboot` in the foreground; the session drops when the TV goes down.
 
 1. **Unauthenticated root shell on the LAN.** Homebrew Channel starts `telnetd -l /bin/sh` on `0.0.0.0:23` unless `/var/luna/preferences/webosbrew_telnet_disabled` exists. Anyone on the network gets root with no password. Fix: `touch` that file and reboot (keep SSH working first — telnet is HBC's failsafe recovery path).
 2. **Root password `alpine` until the next reboot after rooting.** `startup.sh` bind-mounts a `/tmp/shadow` with root:`alpine` whenever `/home/root/.ssh/authorized_keys` is missing at boot. If keys were added after that boot, dropbear (`-R`, password auth not disabled) likely accepts `root`/`alpine` until the next reboot. Untested. Fixed automatically on reboot once the key file exists.
@@ -36,7 +40,7 @@ Read-only audit as root, 2026-10-25 (~20–25 min uptime). One scratch file was 
 - `run-parts /var/lib/webosbrew/init.d`.
 - `sleep 10`, clear failsafe flag.
 
-The only non-LG, non-HBC addition is a custom `init.d` script that bind-mounts a custom passwd to add a non-root user. It was created after this boot, so it **has not yet run at boot** — the current bind mount was done by hand. Survives-reboot is unverified.
+The only non-LG, non-HBC addition is a custom `init.d` script that bind-mounts a custom passwd to add a non-root user. It was first verified to run at boot on the 2026-10-25 reboot.
 
 ## Upstart jobs by purpose
 
