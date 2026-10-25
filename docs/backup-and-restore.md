@@ -51,7 +51,7 @@ There is no GPT or MBR. Kernel `pN` is LG partinfo index N, p1 starts at sector 
 ### Not covered
 
 - **RPMB.** It's authenticated storage; a plain read returns nothing useful, and its ioctl path was never used. It can't be backed up or restored.
-- **ext_csd.** It's only exposed through debugfs, which isn't mounted, and mounting it would be a write. CID and CSD are captured.
+- **ext_csd** is captured as `boot2/runtime/emmc_ext_csd.hex` (512 bytes, hash-matched on the TV). debugfs was mounted just long enough to read it, then unmounted. Key fields: EXT_CSD_REV 8, `PARTITION_CONFIG` 0x00 (the boot partitions are **not** enabled for boot; lxboot loads from the user area), `BOOT_WP` 0, `RST_n` 0, `PARTITION_SETTING_COMPLETED` 0 (no enhanced or general-purpose partitions), `BOOT_SIZE_MULT` 32 (4 MiB each), `RPMB_SIZE_MULT` 4 (512 KiB), `SEC_COUNT` 15269888. For an ISP restore or a chip swap, a factory-default chip only needs the user area written. CID and CSD are captured too.
 - **Signed USB EPK files** for the current and backup-slot firmware. They have to be downloaded separately; see [recovery.md](recovery.md).
 - **Live state:** tmpfs and ramfs content (except the logs), the CRIU snapshot's in-memory state, and app state held only in memory.
 
