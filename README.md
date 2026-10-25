@@ -29,6 +29,7 @@ ssh -tt root@"$TV_HOST" "luna-send -n 1 luna://com.webos.service.tv.systemproper
 | Boot trimming & custom firmware | [docs/boot-trimming.md](docs/boot-trimming.md) | done |
 | Partition writes, restore & recovery | [docs/recovery.md](docs/recovery.md) | done |
 | Backup (`scripts/backup.sh`) & restore levels | [docs/backup-and-restore.md](docs/backup-and-restore.md) | backup done; restores untested |
+| GUI catalog (webOS UI Atlas) | private artifact: <private-artifact> | v1; overlays reconstructed, no screenshots yet |
 
 All investigation so far was read-only: nothing on the TV was changed and no audio was recorded.
 
