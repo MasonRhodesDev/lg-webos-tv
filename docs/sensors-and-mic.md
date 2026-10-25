@@ -39,4 +39,4 @@ Read-only survey, 2026-10-25. No capture device was opened.
 
 ## Security note
 
-Root SSH by key is reachable from the LAN via Homebrew Channel's dropbear. Anyone with root can reach any audio device added to the box.
+Root is reachable from the LAN (key SSH, plus an **unauthenticated telnet root shell** by default — see [startup.md](startup.md)). Anyone with root can reach any audio device added to the box.
