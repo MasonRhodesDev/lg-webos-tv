@@ -26,6 +26,7 @@ ssh -tt root@"$TV_HOST" "luna-send -n 1 luna://com.webos.service.tv.systemproper
 | Sensors, microphone, Home Assistant options | [docs/sensors-and-mic.md](docs/sensors-and-mic.md) | done |
 | Background / preloaded apps | [docs/background-apps.md](docs/background-apps.md) | done |
 | Boot chain & upstart jobs | [docs/startup.md](docs/startup.md) | done |
+| Boot trimming & custom firmware | [docs/boot-trimming.md](docs/boot-trimming.md) | done |
 
 All investigation so far was read-only: nothing on the TV was changed and no audio was recorded.
 
