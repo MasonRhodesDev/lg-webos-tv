@@ -108,6 +108,47 @@ HBC `startup.sh` ~35–37 s; preloads: Google Assistant 55 s, Netflix 62 s, YouT
   input-to-app mapping and nice values. It does not control signal order, so it
   is not a lever for boot time.
 
+### Standby-wake audit (2026-10-26)
+
+Every job on `instant-boot-done` was read in full (`/etc/init/*.conf`) and
+checked with `initctl status` and `ps`. Only `aiservice` is worth neutralizing,
+and that is already done (see above). The other three are short one-shot
+scripts, not daemons or app launchers, so there is no "wake restart" to trim.
+
+| Job | What it does | Verdict |
+|---|---|---|
+| `SettingsService-recovery` | Runs `/usr/bin/recover_hdr_psm.sh`: if the HDR or Dolby Vision picture mode is the Amazon-specific one, it restores the user's backed-up mode. Otherwise it prints "No need to recover". About 8 `luna-send` calls, no process left (`stop/waiting`; a manual `initctl start` returned in 0.01 s). | (a) needed and harmless. Neutralizing could leave the picture stuck in an Amazon HDR mode. |
+| `com.webos.app.livemenu` | Despite the name this is not the app. It sends two `setSystemSettings` calls: `liveMenuLaunched=false`, `epgPipMode=off`. No process stays. | (a) harmless; it resets guide state after a wake. Not worth a bind-mount. |
+| `com.webos.app.multiview` | Reads `multiViewStatus`. Only if it is `on` does it reset it to `off` and re-enable some caption and sound settings. Otherwise prints "No need to recover multi view settings". | (a) harmless; a read-only query in the normal case. |
+
+The live menu *app* is a separate thing: `/usr/bin/com.webos.app.livemenu`
+(about 59 MB RSS) is a CRIU snapshot-restored, hidden, overlay app listed in
+`CRIUSupportApps` in `sam-conf-tv.json`. No upstart job launches it. It is the
+Guide/channel overlay. Closing it with `closeByAppId` is possible, but it is
+part of the snapshot set, so it is (c): left alone.
+
+Other wake-time activity found (not changed, no standby cycle was run to prove
+causes):
+
+- `webos-preload-manager` (starts on `boot-done`, about 2 MB) launches
+  `netflix` through SAM about 8 s after a wake (`caller_id` in the SAM log).
+  That process is about 40 MB RSS. Which apps it preloads comes from the
+  modeled app list and `/var/preferences/webos-preload-manager-conf.json`
+  (absent now). Disabling it would trade Netflix launch speed for RAM, so it is
+  an owner decision, not a safe default.
+- `/usr/sbin/airplay` was spawned on the same wake and launched the `airplay`
+  web app (about 58 MB renderer) with `caller_id` `airplay.service`, although
+  Phase 4 closes that app at boot and `airplay-adaptor` is stopped in Phase 1.
+  `airplay-adaptor` is also a static luna service, so ls-hubd can start it
+  regardless of the upstart job. The cause is unproven.
+- `com.webos.app.googleassistant` was running again about 54 s after boot,
+  after Phase 4 closed it at about 35 s.
+- Free memory is tight: about 450 MB available of 1.6 GB, with swap in use.
+
+Only a real wake can show: whether the airplay app and Netflix preload recur
+after every wake, and whether anything else follows `instant-boot-done`.
+Check with `grep NL_APP_LAUNCH_BEGIN /var/log/messages` after one cycle.
+
 ## Disable candidates (none applied)
 
 `/` is read-only, so job files can't change. Settings persist. Upstart jobs can only be stopped per boot via an `init.d` script running `initctl stop <job>` (at ~37 s, after they already started). Killing a respawn job's PID just restarts it. On-demand ls-hubd services can only be blocked by bind-mounting over their `.service` file (risky).
