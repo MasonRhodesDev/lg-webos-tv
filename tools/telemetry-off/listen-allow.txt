@@ -25,3 +25,4 @@ proc:mdnsd		mDNS responder (ephemeral UDP)
 proc:avahi-daemon	mDNS (ephemeral UDP)
 proc:dropbear		SSH
 proc:nsl		SSAP
+proc:homekit		Apple HomeKit (LAN; part of AirPlay & HomeKit, not telemetry)

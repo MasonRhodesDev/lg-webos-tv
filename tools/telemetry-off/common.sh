@@ -22,6 +22,6 @@ tv() { ssh $SSH_OPTS "$TV_USER@$TV_HOST" "$@"; }
 
 # kit_tar: the files the TV needs, as a tar stream on stdout.
 kit_tar() {
-  tar -C "$KIT_DIR" -cf - telemetry-off.sh targets.tsv settings.tsv wipe.list \
+  tar -C "$KIT_DIR" --owner=0 --group=0 -cf - telemetry-off.sh targets.tsv settings.tsv wipe.list \
       telemetry-off.conf.example domains
 }

@@ -10,7 +10,10 @@ Built and verified against webOS TV 4.10.0 / firmware 05.40.45 (2019 B9). On oth
 
 1. **Hosts blackhole.** It writes the current `/etc/hosts` (keeping Homebrew Channel's update block) plus every name in the enabled `domains/*.txt` files, and bind-mounts the result over `/etc/hosts`.
 2. **LG's own off-switch flags.** It creates `crashreportd_disabled` and `voice_server_sync_disabled`.
-3. **Stubs.** It bind-mounts an `exit 0` stub over each binary in `targets.tsv`, stops their upstart jobs, then kills the processes still running from the real binaries (exact `/proc/PID/exe` match).
+3. **Targets** (`targets.tsv`), blocked according to how each one starts:
+   - **Upstart jobs:** an `exit 0` stub is bind-mounted over the binary, then `initctl stop`.
+   - **ls-hubd on-demand services:** an empty file is bind-mounted over every copy of the `.service` file, then `SIGHUP` to ls-hubd to rescan, then the running instance is killed. Calls then fail fast with "Service does not exist". A binary stub there would hang callers for 300 s.
+   - **securitymanager:** gets a sleeping stub. That turns off runtime partition verification and the device-ID service.
 4. **Settings.** It re-asserts `settings.tsv` and withdraws the data-specific user agreements (`EULA_KEYS`). It only writes values that differ, and saves the old ones.
 5. **Buffers.** It empties the paths in `wipe.list`.
 
@@ -18,7 +21,7 @@ The kit lives in `/var/lib/telemetry-off/`, writes its state to `state/` there, 
 
 ## Requirements
 
-- **Dev box:** `bash`, `ssh`, `tar`, `awk`.
+- **Dev box:** `bash`, `ssh`, GNU `tar` (for `--owner=0`), `awk`.
 - **TV:** Homebrew Channel with SSH, root, and busybox with `timeout -t`, `script`, `luna-send`, `initctl`. `install.sh` checks these.
 
 Set `TV_HOST` (and optionally `TV_USER`, default `root`) in the environment or in the repo's `.env` (see `.env.example`).

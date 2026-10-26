@@ -2,15 +2,30 @@
 
 Goal: no LG tracking or telemetry, down to the running services, before the TV is allowed onto the internet. Kit: [tools/telemetry-off/](../tools/telemetry-off/README.md).
 
-**Status 2026-10-26: Phase 1 (design, code, dry run).** Nothing in this kit has been applied. Firmware: webOS TV 4.10.0, 05.40.45 (`Rockhopper release 4.10.0-17`).
+**Status 2026-10-26: Phase 2 applied** (commits 4c75803, 0628e23 and the docs commit after them). Firmware: webOS TV 4.10.0, 05.40.45 (`Rockhopper release 4.10.0-17`). Steps completed:
 
-Evidence comes from the offline rootfs (`mmcblk0p28` squashfs from the 2026-10-25 backup), the backup's `/var` and `/mnt/lg/cmn_data` tars and settings dumps, and read-only checks on the live TV. Tags: **fw** = strings or config on this firmware; **live** = seen on the running TV; **cache** = in the TV's own data partitions; **lgws** = from [Life's Good Without Spying](https://github.com/lewisdoesstuff/lifesgoodwithoutspying) (MIT, commit 8c42711).
+- applied at boot through HBC `run-parts`;
+- `revert` tested live;
+- re-applied with `apply`.
 
-## Change list (what Phase 2 writes)
+Still open: a second cold-boot check, a standby wake, and the owner's by-eye check of HDMI/CEC/audio (see "Phase 2 results").
 
-Phase 2 = `tools/telemetry-off/install.sh`, then a reboot (or `install.sh --apply-now`). Every item has its revert. `uninstall.sh` runs all of the reverts without a reboot, then removes the kit. Creating `/var/lib/telemetry-off/disabled` makes the next boot a no-op.
+Evidence comes from the offline rootfs (`mmcblk0p28` squashfs from the 2026-10-25 backup), the backup's `/var` and `/mnt/lg/cmn_data` tars and settings dumps, and checks on the live TV. Tags: **fw** = strings or config on this firmware; **live** = seen on the running TV; **cache** = in the TV's own data partitions; **lgws** = from [Life's Good Without Spying](https://github.com/lewisdoesstuff/lifesgoodwithoutspying) (MIT, commit 8c42711).
 
-**Already on the TV before this kit, never reviewed.** `scripts/50-custom-runtime` (commit 5d8df4b) is installed in HBC `init.d` and runs every boot. While this phase ran, something else also changed the TV live: stubs appeared over `/usr/bin/aiservice` (18:49 TV time) and `/usr/sbin/admanager`, and `general.adCookie`, `option.watchedListCollection` and `option.webOSPromotionVideo` went from `on` (read at 18:55) to `off` (read at 19:00). None of that came from this kit. The verify baseline below therefore shows a partly protected TV, not the stock state.
+## Ownership
+
+- **tools/telemetry-off (`init.d/80-telemetry-off`)** owns all tracking:
+  - ACR, ads, diagnostics;
+  - voice, including aiservice;
+  - sdx;
+  - the hosts blackhole;
+  - the user agreements and the DNT/channel/QuickSet settings;
+  - the securitymanager no-op.
+- **`scripts/50-custom-runtime`** (stripped in 4c75803) keeps the LAN trimming: casting/discovery, BT audio, `dpp`, the `dot` popup service, and closing preloaded apps.
+
+## Change list (what the kit writes on the TV)
+
+`install.sh` copies the kit; it applies at every boot (or `install.sh --apply-now`). `uninstall.sh` reverts without a reboot and removes the kit. `touch /var/lib/telemetry-off/disabled` makes the next boot a no-op.
 
 ### Files created
 
@@ -18,56 +33,82 @@ Phase 2 = `tools/telemetry-off/install.sh`, then a reboot (or `install.sh --appl
 |---|---|---|
 | `/var/lib/telemetry-off/` | `telemetry-off.sh`, `targets.tsv`, `settings.tsv`, `wipe.list`, `telemetry-off.conf.example`, `domains/*.txt` | `uninstall.sh` (rm -rf) |
 | `/var/lib/telemetry-off/telemetry-off.conf` | config, from the example, only if absent | same |
-| `/var/lib/webosbrew/init.d/80-telemetry-off` | the hook, a copy of `telemetry-off.sh` | `uninstall.sh`, or `touch /var/lib/telemetry-off/disabled` |
-| `/var/lib/telemetry-off/state/` | rewritten each boot: `stub`, `hosts`, `stubbed.list`, `stopped.list`, `flags.list`, `settings.orig`, `eula.orig`, `applying` | removed with the dir |
+| `/var/lib/webosbrew/init.d/80-telemetry-off` | the hook, a copy of `telemetry-off.sh` | `uninstall.sh`, or the `disabled` flag |
+| `/var/lib/telemetry-off/state/` | rewritten each boot: `stub.exit`, `stub.sleep`, `empty`, `hosts`, `stubbed.list`, `stopped.list`, `flags.list`, `settings.orig`, `eula.orig`, `applying` | removed with the dir |
 | `/var/log/telemetry-off.log` | log, trimmed at 128 KB | `rm` (uninstall keeps it) |
-| `/var/luna/preferences/crashreportd_disabled` | LG's own crashreportd off switch (fw: crashreportd strings) | `revert` removes it (only if the kit created it) |
-| `/var/luna/preferences/voice_server_sync_disabled` | LG's own voiceconductor server-sync off switch (fw: voiceconductor strings) | same |
+| `/var/luna/preferences/crashreportd_disabled`, `voice_server_sync_disabled` | LG's own off switches (fw: crashreportd, voiceconductor strings) | `revert` removes them (only if the kit created them) |
 
-### Bind mounts (per boot, gone after a reboot)
+### How each target is blocked
 
-| Mount | Revert |
-|---|---|
-| `state/hosts` over `/etc/hosts`, stacked on HBC's tmpfs copy (HBC's four update entries are kept): 636 names to `0.0.0.0` and `::` | `revert` unmounts it only if the kit's marker is on top |
-| `state/stub` (`#!/bin/sh` + `exit 0`) over each of: `/usr/sbin/acr2`, `/usr/sbin/livepick`, `/usr/bin/com.webos.app.livepick`, `/usr/sbin/scd-service`, `/usr/sbin/admanager`, `/usr/sbin/nudge`, `/usr/sbin/contentminer`, `/usr/sbin/prs`, `/usr/sbin/rdxd`, `/usr/sbin/uploadd`, `/usr/sbin/crashreportd`, `/usr/sbin/remotelogger`, `/usr/sbin/remotediag`, `/usr/palm/services/com.palm.service.bugreport/run-bugreport-service`, `/usr/sbin/voiceinput`, `/usr/sbin/voiceconductor`, `/usr/sbin/nlpmanager`, `/usr/sbin/nlpadapter`, `/usr/sbin/performer`, `/usr/bin/aiservice`, `/usr/sbin/amazon-alexa-adapter`, `/usr/sbin/lg.thinqai.adapter`, `/usr/sbin/iot-client`, `/usr/sbin/ocf-onboarding` (24) | `revert` unmounts each path in `stubbed.list` that still carries the kit's stub |
+The method depends on how the target starts. Each target's start mechanism was checked against `/etc/init`, `/usr/share/luna-service2/services.d` and `/usr/share/dbus-1/{services,system-services}`:
 
-A path that already has someone else's mount on it is skipped and logged. Today that is `admanager` and `aiservice`, so the dry run binds 22.
+- **Upstart job:** an `exit 0` stub is bind-mounted over the binary, then `initctl stop`. A later start (a respawn, `instant-boot-done` on a standby wake) runs the stub.
+- **ls-hubd on-demand service:** an empty file is bind-mounted over **every** copy of its `.service` file, ls-hubd is sent `SIGHUP` to rescan, then the running instance gets TERM and, 2 s later, KILL. Calls then fail with `Service does not exist` in about 10 ms. **The binary is never stubbed:** ls-hubd would wait `LaunchTimeout` (300 s, `/etc/luna-service2/ls-hubd.conf`) for a stub to register, and every caller would hang. Do not use `ls-control scan-services`; it can wait forever.
 
-### Services stopped or killed
-
-| Action | Today's dry run | Revert |
+| Target | Upstart job (stub + stop) | Hub service masked |
 |---|---|---|
-| `initctl stop` (only if running): `nudge`, `livepick`, `contentminer`, `rdxd`, `uploadd`, `crashreportd`, `remotelogger`, `voiceinput`, `voiceconductor`, `aiservice`, `amazon-alexa-adapter`, `iot-client`, `update`, `certupdmgr_timer` | only `nudge` is running; 50-custom-runtime already stops the rest | `revert` runs `initctl start` on the jobs in `stopped.list` (only the ones this kit stopped) |
-| Kill (TERM, then KILL after 1 s) any process whose `/proc/PID/exe` is a target binary, including inside a jail | `acr2` 4298, `livepick` 18516, `scd-service` 13856, `nlpmanager` 4311 (all launched by ls-hubd, PPID 1477), `nudge` 4666 | ls-hubd relaunches on-demand services on the next call once the stub is unmounted |
+| acr2 | — | `com.webos.service.acr` (dbus-1 ×2) |
+| livepick | `livepick` | `com.webos.service.livepick` (luna-service2) |
+| scd-service | — | `com.webos.service.scd` (dbus-1 ×2) |
+| admanager | — | `com.webos.service.admanager` (dbus-1 ×2) |
+| sdx | — | `com.webos.service.sdx` (dbus-1 ×2) |
+| nudge, contentminer, rdxd, crashreportd, remotelogger, voiceinput, voiceconductor | the job of the same name | — (static luna services; ls-hubd never launches them) |
+| uploadd | `uploadd` | `com.palm.uploadd` |
+| aiservice | `aiservice` (the stub covers `instant-boot-done` on every wake) | `com.webos.service.aiservice` |
+| iot-client | `iot-client` | `com.webos.service.iot-client` (dbus-1 ×2) |
+| prs, remotediag | — | `com.webos.service.prs`, `com.webos.service.remotediag` (dbus-1 ×2 each) |
+| bugreport, nlpmanager | — | `com.palm.service.bugreport`, `com.webos.service.nlpmanager` |
+| nlpadapter, performer, amazon-alexa-adapter, lg.thinqai.adapter (jailed) | — | `com.webos.app.googleassistant.nlpadapter`, `com.webos.app.actionhandler.adapter`, `amazon.alexa.view.adapter`, `lg.thinqai.adapter`. Masking the hub entry also covers the jail, because their `Exec` runs through `jailer`. |
+| ocf-onboarding | — | `com.webos.service.ocf-onboarding` (×3) |
+| update, certupdmgr_timer | stop only (no stub; USB recovery needs `update`) | — |
+| **securitymanager** | `securitymanager`, with a stub that sleeps forever (respawn job) | — |
 
-### Settings changed, from → to
+Totals (first boot apply): 11 `exit 0` stubs and 1 sleep stub, 26 `.service` masks, 14 jobs targeted (12 were running and stopped). tnm (thumbnails) is untouched.
 
-Written with `settingsservice/setSystemSettings`, only when the value differs. The old value goes to `state/settings.orig` and `revert` writes it back.
+**securitymanager no-op (owner: keep).** It turns off runtime partition verification (`sb_verify_task`, the random-fragment signature check of rootfs/bsppart/tvservice/…) and the whole `com.webos.service.sm` API. That includes `deviceid/getIDs`, which serves the IFAID ad ID acr2 subscribes to, and `verifyPartitions`, which the updater calls. Updates are blocked anyway. lxboot still verifies every partition at boot.
 
-| Key | Now (live, 19:00) | → | Backup 2026-10-25 |
-|---|---|---|---|
-| `option.channelplus` (LG Channels) | on | off | on |
-| `option.appUpdateMode` | auto | manual | auto |
-| `general.adCookie` | off | off (re-asserted) | **on** |
-| `option.watchedListCollection` | off | off (re-asserted) | **on** |
-| `option.webOSPromotionVideo` | off | off (re-asserted) | **on** |
-| `general.customizedAd`, `homePromotion`, `aiNudge`, `screenSaverAd`; `option.livePlus`; `support.automaticUpdate` | off | off (re-asserted) | off |
-| `general.lmt` (limit ad tracking) | on | on (re-asserted) | on |
-| **User agreements** (`eulaStatus`, category `""`): `acrOnAllowed`, `acrAdAllowed`, `customAdAllowed`, `additionalDataAllowed`, `voiceAllowed`, `voice2Allowed`, `takeOnAllowed`, `chpAllowed` | true | **false** | true |
+### Hosts
 
-`generalTermsAllowed` and `networkAllowed` stay `true`. Withdrawing those makes webOS re-run first-use setup and gates the whole home screen. The original `eulaStatus` object is saved to `state/eula.orig`, and `revert` writes it back.
+`state/hosts` is bind-mounted over `/etc/hosts`, on top of HBC's tmpfs copy (HBC's four update entries are kept): **642 names** to `0.0.0.0` and `::`. Revert unmounts it only if the kit's marker is on top.
 
-### Files wiped (each boot, after the stubs)
+### Settings changed, from → to (applied 2026-10-25 19:42 TV time)
 
-From the dry run: `/mnt/lg/cmn_data/admanager/cache` (39 ad creatives), `/mnt/lg/cmn_data/admanager/cookie` (1), `/mnt/lg/cmn_data/livepick/custom_db_save.db` (28 KB), `/tmp/livepick_nudge` (1), `/tmp/scd` (2), and `/mnt/lg/cmn_data/ucm/{app,channel,stb}_upload_time.txt`. The rest of `wipe.list` is empty today or sits under HBC's read-only tmpfs. **Revert: none.** Deleted files are gone, and LG recreates them on demand.
+Written with `settingsservice/setSystemSettings`, only when the value differs. The old value goes to `state/settings.orig`, and revert writes it back (tested).
 
-### Recommended, outside the kit (owner decision)
+| Key | Before | After |
+|---|---|---|
+| `option.channelplus` | on | off |
+| `option.appUpdateMode` | auto | manual |
+| `option.hbbTvDnt` | off | on |
+| `option.ibbDnt` | off | on |
+| `other.ueiEnable` | on | off |
+| `eulaStatus`: `acrOnAllowed`, `acrAdAllowed`, `customAdAllowed`, `additionalDataAllowed`, `voiceAllowed`, `voice2Allowed`, `takeOnAllowed`, `chpAllowed` | true | false |
+| re-asserted, unchanged: `general.adCookie`, `customizedAd`, `homePromotion`, `aiNudge`, `screenSaverAd` = off; `general.lmt` = on; `option.watchedListCollection`, `webOSPromotionVideo`, `livePlus` = off; `support.automaticUpdate` = off | | |
 
-1. **Remove the overlapping stanzas from `scripts/50-custom-runtime`.** These are its stops of `rdxd uploadd crashreportd remotelogger contentminer update certupdmgr_timer voiceconductor voiceinput aiservice` and its `.service` masks. The kit owns those now. Coexisting is harmless (the jobs are already stopped when the kit runs, so the kit doesn't record them), but two owners make revert confusing. Its `.service` bind mounts don't work (see corrections).
-2. **50-custom-runtime's securitymanager no-op is not telemetry.** It replaces `/usr/sbin/securitymanager` with `sleep`. That turns off runtime partition verification (`sb_verify_task`) and the `com.webos.service.sm` API, which serves `deviceid/getIDs` (the IFAID that acr2 subscribes to) and `verifyPartitions` (called by the updater). The kit does not carry it. Decide separately whether it stays.
-3. **50-custom-runtime stops `dpp`, which is Wi-Fi Easy Connect, not telemetry.** fw: `dpp_supplicant_*`, calls `wifi/connect` and `wifi/findnetworks`. Harmless to stop, but it's not on the telemetry list.
+`generalTermsAllowed` and `networkAllowed` stay `true`. Withdrawing them makes webOS re-run first-use setup. (Backup 2026-10-25: `adCookie`, `watchedListCollection` and `webOSPromotionVideo` were `on`. Another session turned them off on 2026-10-25 before the kit ran.)
+
+### Files wiped (each boot, after the targets are down)
+
+First run: `/mnt/lg/cmn_data/admanager/cache` (39 ad creatives), `admanager/cookie` (1), `livepick/custom_db_save.db` (28 KB), `/tmp/livepick_nudge`, `/tmp/scd`, and `/mnt/lg/cmn_data/ucm/{app,channel,stb}_upload_time.txt`. **Revert: none**; LG recreates them on demand.
+
+## Phase 2 results (2026-10-25 TV time)
+
+| Step | Result |
+|---|---|
+| Dry run on the cold-booted TV | as expected; ls-hubd was PID 1477, the only instance |
+| Deploy stripped 50-custom-runtime, install kit, `sync; reboot` | both ran from HBC `run-parts` at boot. The kit's apply took ~15 s (hub rescan at +3 s, jobs stopped by +10 s), with no step failures and no HBC failsafe flag |
+| `verify.sh` after the boot apply | 1 FAIL: the homekit LAN listener, since allow-listed (Apple HomeKit, not telemetry). 6 WARN: stale jail hosts copies |
+| `revert` (live, no reboot) | 6 s. Every mask and stub unmounted, ls-hubd rescanned, all 12 stopped jobs restarted (`update` ran and exited by itself), 5 settings and the `eulaStatus` object restored, LG flags removed, hosts back to HBC's. A hub service relaunched on demand (`prs`, < 1 s) |
+| `enable` + `apply` (live) | 12 s, no failures |
+| `verify.sh` ~1 min later | 138 OK, 1 FAIL: Netflix (`GIBBON_MAIN`) UDP socket to 8.8.8.8:53, router-only. 7 WARN: jail hosts copies, including a new `lg.thinqai.adapter` jail built while reverted. No target process running |
+| Clock | correct (`2026-10-25 19:46 PDT`), `systemTimeSource: sdp`, kept by the micom RTC across reboots. sdx is masked after it has already set the time at boot. **Untested:** a cold boot after mains power loss (no RTC). `AllowNTPTime` ships `false`, so the clock would then come only from broadcast or SDP |
+| Second cold boot + verify | **not run**: the reboot was refused by this session's permission policy. The boot-time apply was already proven on the first reboot |
+| Standby wake + verify | **not run**: needs the owner (remote power button twice) |
+| HDMI picture, CEC input switching, audio | **owner by-eye check pending** |
 
 ## Inventory
+
+*Phase 1 inventory. Where its "Disable" column says "stub" for an ls-hubd service, Phase 2 masks the `.service` file instead; see "How each target is blocked".*
 
 How things start on this firmware decides the disable method:
 
@@ -170,7 +211,7 @@ How the stock UI withdraws an agreement (fw: `com.webos.app.eula/main.js`): it w
 
 ## Domain list
 
-Data files in [tools/telemetry-off/domains/](../tools/telemetry-off/domains/): **636 unique names** in the ten default files, plus `lgtvonline.lge.com` in the optional `95-connectivity-check.txt`. Each file records where every name came from.
+Data files in [tools/telemetry-off/domains/](../tools/telemetry-off/domains/): **642 unique names**, all twelve files on by default since the owner's 2026-10-26 decisions. Phase 2 added `lgappstv.com`, `www.lgappstv.com` and `us.lgappstv.com` (store), `70-quickset.txt` (`www.ueiwsp.com`, `ueiwsp.com`), and turned on `95-connectivity-check.txt` (`lgtvonline.lge.com`). Each file records where every name came from.
 
 | File | Names | Router parents (wildcard) |
 |---|---|---|
@@ -209,7 +250,7 @@ Kept, owner's call:
 - `/mnt/lg/cmn_data/acr/data/*`: acr2's state, including `eula_allowed`.
 - `/var/log/crashd`: local crash dumps, useful for debugging. Empty today.
 
-## Dry run and baseline (2026-10-25 19:00 TV time)
+## Phase 1 dry run and baseline (2026-10-25 19:00 TV time)
 
 `verify.sh` against the live TV: **49 FAIL, 8 WARN** (expected, since nothing is applied):
 
@@ -279,21 +320,22 @@ Keep logging for the first week online and repeat the cold-boot test after any f
 
 ## Corrections to earlier docs
 
-- [startup.md](startup.md) suggested blocking on-demand services by bind-mounting over their `.service` file. On this firmware that doesn't work after boot. ls-hubd has already read the service directories, so the cached `Exec` still runs. live: livepick runs from ls-hubd with its `.service` masked by 50-custom-runtime, and scd-service relaunched mid-session. Also, `acr2`, `scd-service`, `admanager` and `remotediag` are registered in `/usr/share/dbus-1/system-services/`, not `luna-service2/services.d/` (commit 5d8df4b removed them from the config for that reason). Use the binary stub.
+- **Hub services: mask the `.service` file and rescan; never stub the binary.** A blanked `.service` file only takes effect after `SIGHUP` to ls-hubd (Phase 1 of this doc wrongly said masking can't work). An `exit 0` stub over a hub-launched binary hangs every caller for `LaunchTimeout` (300 s). Finding by the 50-custom-runtime session, verified live. `acr2`, `scd-service`, `admanager`, `sdx`, `prs`, `remotediag` and `iot-client` have copies in both `/usr/share/dbus-1/services` and `/usr/share/dbus-1/system-services`; mask both.
 - `dpp` is Wi-Fi Easy Connect, not telemetry.
 - `user-context-manager` is on the CEC keep-list, but it also uploads usage through sdx. Covered by the network block.
 
-## Open questions for the owner
+## Owner decisions (2026-10-26)
 
-1. **User agreements:** withdraw the eight data-specific agreements from the kit (default `EULA=1`), or through Settings → User Agreements yourself (`EULA=0`)? Either way `generalTermsAllowed` stays on.
-2. **SDP and Content Store:** block `lgtvsdp.com` / `lgappstv.com` (no LG store, app updates or LG account), or allow them and accept sdx's device-auth and EULA traffic?
-3. **Connectivity check:** block `lgtvonline.lge.com` (`95-connectivity-check.txt`)? The TV would then report "no internet", and some apps may refuse to start.
-4. **UEI QuickSet** (`www.ueiwsp.com`, `other.ueiEnable`): block and switch off? It names HDMI devices; CEC itself doesn't use it.
-5. **50-custom-runtime:** remove its overlapping telemetry stanzas, and decide on its securitymanager no-op.
-6. **Who else is changing the TV?** Stubs over admanager and aiservice and three settings flips appeared during this phase from another session. Phase 2 should start from a known state.
-7. **Voice:** stubbing `voiceinput` disables the remote's mic button entirely. OK?
+- Block `lgtvsdp.com` and `lgappstv.com`. Losing the store, app updates and the LG account is accepted.
+- Block `lgtvonline.lge.com`. The TV may report "no internet".
+- Block UEI QuickSet and set `ueiEnable` off.
+- Disable voice. A dead mic button is OK.
+- The kit withdraws the 8 data agreements.
+- The kit keeps the securitymanager no-op.
+- DNT on (`hbbTvDnt`, `ibbDnt`); `channelplus` off.
 
-## Phase 2 checks (not yet tested)
+## Phase 2 checks (still open)
 
 - **`eulaStatus` persistence.** sdx compares `eula.json` against `eulaInfoNetwork` (fw: `_compare`, "eula.json is NOT Equal"), and the stock UI writes `eulaInfoNetwork.eulaList` alongside `eulaStatus`. The kit writes only `eulaStatus`. It re-asserts every boot, so it self-heals, but after the first reboot re-read `eulaStatus` to confirm sdx doesn't put the flags back.
-- **Real install paths are untested by design.** Only `install.sh --dry-run` (same tar transfer) and `verify.sh` have touched the TV. The hook copy, `--apply-now`, `revert`, `enable` and `uninstall.sh` have only been syntax-checked. Test `revert` right after the first apply, while SSH is up.
+- **Re-read `eulaStatus` after the next reboot**, in case sdx or the EULA app restores it (the kit re-asserts at every boot either way).
+- `uninstall.sh` itself is not run yet; its revert step is the tested `revert`.
