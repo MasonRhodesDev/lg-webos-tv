@@ -37,6 +37,12 @@ kr.lgtvsdp.com
 qt2-kr.lgtvsdp.com
 us.tvsdp.lgeapi.com
 qt2-kr.tvsdp.lgeapi.com
+# [fw] LG Content Store front ends: www.lgappstv.com (connection wizard,
+# 121 references), us.lgappstv.com (cached channel list). Owner decision
+# 2026-10-26: block the store.
+lgappstv.com
+www.lgappstv.com
+us.lgappstv.com
 # [lgws] 30-dashboard.txt (SDP-tree tracking/config)
 tracking.lgtvsdp.com
 config.lgtvsdp.com

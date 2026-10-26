@@ -24,10 +24,10 @@ shq() { printf "'%s'" "$(printf '%s' "$1" | sed "s/'/'\\\\''/g")"; }
 
 conf_eula_keys=$(sed -n 's/^EULA_KEYS="\(.*\)"/\1/p' "$KIT_DIR/telemetry-off.conf.example")
 probe=$(
-  echo "TARGETS=$(shq "$(data "$KIT_DIR/targets.tsv" | awk '{print $1, $3, $4}')")"
+  echo "TARGETS=$(shq "$(data "$KIT_DIR/targets.tsv" | awk '{print $1, $3, $4, $5, $6}')")"
   echo "LISTEN_ALLOW=$(shq "$(data "$KIT_DIR/listen-allow.txt" | awk '{printf "%s ", $1}')")"
   echo "SETTINGS=$(shq "$(data "$KIT_DIR/settings.tsv")")"
-  echo "SENTINELS='us.lgtvsdp.com acrdb.alphonso.tv us.ad.lgsmartad.com aic.nudge.lgtvcommon.com us.rdx2.lgtvsdp.com snu.lge.com'"
+  echo "SENTINELS='us.lgtvsdp.com www.lgappstv.com acrdb.alphonso.tv us.ad.lgsmartad.com aic.nudge.lgtvcommon.com us.rdx2.lgtvsdp.com lgtvonline.lge.com www.ueiwsp.com snu.lge.com'"
   echo "EULA_KEYS=$(shq "$conf_eula_keys")"
   echo "ALLOW_REMOTE=$(shq "${ALLOW_REMOTE:-}")"
   cat "$KIT_DIR/verify-remote.sh"

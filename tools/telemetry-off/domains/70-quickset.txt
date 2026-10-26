@@ -1,0 +1,8 @@
+# UEI QuickSet: cloud lookup of remote-control / device codes for HDMI
+# devices (iconnectivity). other.ueiEnable is switched off too.
+#
+# One hostname per line; '#' starts a comment. See 10-ads.txt for the format.
+# [fw] /usr/share/iconnectivity/UEIQSDB/cmd_zipir.conf
+# [lgws] 15-quickset.txt (same name)
+www.ueiwsp.com
+ueiwsp.com

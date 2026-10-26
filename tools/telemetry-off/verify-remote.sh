@@ -24,26 +24,33 @@ for f in /var/lib/webosbrew/init.d/*; do [ -f "$f" ] && info "init.d: $(basename
 
 echo "== processes"
 exe_table=$(ls -l /proc/[0-9]*/exe 2>/dev/null | awk '{t="";p="";for(i=1;i<=NF;i++){if($i=="->")t=$(i+1);else if($i~/^\/proc\/[0-9]+\/exe$/)p=$i};if(t!=""&&p!=""){sub(/^\/proc\//,"",p);sub(/\/exe$/,"",p);print p, t}}')
-echo "$TARGETS" | while read -r name bin job; do
+echo "$TARGETS" | while read -r name stub bin job svc; do
     [ -n "$name" ] || continue
     if [ "$bin" != "-" ]; then
         pids=$(echo "$exe_table" | awk -v b="$bin" '$2 == b || $2 ~ ("^/var/palm/jail/[^/]+" b "$") { printf "%s ", $1 }')
         if [ -n "$pids" ]; then fail "running: $name ($bin) pid $pids"; else ok "not running: $name"; fi
-        if [ -f "$bin" ]; then
-            if mounted "$bin"; then
-                if head -n 2 "$bin" 2>/dev/null | grep -q 'telemetry-off stub'; then ok "stubbed: $bin"
-                else warn "bind mount over $bin is not ours: $(head -n 2 "$bin" 2>/dev/null | tr '\n' ' ')"; fi
-            else
-                fail "not stubbed: $bin"
-            fi
+    fi
+    if [ "$stub" != "-" ] && [ -f "$bin" ]; then
+        if mounted "$bin"; then
+            if head -n 2 "$bin" 2>/dev/null | grep -q 'telemetry-off stub'; then ok "stubbed: $bin"
+            else warn "bind mount over $bin is not ours: $(head -n 2 "$bin" 2>/dev/null | tr '\n' ' ')"; fi
+        else
+            fail "not stubbed: $bin"
         fi
+    fi
+    if [ "$svc" != "-" ]; then
+        for d in /usr/share/luna-service2/services.d /usr/share/dbus-1/services /usr/share/dbus-1/system-services; do
+            f=$d/$svc.service
+            [ -f "$f" ] || continue
+            if mounted "$f" && [ ! -s "$f" ]; then ok "masked: $f"; else fail "not masked: $f"; fi
+        done
     fi
     if [ "$job" != "-" ]; then
         st=$(initctl status "$job" 2>/dev/null)
         case "$st" in *start/running*) fail "upstart job running: $st" ;; *) ok "job stopped: $job" ;; esac
     fi
 done
-for n in sdx user-context-manager iconnectivity pbs WebAppMgr appinstalld; do
+for n in user-context-manager iconnectivity pbs WebAppMgr appinstalld connmand; do
     p=$(echo "$exe_table" | awk -v n="$n" '$2 ~ ("/" n "$") { printf "%s ", $1 }')
     [ -n "$p" ] && info "network-block-only service running: $n (pid $p)"
 done
@@ -89,6 +96,13 @@ fi
 for f in /var/luna/preferences/crashreportd_disabled /var/luna/preferences/voice_server_sync_disabled; do
     if [ -e "$f" ]; then ok "flag present: $f"; else fail "flag missing: $f"; fi
 done
+
+echo "== clock"
+r=$(luna luna://com.webos.service.systemservice/time/getSystemTime '{}')
+src=$(echo "$r" | sed -n 's/.*"systemTimeSource":"\([^"]*\)".*/\1/p')
+yr=$(date +%Y)
+if [ "$yr" -ge "${MIN_YEAR:-2026}" ] 2>/dev/null; then ok "clock $(date '+%F %T %Z') (source: ${src:-?})"
+else fail "clock looks wrong: $(date '+%F %T %Z') (source: ${src:-?})"; fi
 
 echo "== bind mounts over the rootfs (all, not only ours)"
 awk '$2 ~ /^\/(usr|etc|lib|bin|sbin)\// && $2 !~ /^\/usr\/(share\/fonts|lib\/nyx\/modules)$/ { print "INFO   " $1 " on " $2 }' /proc/mounts

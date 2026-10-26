@@ -3,11 +3,14 @@
 # Shell syntax (sourced by busybox sh). Unset values take these defaults.
 
 # Domain category files (from domains/) to blackhole in /etc/hosts.
-# 95-connectivity-check.txt is left out on purpose: see that file.
-DOMAIN_FILES="10-ads.txt 20-acr.txt 30-home-recommend.txt 40-telemetry.txt 45-sdp.txt 50-thinq.txt 55-voice.txt 60-lg-cdn.txt 80-lgchannels.txt 90-updates.txt"
+# 95-connectivity-check.txt makes webOS report "no internet"; remove it from
+# the list to keep connman's online check.
+DOMAIN_FILES="10-ads.txt 20-acr.txt 30-home-recommend.txt 40-telemetry.txt 45-sdp.txt 50-thinq.txt 55-voice.txt 60-lg-cdn.txt 70-quickset.txt 80-lgchannels.txt 90-updates.txt 95-connectivity-check.txt"
 
-# Target groups from targets.tsv to stub and stop.
-TARGET_GROUPS="acr ads recommend diag voice thinq updates"
+# Target groups from targets.tsv to block. "sdp" is sdx (LG's server
+# client, also the "sdp" clock source); "sm" is the securitymanager no-op
+# (turns off runtime partition verification and the device-ID service).
+TARGET_GROUPS="acr ads sdp recommend diag voice thinq updates sm"
 
 # 1 = re-assert settings.tsv at boot.
 SETTINGS=1

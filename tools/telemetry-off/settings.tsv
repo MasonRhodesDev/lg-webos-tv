@@ -17,3 +17,6 @@ option		livePlus		off
 option		channelplus		off
 option		appUpdateMode		manual
 support		automaticUpdate		off
+option		hbbTvDnt		on
+option		ibbDnt			on
+other		ueiEnable		off

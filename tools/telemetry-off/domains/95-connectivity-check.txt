@@ -1,5 +1,4 @@
-# connman's online check. OFF by default (not in DOMAIN_FILES in the
-# example config): owner decision.
+# connman's online check. ON by default (owner decision 2026-10-26).
 #
 # /etc/connman/main.conf: Ipv4StatusUrl=http://lgtvonline.lge.com/ and
 # TakeDnsIpResolutionAsOnline=true. It is a plain HTTP GET that tells LG the
