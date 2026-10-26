@@ -2,10 +2,12 @@
 
 The LG B9 already boots from a kernel hibernation snapshot every cold start.
 The snapshot partition (p48, "hib") is **not** in lxboot's RSA verification
-table — the bootloader doesn't signature-check it. If we can write our own
-snapshot and sign it with the hardware crypto engine (which root can call), every
-subsequent cold boot resumes into our custom state in **~3–5 seconds** instead
-of running the full 35-second service cascade.
+table — the bootloader doesn't signature-check it. The idea was to write our
+own snapshot so that every cold boot resumes into our trimmed runtime in a few
+seconds. **That is ruled out** (see
+[Custom snapshot: ruled out by design](#custom-snapshot-ruled-out-by-design)).
+LG takes the snapshot before `/var` is mounted, and every service we trim
+starts after the resume, so a custom image would match the stock one.
 
 2026-10-26, read-only investigation.
 
@@ -154,13 +156,18 @@ LG triggers snapshot creation via a special boot mode:
 
 1. Something writes `making` or `snap_making` to `/sys/power/mode`
    (likely triggered by tvservice's `API_DASY_Hibernate` / `DIL_VBE_DISP_OLED_setQuickStartMode`)
-2. The system boots normally, all services start, CRIU checkpoints apps
+2. The system boots only as far as the snapshot components: tvservice, the
+   compositor windows, configd and home (`/etc/snapshot/snap_list`).
+   `/var` is not mounted yet and `bootd` has not started.
 3. `snapshot-boot-manager --make` is called (from `snapshot-boot-manager.conf`,
    which waits on `tvwin-sync and mvpdwin-sync and configd-sync`)
 4. `--make` writes `snap_making` to `/sys/power/mode`
 5. The kernel hibernates to p48, `libsb.so` signs the image
 6. TV reboots
 7. Next boot: kernel finds a valid signed snapshot → resumes
+
+On every boot, resumed or cold, the same job emits `snapshot-resume-done` only
+after `--make`. Everything else in the boot hangs off that event (see below).
 
 ### Prerequisites for `--make`
 
@@ -190,68 +197,81 @@ fullhome, inputcommon, configd, surface-manager, WebAppMgr). The
 `criu_copy_img.conf`: when in `making` mode, clears all existing CRIU images
 before creating new ones.
 
-## Plan: custom snapshot
+## Custom snapshot: ruled out by design
 
-### Goal
+2026-10-26, read-only. The goal was a snapshot with our trimmed runtime
+inside it, so that a cold boot resumes straight into that runtime in under
+5 s. That can't work on this firmware. The obstacle is how LG built the boot,
+not when our code runs.
 
-Cold boot → kernel resumes from snapshot → our custom runtime is already
-running. Target: **<5 s** from power-on to our display.
+### The snapshot is taken before `/var` exists
 
-### Approach
+The upstart order on the TV:
 
-1. **Cold boot normally** (~35 s, stock preamble)
-2. **Apply Path B overlay** (kill telemetry/voice/ads, neutralize
-   securitymanager, launch custom GUI) — see [path-b-late-overlay.md](path-b-late-overlay.md)
-3. **Wait for stability** — all wanted services running, all unwanted dead
-4. **Keep tvservice alive** (snapshot-boot-manager requires it)
-5. **Trigger snapshot creation**: `snapshot-boot-manager --make`
-   — or, if that requires making mode: write `snap_making` to `/sys/power/mode`
-   first, then call `--make`
-6. **Kernel hibernates**, `libsb.so` signs the image → TV reboots
-7. **Every subsequent cold boot resumes into our state** — overlay already
-   applied, unwanted services already dead
+```
+snapshot-boot-sync      start on ls-hubd_public-ready → emits tvwin/mvpdwin/configd-sync
+snapshot-boot-manager   start on tvwin-sync and mvpdwin-sync and configd-sync
+                        → runs --make (making boot only), THEN emits snapshot-resume-done
+mount-readwrite         start on snapshot-resume-done   → mounts /var (p52), cmn_data, db8, apps
+bootd                   start on (stopped mount-readwrite or mount-readwrite-done)
+                        → emits init-boot-done, core-boot-done, minimal-boot-done,
+                          boot-done, rest-boot-done
+devmode                 start on minimal-boot-done → HBC startup.sh → init.d/50-custom-runtime
+```
 
-### What survives a snapshot resume
+So the image contains only what is alive before `mount-readwrite`. That is
+`/`, `/mnt/lg/tvservice` and `/old_root` (`/etc/snapshot/fs_list`), plus the
+tvservice, tvwin, configd and home components (`snap_list`,
+`process_list`). All of these are on the `services_never_stop` list. Every
+service the overlay stops is started by `bootd` after the resume:
 
-The kernel restores the full process tree and virtual memory state. What should
-survive:
+| Starts on | Services |
+|---|---|
+| `minimal-boot-done` | rdxd, contentminer, update, voiceconductor, securitymanager |
+| `boot-done` | uploadd, dpp, aiservice, airplay-adaptor, miracast |
+| `core-boot-done` | certupdmgr_timer, voiceinput, btaudiosrc, bluetoothdrv-mtk → asc |
+| `init-boot-done` | btaudiosnk |
+| `rest-boot-done` | dmr, ssdp-discovery-lgtv |
+| `started rdxd` | crashreportd |
+| `stopped mknod` (early) | remotelogger, the only one alive at snapshot time |
 
-- Bind mounts (kernel VFS state, in the snapshot)
-- Killed processes (they're gone — not in the snapshot)
-- Running processes (restored exactly)
-- File contents in tmpfs (in the snapshot)
-- Open network sockets (restored, but may be stale — TCP connections time out)
+A "trimmed" snapshot would therefore match the stock one. The roughly 35 s
+cascade runs after every resume either way, and so does HBC, which lives on
+`/var`.
 
-What does NOT survive:
+### Our code can't run before the snapshot point
 
-- Hardware state that the drivers re-probe on resume (display may reinit)
-- Timers and clocks (wall time resets to the snapshot moment, then NTP corrects)
-- External device connections (USB, Bluetooth — re-enumerated on resume)
+- `/etc/init` is on the read-only rootfs overlay
+  (`overlay / ro lowerdir=/mnt/bsppart/bsp:/`, with no upper layer). lxboot
+  RSA-verifies both layers. A new `custom-pre-snapshot.conf` or an edited
+  `snapshot-boot-manager.conf` can't persist. A runtime bind mount over a
+  `.conf` disappears at the cold boot that would be the making boot.
+- HBC's hook needs `/var`, which is mounted only after the snapshot.
 
-### Open questions
+### A late snapshot would corrupt `/var`
 
-| Question | Risk | How to answer |
-|----------|------|---------------|
-| Can `--make` run outside making mode? | Medium | Try it; or write `snap_making` to `/sys/power/mode` first |
-| Do bind mounts survive the snapshot? | Low (should — they're VFS state) | Test with a simple bind mount before/after |
-| Does the signed image from our `--make` pass the kernel's resume verification? | Low (stock tool, same libsb) | It either works or falls through to cold boot |
-| Does securitymanager neutralization persist in the snapshot? | Should (bind mount + sleep process are both in the image) | Test |
-| Will the 150 MB partition fit our trimmed state? | Very likely (stock fits; we have fewer processes) | Check `lgsnap_image_size` after trimming |
-| `CONFIG_LG_SNAPSHOT_DENY_STATE=y` — does the kernel refuse in certain states? | Unknown | Needs RE or trial |
-| Does the TV auto-remake the snapshot on firmware updates? | Likely (LG rebuilds it for new kernel versions) | Means we'd need to re-apply after updates |
-| Does the CRIU layer interfere? | Low (separate mechanism) | CRIU images persist on eMMC; may need clearing |
+The other approach is to call `--make` by hand after the overlay has run.
+LG blocks this on purpose: `snapshot-boot-sync.conf` checks `RWMOUNT_FLAG`
+("After rwmounting, do not make snapshot image"). The image is reused on every
+boot. If it held a read-write ext4 mount of p52, each resume would bring back
+stale in-memory filesystem state on top of a disk that kept changing. That
+corrupts `/var`, and `/var` holds HBC and root access.
 
-### Risks
+**Do not run `snapshot-boot-manager --make`, `-x` or `--remove`.** Removing
+the stock image only helps with a making boot, and nothing we control can run
+early enough in one. Making an image after `/var` is mounted is the corruption
+case above.
 
-The key safety property: **a failed snapshot just falls through to a normal cold
-boot.** If the kernel can't verify or restore the image, it discards it and
-boots normally through the full 35-second path. The worst case is losing the
-snapshot and having to create a new one.
+### What still applies
 
-The one destructive operation is `snapshot-boot-manager --make`, which
-hibernates the system and writes to p48. This overwrites the existing stock
-snapshot. To revert: `snapshot-boot-manager -x` removes the snapshot image, or
-a normal stock boot with Quick Start+ enabled remakes it.
+The signing analysis and "Why p48 isn't behind the crypto wall" above are
+still accurate. A snapshot shortens only the stage before `mount-readwrite`,
+and that stage holds nothing we want to remove. The ways left to cut boot time:
+
+- Shorten the post-resume cascade so HBC fires earlier. This is constrained by
+  the same read-only `/etc/init`.
+- [Path C kexec](path-c-kexec.md).
+- Keep the init.d overlay at about 35 s, which works today.
 
 ## Evidence
 
