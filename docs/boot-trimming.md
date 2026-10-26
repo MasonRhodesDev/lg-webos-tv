@@ -59,6 +59,8 @@ Upstart note: `initctl reload-configuration` after masking a job only affects fu
 
 **Not recommended.** See [recovery.md](recovery.md) for the recovery-path research.
 
+Follow-up: [custom-boot.md](custom-boot.md) confirms from the lxboot binary that bsppart and the bootloader env are signature-checked at boot, and covers the remaining late-overlay and kexec paths.
+
 ## Services for monitor-only use
 
 "Drop" means `initctl stop` from a Homebrew `init.d` script after boot. It saves resources, not boot time.

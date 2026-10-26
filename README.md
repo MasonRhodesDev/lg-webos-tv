@@ -27,6 +27,7 @@ ssh -tt root@"$TV_HOST" "luna-send -n 1 luna://com.webos.service.tv.systemproper
 | Background / preloaded apps | [docs/background-apps.md](docs/background-apps.md) | done |
 | Boot chain & upstart jobs | [docs/startup.md](docs/startup.md) | done |
 | Boot trimming & custom firmware | [docs/boot-trimming.md](docs/boot-trimming.md) | done |
+| Custom boot paths (bsppart, env, kexec) | [docs/custom-boot.md](docs/custom-boot.md) | done; early hooks ruled out by lxboot analysis |
 | Partition writes, restore & recovery | [docs/recovery.md](docs/recovery.md) | done |
 | Backup (`scripts/backup.sh`) & restore levels | [docs/backup-and-restore.md](docs/backup-and-restore.md) | backup done; restores untested |
 | GUI catalog (webOS UI Atlas) | built by [tools/ui-atlas/](tools/ui-atlas/README.md) from a backup; published as a private artifact: <private-artifact> | v2; overlays reconstructed, with compositor screenshots beside them (kept out of git) |
