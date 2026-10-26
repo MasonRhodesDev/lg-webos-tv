@@ -340,3 +340,12 @@ Keep logging for the first week online and repeat the cold-boot test after any f
 - **`eulaStatus` persistence.** sdx compares `eula.json` against `eulaInfoNetwork` (fw: `_compare`, "eula.json is NOT Equal"), and the stock UI writes `eulaInfoNetwork.eulaList` alongside `eulaStatus`. The kit writes only `eulaStatus`. It re-asserts every boot, so it self-heals, but after the first reboot re-read `eulaStatus` to confirm sdx doesn't put the flags back.
 - **`eulaStatus` is restored on cold boot** (see results). Next: find the writer (watch `eulaStatus` with a subscribed `getSystemSettings` across a boot, or read sdx's `EulaConfigMgr::updateEulaInfoHandle` in REA), then decide whether to edit sdx's `eula.json` status list, which is riskier, or accept the ~35 s window.
 - `uninstall.sh` itself is not run yet; its revert step is the tested `revert`.
+
+## 2026-10-26: user apps removed
+
+At the owner's request, every store-installed app was uninstalled with `luna://com.webos.appInstallService/remove`: Alexa, Netflix and YouTube among them. Homebrew Channel was kept, because removing it removes root and SSH. A tar of `/media/cryptofs/apps` taken first is in the private backup (`user-apps-backup/`), and the full p53 image from 2026-10-25 is there too.
+
+- **Why:** the Alexa app was the "Err 107" popup shown for about 7 s over HDMI on every cold boot. `amazon.alexa.view.adapter` launches it at about 28 s, before this kit's hook runs at about 35 s.
+- **Gotcha:** removal hangs at `state: "removing RO"` while the kit's securitymanager stub is mounted. `appinstalld` calls `com.webos.service.sm/license/apps/uninstallRights`. Fix: `umount /usr/sbin/securitymanager; initctl start securitymanager`, let the removals finish, then re-run the hook (`sh /var/lib/webosbrew/init.d/80-telemetry-off apply`) to put the stub back. Any future install or uninstall needs the same.
+- **Side effect:** with Netflix and YouTube gone, the preload manager moves on to the next candidates (browser, livetv), and the browser surfaced over HDMI once. `webos-preload-manager` was stopped live. A persistent fix (`maxPreloadApp: 0` override or a boot-time stop) belongs to `50-custom-runtime`.
+- After this, `verify.sh` gave 0 FAIL and 4 WARN (stale hosts copies in the remaining jails).
