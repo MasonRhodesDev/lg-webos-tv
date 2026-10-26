@@ -135,9 +135,9 @@ lxboot verifies bsppart at boot (see above). A modified bsppart squashfs would f
 3. `kexec -e` replaces running kernel
 4. Custom init starts fresh
 
-**Prerequisites confirmed**: `CONFIG_KEXEC=y` in the running kernel.
+**Prerequisites confirmed** (2026-10-26, read-only): `CONFIG_KEXEC=y` and `kexec_load_disabled=0` in the running kernel; `/usr/sbin/kexec` is already an aarch64 kexec-tools 2.0.12 with arm64 support (LG ships it for kdump); `/sys/firmware/fdt` exposes the device tree (SoC `LG1314`, `lge,lg1k`); LG's crash kernel `/boot/kdImage-1.0.15-169` is a raw arm64 `Image`. Details, corrections and the milestone plan: [path-c-kexec.md](path-c-kexec.md).
 
-**Limitation**: ~35s stock boot + kexec transition. Needs M19A1 kernel source from LG GPL release and driver work for display pipeline, watchdog (micom), audio. No existing M19 kexec work; both community projects (lg-webos-kexec, LG-TV-OSS) target different SoCs (Realtek RTD2875 and LG1213 "O22" respectively). LG-TV-OSS solved the micom watchdog on O22 with a kernel patch feeding cmd 0xC0 via hardware mailbox — M16P3 will have different addresses. throwaway96/webos-kernel-drivers lists M16P3 as supported, confirming GPL source exists for this platform.
+**Limitation**: ~35s stock boot + kexec transition. Needs the `webOS 4.5 IMP 4.0` GPL drop (listed for the B9's non-US model numbers, not for OLED55B9PUA) and driver work for the display pipeline, the micom host-alive signal, and audio. No existing LG1314/M16P3 kexec work; the community projects target other SoCs: [ggfuchsi-oss/lg-webos-kexec](https://github.com/ggfuchsi-oss/lg-webos-kexec) (Realtek RTD2875, reaches userspace, still watchdog-reset) and [Pokropow/LG-TV-OSS](https://github.com/Pokropow/LG-TV-OSS) (LG1213 "O22", boots Alpine; micom fed via a kernel mailbox at `0xF0004000`, cmd `0xC0`). That mailbox does not exist on LG1314 — here the heartbeat is presumably sent by userspace `tvservice` (over I2C or an LG ioctl) to an external ABOV micom, and whether it resets the SoC when it stops is untested.
 
 ### Path D: Kernel command-line injection via NVM/bootloader env — RULED OUT
 
