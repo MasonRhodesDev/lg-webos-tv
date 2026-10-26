@@ -28,6 +28,7 @@ ssh -tt root@"$TV_HOST" "luna-send -n 1 luna://com.webos.service.tv.systemproper
 | Boot chain & upstart jobs | [docs/startup.md](docs/startup.md) | done |
 | Boot trimming & custom firmware | [docs/boot-trimming.md](docs/boot-trimming.md) | done |
 | Custom boot paths (bsppart, env, kexec) | [docs/custom-boot.md](docs/custom-boot.md) | done; early hooks ruled out by lxboot analysis |
+| Community projects | [docs/community.md](docs/community.md) | survey 2026-10-26 |
 | Path C: kexec a custom kernel after the stock boot | [docs/path-c-kexec.md](docs/path-c-kexec.md) | researched read-only; stock kexec-tools, DTB and kdump kernel found; nothing staged or executed yet |
 | Snapshot boot — fast resume into a custom runtime | [docs/snapshot-boot.md](docs/snapshot-boot.md) | researched read-only; p48 has a valid signed swsusp image; snapshot-boot-manager can sign from root; <5 s target |
 | Partition writes, restore & recovery | [docs/recovery.md](docs/recovery.md) | done |
