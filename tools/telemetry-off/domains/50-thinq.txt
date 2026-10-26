@@ -1,0 +1,77 @@
+# ThinQ / IoT / ThinQ AI. Router parents: lgtviot.com lgthinq.com lgeapi.com
+#
+# One hostname per line; '#' starts a comment. telemetry-off.sh maps every
+# name to 0.0.0.0 and :: in a bind-mounted /etc/hosts. Hosts files have no
+# wildcards, so the router-side block (docs/telemetry.md, "Network-side
+# verification") should use the parent domains listed in each file's notes.
+#
+# Sources:
+#   [fw]   found on webOS TV 4.10.0 / 05.40.45 (strings in the rootfs, or the
+#          TV's own caches); evidence in docs/telemetry.md
+#   [lgws] from Life's Good Without Spying (MIT, (c) 2026 Lewis Wood),
+#          https://github.com/lewisdoesstuff/lifesgoodwithoutspying
+#          app/init/blocklist.d/50-thinq.txt at commit 8c42711
+
+# [fw] /usr/sbin/iot-client
+common.lgthinq.com
+lss.lgthinq.com
+kr.lgeapi.com
+us.lgeapi.com
+# [fw] /usr/sbin/lg.thinqai.adapter
+he-kr-qa-ai.lgthinq.com
+# [fw] server_addr_version.conf ("ric" type iot) and the homeconnect app
+api.lgtviot.com
+aic.api.lgtviot.com
+
+# [lgws] 50-thinq.txt
+lgtviot.com
+api.lgtviot.com
+ocp.lgtviot.com
+eic-ocp.lgtviot.com
+commonpush.lgtviot.com
+push.lgtviot.com
+sports.lgtviot.com
+aic.sports.lgtviot.com
+buddy.lgtviot.com
+aic.api.lgtviot.com
+eic.api.lgtviot.com
+kic.api.lgtviot.com
+ruc.api.lgtviot.com
+qt2-kic.lgtviot.com
+lgthinq.com
+common.lgthinq.com
+lss.lgthinq.com
+noti.lgthinq.com
+connect-client.lgthinq.com
+eic-connect-client.lgthinq.com
+prd-api.lgthinq.com
+eic-common.lgthinq.com
+eic-iotservice.lgthinq.com
+eic-service.lgthinq.com
+aic-common.lgthinq.com
+aic-connect-client.lgthinq.com
+aic-iotservice.lgthinq.com
+aic-ocp.lgtviot.com
+aic-op-lss.lgthinq.com
+aic-service.lgthinq.com
+aic.commonpush.lgtviot.com
+aic.push.lgtviot.com
+eic-op-lss.lgthinq.com
+eic.commonpush.lgtviot.com
+eic.push.lgtviot.com
+eic.sports.lgtviot.com
+it-service.lgthinq.com
+kic-common.lgthinq.com
+kic-connect-client.lgthinq.com
+kic-iotservice.lgthinq.com
+kic-ocp.lgtviot.com
+kic-op-lss.lgthinq.com
+kic-service.lgthinq.com
+kic.buddy.lgtviot.com
+kic.commonpush.lgtviot.com
+kic.push.lgtviot.com
+kic.sports.lgtviot.com
+ruc-op-lss.lgthinq.com
+ruc.commonpush.lgtviot.com
+ruc.push.lgtviot.com
+ruc.sports.lgtviot.com

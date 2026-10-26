@@ -1,0 +1,8 @@
+# connman's online check. OFF by default (not in DOMAIN_FILES in the
+# example config): owner decision.
+#
+# /etc/connman/main.conf: Ipv4StatusUrl=http://lgtvonline.lge.com/ and
+# TakeDnsIpResolutionAsOnline=true. It is a plain HTTP GET that tells LG the
+# TV's public IP, but it is also how webOS decides it is "online". Blocking
+# it makes the TV report "no internet", and some apps refuse to start.
+lgtvonline.lge.com

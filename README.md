@@ -31,6 +31,7 @@ ssh -tt root@"$TV_HOST" "luna-send -n 1 luna://com.webos.service.tv.systemproper
 | Community projects | [docs/community.md](docs/community.md) | survey 2026-10-26 |
 | Path C: kexec a custom kernel after the stock boot | [docs/path-c-kexec.md](docs/path-c-kexec.md) | researched read-only; stock kexec-tools, DTB and kdump kernel found; nothing staged or executed yet |
 | Snapshot boot — fast resume into a custom runtime | [docs/snapshot-boot.md](docs/snapshot-boot.md) | ruled out by design: the snapshot is taken before `/var` mounts, so trimmed services start after resume regardless; `/etc/init` is read-only and a late `--make` would corrupt `/var` |
+| Telemetry off (inventory, kit, router plan) | [docs/telemetry.md](docs/telemetry.md), kit in [tools/telemetry-off/](tools/telemetry-off/README.md) | Phase 1: designed and dry-run; nothing applied |
 | Partition writes, restore & recovery | [docs/recovery.md](docs/recovery.md) | done |
 | Backup (`scripts/backup.sh`) & restore levels | [docs/backup-and-restore.md](docs/backup-and-restore.md) | backup done; restores untested |
 | GUI catalog (webOS UI Atlas) | built by [tools/ui-atlas/](tools/ui-atlas/README.md) from a backup; published as a private artifact: <private-artifact> | v2; overlays reconstructed, with compositor screenshots beside them (kept out of git) |

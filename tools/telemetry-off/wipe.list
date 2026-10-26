@@ -1,0 +1,38 @@
+# Buffers telemetry-off empties at boot when WIPE=1, after the daemons that
+# write them are stubbed and stopped. A directory has its contents removed
+# (the directory stays); a file is deleted. Missing paths and read-only
+# mounts (HBC's tmpfs over the rdxd/uploadd spools) are skipped.
+# Evidence (the binary that names each path): docs/telemetry.md.
+#
+# ACR / ads / shopping
+/mnt/lg/cmn_data/admanager/cache
+/mnt/lg/cmn_data/admanager/cookie
+/mnt/lg/cmn_data/admanager/tmpData
+/mnt/lg/cmn_data/livepick/custom_db_save.db
+/tmp/livepick
+/tmp/livepick_nudge
+/tmp/scd
+/tmp/acr
+/tmp/acr.xml
+# usage / diagnostics
+/mnt/lg/cmn_data/ucm/app_upload_time.txt
+/mnt/lg/cmn_data/ucm/channel_upload_time.txt
+/mnt/lg/cmn_data/ucm/stb_upload_time.txt
+/var/log/uploadd
+/var/spool/uploadd/pending
+/var/spool/uploadd/uploaded
+/tmp/uploadd
+/var/spool/crashreportd/pending
+/tmp/crashreportd
+/var/log/reports/librdx
+/tmp/rdxd
+/var/spool/rdxd
+/tmp/nudgeReport.txt
+/tmp/remotediag
+# voice / assistant
+/tmp/voiceinput_debug.pcm
+/tmp/nlpmanager
+/tmp/performer
+/tmp/thinqai
+/tmp/avs
+/tmp/alexa_sdk.log

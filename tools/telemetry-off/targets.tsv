@@ -1,0 +1,37 @@
+# telemetry-off targets. Verified against webOS TV 4.10.0 / 05.40.45.
+# Tab-separated: name  group  binary  upstart-job
+#   binary       path to stub with a bind mount ("-" = stop only, no stub).
+#                Running copies inside an app jail are killed, not stubbed.
+#   upstart-job  job to `initctl stop` ("-" = none). A job is always stopped
+#                before its binary's running processes are killed, so a
+#                respawn job never loops on the stub.
+# Groups are enabled by GROUPS in telemetry-off.conf.
+# Launch mode and evidence for every line: docs/telemetry.md.
+#
+# name			group		binary						upstart-job
+acr2			acr		/usr/sbin/acr2					-
+livepick		acr		/usr/sbin/livepick				livepick
+livepick-app		acr		/usr/bin/com.webos.app.livepick			-
+scd-service		acr		/usr/sbin/scd-service				-
+admanager		ads		/usr/sbin/admanager				-
+nudge			recommend	/usr/sbin/nudge					nudge
+contentminer		recommend	/usr/sbin/contentminer				contentminer
+prs			recommend	/usr/sbin/prs					-
+rdxd			diag		/usr/sbin/rdxd					rdxd
+uploadd			diag		/usr/sbin/uploadd				uploadd
+crashreportd		diag		/usr/sbin/crashreportd				crashreportd
+remotelogger		diag		/usr/sbin/remotelogger				remotelogger
+remotediag		diag		/usr/sbin/remotediag				-
+bugreport		diag		/usr/palm/services/com.palm.service.bugreport/run-bugreport-service	-
+voiceinput		voice		/usr/sbin/voiceinput				voiceinput
+voiceconductor		voice		/usr/sbin/voiceconductor			voiceconductor
+nlpmanager		voice		/usr/sbin/nlpmanager				-
+nlpadapter		voice		/usr/sbin/nlpadapter				-
+performer		voice		/usr/sbin/performer				-
+aiservice		voice		/usr/bin/aiservice				aiservice
+amazon-alexa-adapter	voice		/usr/sbin/amazon-alexa-adapter			amazon-alexa-adapter
+lg.thinqai.adapter	thinq		/usr/sbin/lg.thinqai.adapter			-
+iot-client		thinq		/usr/sbin/iot-client				iot-client
+ocf-onboarding		thinq		/usr/sbin/ocf-onboarding			-
+update			updates		-						update
+certupdmgr_timer	updates		-						certupdmgr_timer

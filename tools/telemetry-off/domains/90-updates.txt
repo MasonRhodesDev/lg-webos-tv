@@ -1,0 +1,22 @@
+# Firmware updates. HBC already blocks snu, su, su-ssl, su-dev when webosbrew_block_updates is set
+#
+# One hostname per line; '#' starts a comment. telemetry-off.sh maps every
+# name to 0.0.0.0 and :: in a bind-mounted /etc/hosts. Hosts files have no
+# wildcards, so the router-side block (docs/telemetry.md, "Network-side
+# verification") should use the parent domains listed in each file's notes.
+#
+# Sources:
+#   [fw]   found on webOS TV 4.10.0 / 05.40.45 (strings in the rootfs, or the
+#          TV's own caches); evidence in docs/telemetry.md
+#   [lgws] from Life's Good Without Spying (MIT, (c) 2026 Lewis Wood),
+#          https://github.com/lewisdoesstuff/lifesgoodwithoutspying
+#          app/init/blocklist.d/90-updates.txt at commit 8c42711
+
+# [fw] /usr/sbin/update: nsu, snu, snu-dev, su, su-ssl
+# [lgws] 90-updates.txt (same names plus su-dev)
+snu.lge.com
+su.lge.com
+su-ssl.lge.com
+su-dev.lge.com
+nsu.lge.com
+snu-dev.lge.com

@@ -1,0 +1,121 @@
+# LG Service Delivery Platform (SDP). Router parents: lgtvsdp.com nextlgsdp.com tvsdp.lgeapi.com ibs.lgappstv.com ibsstat.lgappstv.com
+#
+# One hostname per line; '#' starts a comment. telemetry-off.sh maps every
+# name to 0.0.0.0 and :: in a bind-mounted /etc/hosts. Hosts files have no
+# wildcards, so the router-side block (docs/telemetry.md, "Network-side
+# verification") should use the parent domains listed in each file's notes.
+#
+# Sources:
+#   [fw]   found on webOS TV 4.10.0 / 05.40.45 (strings in the rootfs, or the
+#          TV's own caches); evidence in docs/telemetry.md
+#   [lgws] from Life's Good Without Spying (MIT, (c) 2026 Lewis Wood),
+#          https://github.com/lewisdoesstuff/lifesgoodwithoutspying
+#          app/init/blocklist.d/45-sdp.txt at commit 8c42711
+#
+# sdx (the on-demand com.webos.service.sdx) is the TV's single SDP client:
+# device auth, EULA sync, the app store, ACR config (sdp_check_acr), and the
+# rdx upload URL. webOS 4.x uses lgtvsdp.com; webOS 5+ uses nextlgsdp.com.
+#
+# Breaks: LG Content Store, app install/update, LG account, EULA/notice
+# sync, LG Channels guide. LGWS notes webOS 5+ sets the clock from SDP's
+# X-Server-Time; this firmware ships AllowNTPTime=false, so the clock is
+# kept by the standby micom RTC while the TV stays plugged in.
+
+# [fw] server_addr_version.conf ("default" type, country prefix us.)
+lgtvsdp.com
+us.lgtvsdp.com
+smartshare.lgtvsdp.com
+us.smartshare.lgtvsdp.com
+ibs.lgappstv.com
+us.ibs.lgappstv.com
+ibsstat.lgappstv.com
+us.ibsstat.lgappstv.com
+# [fw] the TV's WAM cache (us.lgtvsdp.com, qt2-kr.tvsdp.lgeapi.com) and the
+# homeconnect / amazon-echo / google-home web apps (gb., kr.)
+gb.lgtvsdp.com
+kr.lgtvsdp.com
+qt2-kr.lgtvsdp.com
+us.tvsdp.lgeapi.com
+qt2-kr.tvsdp.lgeapi.com
+# [lgws] 30-dashboard.txt (SDP-tree tracking/config)
+tracking.lgtvsdp.com
+config.lgtvsdp.com
+
+# [lgws] 45-sdp.txt (webOS 5+ SDP; not referenced by this firmware, kept for
+# coverage after a firmware update)
+rdx2.nextlgsdp.com
+pt.rdx2.nextlgsdp.com
+ibs.nextlgsdp.com
+ibsstat.nextlgsdp.com
+us.ibs.nextlgsdp.com
+gb.nextlgsdp.com
+de.nextlgsdp.com
+ca.nextlgsdp.com
+ae.nextlgsdp.com
+ar.nextlgsdp.com
+at.nextlgsdp.com
+au.nextlgsdp.com
+bd.nextlgsdp.com
+be.nextlgsdp.com
+bg.nextlgsdp.com
+br.nextlgsdp.com
+by.nextlgsdp.com
+ch.nextlgsdp.com
+cl.nextlgsdp.com
+cn.nextlgsdp.com
+co.nextlgsdp.com
+cy.nextlgsdp.com
+cz.nextlgsdp.com
+dk.nextlgsdp.com
+ee.nextlgsdp.com
+eg.nextlgsdp.com
+es.nextlgsdp.com
+fi.nextlgsdp.com
+fr.nextlgsdp.com
+gr.nextlgsdp.com
+hk.nextlgsdp.com
+hr.nextlgsdp.com
+hu.nextlgsdp.com
+id.nextlgsdp.com
+ie.nextlgsdp.com
+il.nextlgsdp.com
+in.nextlgsdp.com
+is.nextlgsdp.com
+it.nextlgsdp.com
+jp.nextlgsdp.com
+ke.nextlgsdp.com
+kr.nextlgsdp.com
+kw.nextlgsdp.com
+kz.nextlgsdp.com
+lk.nextlgsdp.com
+lt.nextlgsdp.com
+lu.nextlgsdp.com
+lv.nextlgsdp.com
+mt.nextlgsdp.com
+mx.nextlgsdp.com
+my.nextlgsdp.com
+ng.nextlgsdp.com
+nl.nextlgsdp.com
+no.nextlgsdp.com
+nz.nextlgsdp.com
+pe.nextlgsdp.com
+ph.nextlgsdp.com
+pk.nextlgsdp.com
+pl.nextlgsdp.com
+pt.nextlgsdp.com
+qa.nextlgsdp.com
+ro.nextlgsdp.com
+rs.nextlgsdp.com
+ru.nextlgsdp.com
+sa.nextlgsdp.com
+se.nextlgsdp.com
+sg.nextlgsdp.com
+si.nextlgsdp.com
+sk.nextlgsdp.com
+th.nextlgsdp.com
+tr.nextlgsdp.com
+tw.nextlgsdp.com
+ua.nextlgsdp.com
+us.nextlgsdp.com
+vn.nextlgsdp.com
+za.nextlgsdp.com

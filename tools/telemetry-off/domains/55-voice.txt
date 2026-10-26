@@ -1,0 +1,17 @@
+# Voice / assistant back ends reached by LG's own voice stack.
+#
+# One hostname per line; '#' starts a comment. See 10-ads.txt for the format.
+# All entries are [fw]: found on webOS TV 4.10.0 / 05.40.45.
+#
+# Deliberately NOT listed: api.amazon.com and oauth2.googleapis.com. Prime
+# Video and YouTube sign-in use them too.
+
+# [fw] server_addr_version.conf: voice_proxy_secure (ric type)
+netflixvoice.lgtvcommon.com
+aic.netflixvoice.lgtvcommon.com
+# [fw] /usr/sbin/nlpadapter (Google Assistant, jailed)
+embeddedassistant.googleapis.com
+# [fw] /usr/share/amazon-alexa-adapter/AlexaClientSDKConfig.json and the
+# adapter binary
+alexa.na.gateway.devices.a2z.com
+d2na8397m465mh.cloudfront.net

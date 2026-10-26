@@ -1,0 +1,38 @@
+# ACR (automatic content recognition): Alphonso / LG Ad Solutions, TheTake. Router parents: alphonso.tv lgads.tv thetake.com
+#
+# One hostname per line; '#' starts a comment. telemetry-off.sh maps every
+# name to 0.0.0.0 and :: in a bind-mounted /etc/hosts. Hosts files have no
+# wildcards, so the router-side block (docs/telemetry.md, "Network-side
+# verification") should use the parent domains listed in each file's notes.
+#
+# Sources:
+#   [fw]   found on webOS TV 4.10.0 / 05.40.45 (strings in the rootfs, or the
+#          TV's own caches); evidence in docs/telemetry.md
+#   [lgws] from Life's Good Without Spying (MIT, (c) 2026 Lewis Wood),
+#          https://github.com/lewisdoesstuff/lifesgoodwithoutspying
+#          app/init/blocklist.d/20-acr.txt at commit 8c42711
+
+# [fw] /usr/lib/libas.so.3.0.86 (Alphonso SDK loaded by acr2 via
+# libalphonsosolution.so): acrdb, eulacheck, prov-lg
+acrdb.alphonso.tv
+eulacheck.alphonso.tv
+prov-lg.alphonso.tv
+# [fw] admanager cache on this TV: Alphonso campaign creatives
+cdn-aas-campaigns.alphonso.tv
+# [fw] livepick and iconnectivity strings: api.thetake.com;
+# /usr/share/com.webos.service.livepick/*.json: img.thetake.com
+api.thetake.com
+img.thetake.com
+thetake.com
+
+# [lgws] 20-acr.txt
+alphonso.tv
+acrdb.alphonso.tv
+ads.alphonso.tv
+api.alphonso.tv
+bl-server.alphonso.tv
+clockskew.alphonso.tv
+prov-lg.alphonso.tv
+ad-inserter.alphonso.tv
+config-overlay-ads.alphonso.tv
+lgads.tv

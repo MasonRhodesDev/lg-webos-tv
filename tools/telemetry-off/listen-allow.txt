@@ -1,0 +1,27 @@
+# Listening sockets verify.sh accepts. proto:port, then a note.
+# Everything here was listening on the stock firmware (docs/startup.md);
+# anything else is reported. Ports are the TV's, not the peer's.
+tcp:22		dropbear (Homebrew Channel SSH)
+tcp:3000	SSAP second screen (xinetd -> nsl)
+tcp:3001	SSAP second screen, TLS (xinetd -> nsl)
+tcp:1773	stock, unmapped (docs/startup.md)
+tcp:1810	stock, unmapped
+tcp:1859	stock, unmapped
+tcp:1906	stock, unmapped
+tcp:1929	stock, unmapped
+tcp:2007	stock, unmapped
+tcp:7000	AirPlay
+tcp:9998	WebAppMgr remote debugging
+tcp:11111	stock, unmapped
+tcp:18181	stock, unmapped
+tcp:36866	DIAL (xinetd)
+udp:1900	SSDP
+udp:5353	mDNS
+udp:53		connmand DNS proxy (loopback)
+# Process-based entries: any listener owned by this process is accepted
+# (these daemons pick ports per boot). LAN services, not telemetry.
+proc:upnpd		DLNA/UPnP (ports vary per boot)
+proc:mdnsd		mDNS responder (ephemeral UDP)
+proc:avahi-daemon	mDNS (ephemeral UDP)
+proc:dropbear		SSH
+proc:nsl		SSAP

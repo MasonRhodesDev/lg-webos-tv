@@ -1,0 +1,26 @@
+# telemetry-off configuration. install.sh copies this to
+# /var/lib/telemetry-off/telemetry-off.conf on the TV if none exists.
+# Shell syntax (sourced by busybox sh). Unset values take these defaults.
+
+# Domain category files (from domains/) to blackhole in /etc/hosts.
+# 95-connectivity-check.txt is left out on purpose: see that file.
+DOMAIN_FILES="10-ads.txt 20-acr.txt 30-home-recommend.txt 40-telemetry.txt 45-sdp.txt 50-thinq.txt 55-voice.txt 60-lg-cdn.txt 80-lgchannels.txt 90-updates.txt"
+
+# Target groups from targets.tsv to stub and stop.
+GROUPS="acr ads recommend diag voice thinq updates"
+
+# 1 = re-assert settings.tsv at boot.
+SETTINGS=1
+
+# 1 = withdraw the data-specific user agreements listed in EULA_KEYS
+# (eulaStatus flags true -> false). generalTermsAllowed and networkAllowed
+# are never touched: withdrawing them makes webOS re-run first-use setup.
+EULA=1
+EULA_KEYS="acrOnAllowed acrAdAllowed customAdAllowed additionalDataAllowed voiceAllowed voice2Allowed takeOnAllowed chpAllowed"
+
+# 1 = create LG's own off-switch flag files (crashreportd_disabled,
+# voice_server_sync_disabled in /var/luna/preferences).
+FLAGS=1
+
+# 1 = empty the buffers in wipe.list at boot.
+WIPE=1

@@ -1,0 +1,167 @@
+# Home / recommendations / nudges / beacons (lgtvcommon.com tree). Router parents: lgtvcommon.com wiselg.com lgrecommends.lgappstv.com
+#
+# One hostname per line; '#' starts a comment. telemetry-off.sh maps every
+# name to 0.0.0.0 and :: in a bind-mounted /etc/hosts. Hosts files have no
+# wildcards, so the router-side block (docs/telemetry.md, "Network-side
+# verification") should use the parent domains listed in each file's notes.
+#
+# Sources:
+#   [fw]   found on webOS TV 4.10.0 / 05.40.45 (strings in the rootfs, or the
+#          TV's own caches); evidence in docs/telemetry.md
+#   [lgws] from Life's Good Without Spying (MIT, (c) 2026 Lewis Wood),
+#          https://github.com/lewisdoesstuff/lifesgoodwithoutspying
+#          app/init/blocklist.d/30-dashboard.txt and 35-wiselg.txt at commit 8c42711
+
+# [fw] /usr/palm/sdx/server_addr_version.conf, domainType "ric". sdx prefixes
+# the RIC code; this TV is in the Americas RIC, so "aic." (evidence: the
+# TV's WAM cache holds aic.cdplauncher.lgtvcommon.com).
+wau.lgtvcommon.com
+aic.wau.lgtvcommon.com
+cpv.lgtvcommon.com
+aic.cpv.lgtvcommon.com
+cdpsvc.lgtvcommon.com
+aic.cdpsvc.lgtvcommon.com
+cdpbeacon.lgtvcommon.com
+nudge.lgtvcommon.com
+homeprv.lgtvcommon.com
+service.lgtvcommon.com
+recommend.lgtvcommon.com
+# [fw] upnpd strings; fullhome QML mock data
+qt2-kic.service.lgtvcommon.com
+qt2-kic.imagesvc.lgtvcommon.com
+imagesvc.lgtvcommon.com
+aic.imagesvc.lgtvcommon.com
+# [fw] Content Store / membership / premium web apps; WAM cache
+lgrecommends.lgappstv.com
+us.lgrecommends.lgappstv.com
+redirect.lgsmartplatform.com
+
+# [lgws] 30-dashboard.txt
+recommend.lgtvcommon.com
+service.lgtvcommon.com
+homeprv.lgtvcommon.com
+nudge.lgtvcommon.com
+rdl.lgtvcommon.com
+cdplauncher.lgtvcommon.com
+cdpbeacon.lgtvcommon.com
+cdpsvc.lgtvcommon.com
+rdx2.lgtvsdp.com
+us.rdx2.lgtvsdp.com
+thetake.com
+aic.cdpbeacon.lgtvcommon.com
+eic.cdpbeacon.lgtvcommon.com
+kic.cdpbeacon.lgtvcommon.com
+ruc.cdpbeacon.lgtvcommon.com
+aic.cdpbeacon2.lgtvcommon.com
+eic.cdpbeacon2.lgtvcommon.com
+kic.cdpbeacon2.lgtvcommon.com
+aic.cdplauncher.lgtvcommon.com
+eic.cdplauncher.lgtvcommon.com
+kic.cdplauncher.lgtvcommon.com
+aic.recommend.lgtvcommon.com
+eic.recommend.lgtvcommon.com
+kic.recommend.lgtvcommon.com
+ruc.recommend.lgtvcommon.com
+aic.nudge.lgtvcommon.com
+eic.nudge.lgtvcommon.com
+aic.homeprv.lgtvcommon.com
+eic.homeprv.lgtvcommon.com
+aic.rdl.lgtvcommon.com
+eic.rdl.lgtvcommon.com
+aic.service.lgtvcommon.com
+eic.service.lgtvcommon.com
+aic.wiseconfig.lgtvcommon.com
+eic.wiseconfig.lgtvcommon.com
+wiseconfig.lgtvcommon.com
+pnv.lgtvcommon.com
+wiseresource.lgtvcommon.com
+qcardservice.lgtvcommon.com
+tracking.lgtvsdp.com
+config.lgtvsdp.com
+lgrecommends.lgappstv.com
+gb.lgrecommends.lgappstv.com
+ae.lgrecommends.lgappstv.com
+ar.lgrecommends.lgappstv.com
+at.lgrecommends.lgappstv.com
+au.lgrecommends.lgappstv.com
+bd.lgrecommends.lgappstv.com
+be.lgrecommends.lgappstv.com
+bg.lgrecommends.lgappstv.com
+br.lgrecommends.lgappstv.com
+by.lgrecommends.lgappstv.com
+ca.lgrecommends.lgappstv.com
+ch.lgrecommends.lgappstv.com
+cl.lgrecommends.lgappstv.com
+cn.lgrecommends.lgappstv.com
+co.lgrecommends.lgappstv.com
+cy.lgrecommends.lgappstv.com
+cz.lgrecommends.lgappstv.com
+de.lgrecommends.lgappstv.com
+dk.lgrecommends.lgappstv.com
+ee.lgrecommends.lgappstv.com
+eg.lgrecommends.lgappstv.com
+es.lgrecommends.lgappstv.com
+fi.lgrecommends.lgappstv.com
+fr.lgrecommends.lgappstv.com
+gr.lgrecommends.lgappstv.com
+hk.lgrecommends.lgappstv.com
+hr.lgrecommends.lgappstv.com
+hu.lgrecommends.lgappstv.com
+id.lgrecommends.lgappstv.com
+ie.lgrecommends.lgappstv.com
+il.lgrecommends.lgappstv.com
+in.lgrecommends.lgappstv.com
+is.lgrecommends.lgappstv.com
+it.lgrecommends.lgappstv.com
+jp.lgrecommends.lgappstv.com
+ke.lgrecommends.lgappstv.com
+kr.lgrecommends.lgappstv.com
+kw.lgrecommends.lgappstv.com
+kz.lgrecommends.lgappstv.com
+lk.lgrecommends.lgappstv.com
+lt.lgrecommends.lgappstv.com
+lu.lgrecommends.lgappstv.com
+lv.lgrecommends.lgappstv.com
+mt.lgrecommends.lgappstv.com
+mx.lgrecommends.lgappstv.com
+my.lgrecommends.lgappstv.com
+ng.lgrecommends.lgappstv.com
+nl.lgrecommends.lgappstv.com
+no.lgrecommends.lgappstv.com
+nz.lgrecommends.lgappstv.com
+pe.lgrecommends.lgappstv.com
+ph.lgrecommends.lgappstv.com
+pk.lgrecommends.lgappstv.com
+pl.lgrecommends.lgappstv.com
+pt.lgrecommends.lgappstv.com
+qa.lgrecommends.lgappstv.com
+ro.lgrecommends.lgappstv.com
+rs.lgrecommends.lgappstv.com
+ru.lgrecommends.lgappstv.com
+sa.lgrecommends.lgappstv.com
+se.lgrecommends.lgappstv.com
+sg.lgrecommends.lgappstv.com
+si.lgrecommends.lgappstv.com
+sk.lgrecommends.lgappstv.com
+th.lgrecommends.lgappstv.com
+tr.lgrecommends.lgappstv.com
+tw.lgrecommends.lgappstv.com
+ua.lgrecommends.lgappstv.com
+us.lgrecommends.lgappstv.com
+vn.lgrecommends.lgappstv.com
+za.lgrecommends.lgappstv.com
+kic.homeprv.lgtvcommon.com
+kic.nudge.lgtvcommon.com
+kic.rdl.lgtvcommon.com
+kic.service.lgtvcommon.com
+kic.wiseconfig.lgtvcommon.com
+ruc.homeprv.lgtvcommon.com
+ruc.nudge.lgtvcommon.com
+ruc.service.lgtvcommon.com
+ruc.wiseconfig.lgtvcommon.com
+
+# [lgws] 35-wiselg.txt (off by default in LGWS; on here: app-session uploads)
+aic.tv.wiselg.com
+eic.tv.wiselg.com
+kic.tv.wiselg.com
+ruc.tv.wiselg.com

@@ -1,0 +1,19 @@
+# Settings telemetry-off re-asserts at boot when SETTINGS=1.
+# Tab-separated: category  key  value. Written through
+# luna://com.webos.settingsservice/setSystemSettings, only when the current
+# value differs; the old value is saved so `revert` can put it back.
+# Valid values checked against /etc/palm/description.json on 05.40.45.
+#
+# category	key			value
+general		adCookie		off
+general		customizedAd		off
+general		homePromotion		off
+general		aiNudge			off
+general		screenSaverAd		off
+general		lmt			on
+option		watchedListCollection	off
+option		webOSPromotionVideo	off
+option		livePlus		off
+option		channelplus		off
+option		appUpdateMode		manual
+support		automaticUpdate		off

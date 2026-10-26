@@ -1,0 +1,22 @@
+# LG file-transfer CDN (gfts/ngfts): channel logos, EPG and home artwork,
+# app icons, and ad creatives (the admanager cache holds an fts.lge.com
+# asset). Pull-only, but every request carries device query parameters.
+#
+# One hostname per line; '#' starts a comment. See 10-ads.txt for the format.
+# All entries are [fw]: /usr/sbin/pbs, the voice-framework config, and the
+# TV's downloadhistory.db / EPG database.
+#
+# Breaks: new channel logos, LG Channels artwork, some home tiles.
+# Router parent: none safe (lge.com also hosts the connectivity check);
+# block these names individually.
+fts.lge.com
+gfts.lge.com
+ngfts.lge.com
+aic-gfts.lge.com
+aic-ngfts.lge.com
+qt2-ngfts.lge.com
+aic-qt2-ngfts.lge.com
+kic-ngfts.lge.com
+kic-qt-ngfts.lge.com
+kic-qt2-ngfts.lge.com
+eic-qt2-ngfts.lge.com
