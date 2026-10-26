@@ -84,7 +84,11 @@
     "luna_services_block": [
       "com.webos.service.livepick",
       "com.webos.service.contentminer",
-      "com.webos.service.dot"
+      "com.webos.service.dot",
+      "com.webos.service.acr",
+      "com.webos.service.admanager",
+      "com.webos.service.scd",
+      "com.webos.service.sdx"
     ],
 
     "securitymanager_noop": true,
