@@ -16,20 +16,17 @@ exec >>"$LOG" 2>&1
 echo "=== $(date) ==="
 
 # ---------------------------------------------------------------------------
+# Tracking and telemetry live in tools/telemetry-off (80-telemetry-off):
+# ACR, ads, diagnostics, voice (incl. aiservice), updates, sdx, the hosts
+# blackhole, user agreements, DNT settings and the securitymanager no-op.
+# This script only trims LAN/casting features and closes preloaded apps.
+# ---------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------
 # Phase 1: Stop unwanted upstart services
 # ---------------------------------------------------------------------------
-# Telemetry / diagnostics
-for svc in rdxd uploadd crashreportd remotelogger contentminer dpp; do
-    initctl stop "$svc" 2>/dev/null && echo "stopped $svc"
-done
-
-# Updates (host-blocked by HBC, but stop the daemons too)
-for svc in update certupdmgr_timer; do
-    initctl stop "$svc" 2>/dev/null && echo "stopped $svc"
-done
-
-# Voice / AI
-for svc in voiceconductor voiceinput aiservice; do
+# Wi-Fi Easy Connect (DPP); not telemetry, not used
+for svc in dpp; do
     initctl stop "$svc" 2>/dev/null && echo "stopped $svc"
 done
 
@@ -44,83 +41,22 @@ for svc in btaudiosrc btaudiosnk asc; do
 done
 
 # ---------------------------------------------------------------------------
-# Phase 2: Neutralize securitymanager
+# Phase 3: Block the soundbar/headset proximity popup service at the hub
 # ---------------------------------------------------------------------------
-# securitymanager has respawn — stopping it just restarts it.
-# Bind-mount a no-op over the binary, THEN stop it.
-# On respawn, upstart runs the no-op (sleeps forever, uses no CPU).
-#
-# busybox sleep doesn't support "infinity", so we use a large number.
-cat > /tmp/securitymanager-noop <<'NOOP'
-#!/bin/sh
-exec sleep 999999999
-NOOP
-chmod +x /tmp/securitymanager-noop
-mount --bind /tmp/securitymanager-noop /usr/sbin/securitymanager
-initctl stop securitymanager 2>/dev/null
-echo "securitymanager neutralized"
-
-# aiservice starts on "boot-done or instant-boot-done", and instant-boot-done
-# fires on every power-on from Active Standby, which is the normal remote
-# power button path. Stopping it lasts only until the next wake, so replace the
-# binary instead. There is no respawn, so the no-op can just exit.
-cat > /tmp/aiservice-noop <<'NOOP'
-#!/bin/sh
-exit 0
-NOOP
-chmod +x /tmp/aiservice-noop
-mount --bind /tmp/aiservice-noop /usr/bin/aiservice
-echo "aiservice neutralized"
-
-# ---------------------------------------------------------------------------
-# Phase 3: Block on-demand luna-service2 daemons
-# ---------------------------------------------------------------------------
-# ACR / ads daemons are launched by ls-hubd on the first IPC call (many of the
-# calls come from activitymanager activities that fire on boot, on HDMI input,
-# on network up and on every wake from Active Standby). Bind-mounting an empty
-# file over the .service definition makes the hub answer "Service does not
-# exist" at once, so callers fail fast instead of waiting.
-#
-# Do NOT stub these binaries with an exit-0 no-op instead: the hub then waits
-# for the child to register for LaunchTimeout (300 s in ls-hubd.conf), and
-# every caller hangs that long.
+# bluetooth-dot-service is launched on demand by ls-hubd. An empty file over
+# its .service makes the hub answer "Service does not exist" after a rescan
+# (SIGHUP, which is what `ls-control scan-services` sends; ls-control itself
+# can wait forever). Don't stub hub-launched binaries: the hub waits
+# LaunchTimeout (300 s) for a stub to register and callers hang.
 cp /dev/null /tmp/.empty-svc-file 2>/dev/null
 for svcfile in \
-    /usr/share/luna-service2/services.d/com.webos.service.livepick.service \
-    /usr/share/luna-service2/services.d/com.webos.service.contentminer.service \
     /usr/share/luna-service2/services.d/com.webos.service.dot.service \
-    /usr/share/dbus-1/services/com.webos.service.acr.service \
-    /usr/share/dbus-1/system-services/com.webos.service.acr.service \
-    /usr/share/dbus-1/services/com.webos.service.admanager.service \
-    /usr/share/dbus-1/system-services/com.webos.service.admanager.service \
-    /usr/share/dbus-1/services/com.webos.service.scd.service \
-    /usr/share/dbus-1/system-services/com.webos.service.scd.service \
-    /usr/share/dbus-1/services/com.webos.service.sdx.service \
-    /usr/share/dbus-1/system-services/com.webos.service.sdx.service \
 ; do
     if [ -f "$svcfile" ]; then
         mount --bind /tmp/.empty-svc-file "$svcfile" && echo "blocked $svcfile"
     fi
 done
-
-# ls-hubd parsed the service files when it started, seconds into boot, so the
-# blanked files do nothing until it rescans. SIGHUP is what
-# `ls-control scan-services` sends (pmServicePostInstall.sh and HBC's
-# elevate-service run it routinely). ls-control itself waits in an unbounded
-# loop for a luna-send reply, so signal the hub directly.
-kill -HUP "$(pidof ls-hubd)" && echo "ls-hubd rescan requested"
-sleep 2
-
-# Instances that started before the rescan keep running; stop them. nlpmanager
-# (voice intent routing) is not blocked: the activity that launches it at boot
-# fires when sdx registers, which no longer happens.
-for bin in livepick acr2 admanager scd-service sdx nlpmanager; do
-    pids=$(pidof "$bin") && kill $pids && echo "stopped $bin ($pids)"
-done
-sleep 2
-for bin in livepick acr2 admanager scd-service sdx nlpmanager; do
-    pids=$(pidof "$bin") && kill -9 $pids && echo "killed $bin ($pids)"
-done
+kill -HUP $(pidof ls-hubd) && echo "ls-hubd rescan requested"
 
 # ---------------------------------------------------------------------------
 # Phase 4: Close preloaded apps
