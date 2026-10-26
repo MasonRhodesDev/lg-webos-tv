@@ -60,6 +60,18 @@ mount --bind /tmp/securitymanager-noop /usr/sbin/securitymanager
 initctl stop securitymanager 2>/dev/null
 echo "securitymanager neutralized"
 
+# aiservice starts on "boot-done or instant-boot-done", and instant-boot-done
+# fires on every power-on from Active Standby, which is the normal remote
+# power button path. Stopping it lasts only until the next wake, so replace the
+# binary instead. There is no respawn, so the no-op can just exit.
+cat > /tmp/aiservice-noop <<'NOOP'
+#!/bin/sh
+exit 0
+NOOP
+chmod +x /tmp/aiservice-noop
+mount --bind /tmp/aiservice-noop /usr/bin/aiservice
+echo "aiservice neutralized"
+
 # ---------------------------------------------------------------------------
 # Phase 3: Block on-demand luna-service2 daemons
 # ---------------------------------------------------------------------------

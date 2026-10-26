@@ -84,6 +84,30 @@ R = `respawn`. Running/PIDs from `initctl list` as root, cross-checked with `ps`
 
 HBC `startup.sh` ~35–37 s; preloads: Google Assistant 55 s, Netflix 62 s, YouTube 650 s. No journal; `dmesg` has lost early boot.
 
+### Cascade-trim research (2026-10-26)
+
+- **The picture is up at about 17 s.** The first app is in the foreground
+  before `init-boot-done`. Every service the overlay trims starts after that,
+  from `minimal-boot-done` (about 20 s) up to `boot-done` (about 32 s). Trimming
+  them reduces background load. It cannot bring the picture up sooner. The part
+  before the picture runs before `/var` is mounted, so nothing writable reaches
+  it (see [snapshot-boot.md](snapshot-boot.md#custom-snapshot-ruled-out-by-design)).
+- **A cold boot is rare.** Turning the TV off with the remote puts it in
+  Active Standby. Turning it on keeps the process tree and the overlay's
+  changes, and `instant-boot-done` fires within 0.05–0.5 s of the power-on
+  request (`bootd.log`). The full cascade runs only after a reboot or a loss of
+  power.
+- **`instant-boot-done` restarts jobs.** `aiservice`, `SettingsService-recovery`,
+  `com.webos.app.livemenu` and `com.webos.app.multiview` start on it. The
+  overlay used to `initctl stop aiservice`, which lasted only until the next
+  wake. It now bind-mounts an exit-0 no-op over `/usr/bin/aiservice`, as it does
+  for securitymanager. Verified: `initctl start aiservice` now exits at once and
+  leaves no process.
+- **`bootd` reads `/var/luna/preferences/bootd.json`**, which is writable, as an
+  override of `/etc/palm/bootd.json`. That file only controls the first app,
+  input-to-app mapping and nice values. It does not control signal order, so it
+  is not a lever for boot time.
+
 ## Disable candidates (none applied)
 
 `/` is read-only, so job files can't change. Settings persist. Upstart jobs can only be stopped per boot via an `init.d` script running `initctl stop <job>` (at ~37 s, after they already started). Killing a respawn job's PID just restarts it. On-demand ls-hubd services can only be blocked by bind-mounting over their `.service` file (risky).
