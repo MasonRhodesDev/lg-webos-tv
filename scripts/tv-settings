@@ -74,7 +74,8 @@ node_parse() {
 # --- Commands ---
 
 cmd_dump() {
-    local categories=("${@:-option picture sound}")
+    local categories=("$@")
+    [[ ${#categories[@]} -gt 0 ]] || categories=(general option picture sound)
     for cat in "${categories[@]}"; do
         echo "=== $cat ==="
         luna_get "$cat"

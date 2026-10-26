@@ -2,6 +2,13 @@
   "_comment": "TV settings and custom overlay config. Copy to tv-config.json (gitignored) and edit.",
 
   "settings": {
+    "general": {
+      "adCookie": "off",
+      "personalRecommend": {"changedByUser": true, "value": "off"},
+      "homePromotion": "off",
+      "customizedAd": "off",
+      "screenSaverAd": "off"
+    },
     "option": {
       "quickStartMode": "off",
       "audioGuidance": "off",
@@ -10,6 +17,7 @@
       "hbbTV": "off",
       "ibb": "off",
       "watchedListCollection": "off",
+      "hbbTvDeviceId": "off",
       "voiceRecognitionLanguage": "eng",
       "menuLanguage": "eng",
       "pointerSpeed": "fast",
