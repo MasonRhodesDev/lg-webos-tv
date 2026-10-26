@@ -5,7 +5,7 @@
 #   upstart-job  job to `initctl stop` ("-" = none). A job is always stopped
 #                before its binary's running processes are killed, so a
 #                respawn job never loops on the stub.
-# Groups are enabled by GROUPS in telemetry-off.conf.
+# Groups are enabled by TARGET_GROUPS in telemetry-off.conf.
 # Launch mode and evidence for every line: docs/telemetry.md.
 #
 # name			group		binary						upstart-job

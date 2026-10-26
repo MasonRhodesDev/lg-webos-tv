@@ -16,5 +16,5 @@ keep=0
 
 tv "if [ -f $TV_HOOK ]; then sh $TV_HOOK revert; tail -n 30 /var/log/telemetry-off.log; else echo 'hook not installed'; fi"
 if [ "$keep" = 0 ]; then
-  tv "rm -f $TV_HOOK && rm -rf $TV_DIR && echo removed $TV_HOOK $TV_DIR (log kept: /var/log/telemetry-off.log)"
+  tv "rm -f $TV_HOOK && rm -rf $TV_DIR && echo 'removed hook and kit dir; log kept: /var/log/telemetry-off.log'"
 fi

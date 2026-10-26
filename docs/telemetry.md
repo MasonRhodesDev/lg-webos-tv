@@ -292,3 +292,8 @@ Keep logging for the first week online and repeat the cold-boot test after any f
 5. **50-custom-runtime:** remove its overlapping telemetry stanzas, and decide on its securitymanager no-op.
 6. **Who else is changing the TV?** Stubs over admanager and aiservice and three settings flips appeared during this phase from another session. Phase 2 should start from a known state.
 7. **Voice:** stubbing `voiceinput` disables the remote's mic button entirely. OK?
+
+## Phase 2 checks (not yet tested)
+
+- **`eulaStatus` persistence.** sdx compares `eula.json` against `eulaInfoNetwork` (fw: `_compare`, "eula.json is NOT Equal"), and the stock UI writes `eulaInfoNetwork.eulaList` alongside `eulaStatus`. The kit writes only `eulaStatus`. It re-asserts every boot, so it self-heals, but after the first reboot re-read `eulaStatus` to confirm sdx doesn't put the flags back.
+- **Real install paths are untested by design.** Only `install.sh --dry-run` (same tar transfer) and `verify.sh` have touched the TV. The hook copy, `--apply-now`, `revert`, `enable` and `uninstall.sh` have only been syntax-checked. Test `revert` right after the first apply, while SSH is up.

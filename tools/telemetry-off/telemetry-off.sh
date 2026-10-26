@@ -57,7 +57,7 @@ LUNA_SETTINGS=luna://com.webos.settingsservice
 
 # Defaults; telemetry-off.conf overrides them.
 DOMAIN_FILES="10-ads.txt 20-acr.txt 30-home-recommend.txt 40-telemetry.txt 45-sdp.txt 50-thinq.txt 55-voice.txt 60-lg-cdn.txt 80-lgchannels.txt 90-updates.txt"
-GROUPS="acr ads recommend diag voice thinq updates"
+TARGET_GROUPS="acr ads recommend diag voice thinq updates"
 SETTINGS=1
 EULA=1
 EULA_KEYS="acrOnAllowed acrAdAllowed customAdAllowed additionalDataAllowed voiceAllowed voice2Allowed takeOnAllowed chpAllowed"
@@ -136,7 +136,7 @@ load_conf() {
 # covered by the kill step, the user-agreement flags and the network block.
 target_paths() {
     data_lines "$TARGETS" | while read -r name group bin job; do
-        in_list "$group" $GROUPS || continue
+        in_list "$group" $TARGET_GROUPS || continue
         [ "$bin" = "-" ] && continue
         [ -f "$bin" ] && printf '%s\t%s\n' "$name" "$bin"
     done
@@ -144,7 +144,7 @@ target_paths() {
 
 target_jobs() {
     data_lines "$TARGETS" | while read -r name group bin job; do
-        in_list "$group" $GROUPS || continue
+        in_list "$group" $TARGET_GROUPS || continue
         [ "$job" = "-" ] || echo "$job"
     done
 }
@@ -499,7 +499,7 @@ if [ "$DRY" != 1 ]; then
     fi
     : > "$RUNNING"
     sync
-    log "== apply (groups: $GROUPS)"
+    log "== apply (groups: $TARGET_GROUPS)"
 fi
 
 step preflight do_preflight

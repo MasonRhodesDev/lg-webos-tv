@@ -7,7 +7,7 @@
 DOMAIN_FILES="10-ads.txt 20-acr.txt 30-home-recommend.txt 40-telemetry.txt 45-sdp.txt 50-thinq.txt 55-voice.txt 60-lg-cdn.txt 80-lgchannels.txt 90-updates.txt"
 
 # Target groups from targets.tsv to stub and stop.
-GROUPS="acr ads recommend diag voice thinq updates"
+TARGET_GROUPS="acr ads recommend diag voice thinq updates"
 
 # 1 = re-assert settings.tsv at boot.
 SETTINGS=1
