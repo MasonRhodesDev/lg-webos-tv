@@ -1,1 +1,14 @@
 .env
+
+# ui-atlas: generated from a backup; contains LG's copyrighted files and the owner's screen
+tools/ui-atlas/.local/
+tools/ui-atlas/out/
+tools/ui-atlas/**/facts.json
+tools/ui-atlas/**/srcdoc.json
+tools/ui-atlas/**/hbc_dom.html
+tools/ui-atlas/**/site/
+tools/ui-atlas/**/*.png
+tools/ui-atlas/**/*.webp
+tools/ui-atlas/**/*.jpg
+tools/ui-atlas/**/*.ttf
+tools/ui-atlas/**/__pycache__/

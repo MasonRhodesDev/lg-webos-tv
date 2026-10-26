@@ -29,9 +29,9 @@ ssh -tt root@"$TV_HOST" "luna-send -n 1 luna://com.webos.service.tv.systemproper
 | Boot trimming & custom firmware | [docs/boot-trimming.md](docs/boot-trimming.md) | done |
 | Partition writes, restore & recovery | [docs/recovery.md](docs/recovery.md) | done |
 | Backup (`scripts/backup.sh`) & restore levels | [docs/backup-and-restore.md](docs/backup-and-restore.md) | backup done; restores untested |
-| GUI catalog (webOS UI Atlas) | private artifact: <private-artifact> | v1; overlays reconstructed, no screenshots yet |
+| GUI catalog (webOS UI Atlas) | built by [tools/ui-atlas/](tools/ui-atlas/README.md) from a backup; published as a private artifact: <private-artifact> | v2; overlays reconstructed, with compositor screenshots beside them (kept out of git) |
 
-All investigation so far was read-only: nothing on the TV was changed and no audio was recorded.
+All investigation so far was read-only: no settings on the TV were changed and no audio was recorded. The one exception is the UI Atlas screenshots, taken on 2026-10-25. Each overlay was opened, captured to `/tmp` and closed again, and the volume was raised by one step and set back. Every capture file was deleted afterwards. See [tools/ui-atlas/README.md](tools/ui-atlas/README.md#screenshots).
 
 ## Don't commit
 
