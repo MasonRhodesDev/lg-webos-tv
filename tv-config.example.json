@@ -1,0 +1,90 @@
+{
+  "_comment": "TV settings and custom overlay config. Copy to tv-config.json (gitignored) and edit.",
+
+  "settings": {
+    "option": {
+      "quickStartMode": "off",
+      "audioGuidance": "off",
+      "livePlus": "off",
+      "channelplus": "off",
+      "hbbTV": "off",
+      "ibb": "off",
+      "watchedListCollection": "off",
+      "voiceRecognitionLanguage": "eng",
+      "menuLanguage": "eng",
+      "pointerSpeed": "fast",
+      "ismMethod": "normal",
+      "enableIpControl": "off",
+      "enableToastPopup": "on",
+      "storeMode": "home",
+      "demoMode": "off",
+      "webOSPromotionVideo": "off",
+      "speakToTv": "off",
+      "turnOnByVoice": "off"
+    },
+    "picture": {
+      "pictureMode": "eco",
+      "backlight": "80",
+      "contrast": "100",
+      "brightness": "50",
+      "sharpness": "25",
+      "color": "55",
+      "tint": "0",
+      "colorTemperature": "20",
+      "energySaving": "off",
+      "motionEyeCare": "off",
+      "realCinema": "on",
+      "localDimming": "high"
+    },
+    "sound": {
+    }
+  },
+
+  "custom": {
+    "files": {
+      "/var/lib/webosbrew/init.d/50-custom-runtime": {
+        "source": "scripts/50-custom-runtime",
+        "mode": "0755"
+      }
+    },
+
+    "services_stop": [
+      "rdxd", "uploadd", "crashreportd", "remotelogger", "contentminer", "dpp",
+      "update", "certupdmgr_timer",
+      "voiceconductor", "voiceinput", "aiservice",
+      "dmr", "airplay-adaptor", "miracast", "ssdp-discovery-lgtv",
+      "btaudiosrc", "btaudiosnk", "asc"
+    ],
+
+    "services_never_stop": [
+      "ls-hubd", "sam", "bootd", "configd",
+      "db8", "db8-maindb", "db8-tempdb", "db8-mediadb", "db8-epgdb",
+      "tvservice", "lginit_app",
+      "surface-manager", "gm", "WebAppMgr",
+      "audiod", "pulseaudio", "umediaserver",
+      "tvpowerd", "sleepd",
+      "oled-epl",
+      "PmLogDaemon", "PmKLogDaemon",
+      "eim", "physical-device-manager", "lginput2"
+    ],
+
+    "apps_close": [
+      "com.webos.app.googleassistant",
+      "com.webos.app.airplay",
+      "netflix",
+      "cobalt"
+    ],
+
+    "luna_services_block": [
+      "com.webos.service.acr2",
+      "com.webos.service.livepick",
+      "com.webos.service.scd",
+      "com.webos.service.ad"
+    ],
+
+    "securitymanager_noop": true,
+
+    "hosts_append": [
+    ]
+  }
+}

@@ -1,4 +1,5 @@
 .env
+tv-config.json
 
 # ui-atlas: generated from a backup; contains LG's copyrighted files and the owner's screen
 tools/ui-atlas/.local/

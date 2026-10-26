@@ -29,11 +29,27 @@ ssh -tt root@"$TV_HOST" "luna-send -n 1 luna://com.webos.service.tv.systemproper
 | Boot trimming & custom firmware | [docs/boot-trimming.md](docs/boot-trimming.md) | done |
 | Custom boot paths (bsppart, env, kexec) | [docs/custom-boot.md](docs/custom-boot.md) | done; early hooks ruled out by lxboot analysis |
 | Path C: kexec a custom kernel after the stock boot | [docs/path-c-kexec.md](docs/path-c-kexec.md) | researched read-only; stock kexec-tools, DTB and kdump kernel found; nothing staged or executed yet |
+| Snapshot boot — fast resume into a custom runtime | [docs/snapshot-boot.md](docs/snapshot-boot.md) | researched read-only; p48 has a valid signed swsusp image; snapshot-boot-manager can sign from root; <5 s target |
 | Partition writes, restore & recovery | [docs/recovery.md](docs/recovery.md) | done |
 | Backup (`scripts/backup.sh`) & restore levels | [docs/backup-and-restore.md](docs/backup-and-restore.md) | backup done; restores untested |
 | GUI catalog (webOS UI Atlas) | built by [tools/ui-atlas/](tools/ui-atlas/README.md) from a backup; published as a private artifact: <private-artifact> | v2; overlays reconstructed, with compositor screenshots beside them (kept out of git) |
 
 All investigation so far was read-only: no settings on the TV were changed and no audio was recorded. The one exception is the UI Atlas screenshots, taken on 2026-10-25. Each overlay was opened, captured to `/tmp` and closed again, and the volume was raised by one step and set back. Every capture file was deleted afterwards. See [tools/ui-atlas/README.md](tools/ui-atlas/README.md#screenshots).
+
+## Settings tool
+
+Read and write luna settings from a JSON config, and push files to the TV:
+
+```sh
+cp tv-config.example.json tv-config.json   # gitignored — edit for your TV
+scripts/tv-settings read                    # pull current TV values into tv-config.json
+scripts/tv-settings diff                    # show what would change
+scripts/tv-settings write                   # push settings to the TV
+scripts/tv-settings push                    # push files from the "custom" section
+scripts/tv-settings dump option picture     # dump raw luna categories
+```
+
+The `settings` section maps luna categories (`option`, `picture`, `sound`) to key-value pairs. The `custom` section defines files to push, services to stop (handled by the init.d script, not the tool directly), apps to close, and hosts to append.
 
 ## Don't commit
 

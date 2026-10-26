@@ -1,0 +1,318 @@
+#!/usr/bin/env bash
+# tv-settings — read/write TV luna settings and push custom overlay from a JSON config.
+#
+# Usage:
+#   tv-settings read                    Read current TV settings → tv-config.json
+#   tv-settings write                   Write tv-config.json settings → TV
+#   tv-settings diff                    Show what would change (read vs config)
+#   tv-settings push                    Push custom section (files, service kills, etc.)
+#   tv-settings dump [category...]      Dump raw luna settings for given categories
+#
+# Reads TV_HOST and TV_USER from .env (defaults: TV_USER=root).
+# Config file: tv-config.json (copy tv-config.example.json to start).
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+# --- Load .env ---
+ENV_FILE="$REPO_DIR/.env"
+if [[ -f "$ENV_FILE" ]]; then
+    # shellcheck disable=SC1090
+    . "$ENV_FILE"
+fi
+
+TV_HOST="${TV_HOST:?Set TV_HOST in .env}"
+TV_USER="${TV_USER:-root}"
+CONFIG="${TV_CONFIG:-$REPO_DIR/tv-config.json}"
+
+SSH_OPTS=(-o ConnectTimeout=6 -o BatchMode=yes -o LogLevel=ERROR)
+
+# --- Helpers ---
+
+ssh_cmd() {
+    ssh "${SSH_OPTS[@]}" "${TV_USER}@${TV_HOST}" "$@"
+}
+
+ssh_tty() {
+    ssh -tt "${SSH_OPTS[@]}" "${TV_USER}@${TV_HOST}" "$@" 2>/dev/null
+}
+
+luna_get() {
+    local category="$1"
+    shift
+    local keys_json=""
+    if [[ $# -gt 0 ]]; then
+        keys_json=$(printf '"%s",' "$@")
+        keys_json="[${keys_json%,}]"
+        ssh_tty "luna-send -n 1 -f luna://com.webos.service.settings/getSystemSettings '{\"category\":\"$category\",\"keys\":$keys_json}'"
+    else
+        ssh_tty "luna-send -n 1 -f luna://com.webos.service.settings/getSystemSettings '{\"category\":\"$category\"}'"
+    fi
+}
+
+luna_set() {
+    local category="$1"
+    local key="$2"
+    local value="$3"
+    ssh_tty "luna-send -n 1 -f luna://com.webos.service.settings/setSystemSettings '{\"category\":\"$category\",\"settings\":{\"$key\":$value}}'"
+}
+
+die() { echo "error: $*" >&2; exit 1; }
+
+require_config() {
+    [[ -f "$CONFIG" ]] || die "config not found: $CONFIG (copy tv-config.example.json)"
+}
+
+# Node.js one-liner runner for JSON manipulation on the dev box.
+# The TV has Node 0.12 but we run JSON processing locally.
+node_parse() {
+    node -e "$1"
+}
+
+# --- Commands ---
+
+cmd_dump() {
+    local categories=("${@:-option picture sound}")
+    for cat in "${categories[@]}"; do
+        echo "=== $cat ==="
+        luna_get "$cat"
+    done
+}
+
+cmd_read() {
+    require_config
+
+    echo "Reading current TV settings..."
+
+    # Read the categories listed in the config's "settings" section
+    local categories
+    categories=$(node_parse "
+        var cfg = JSON.parse(require('fs').readFileSync('$CONFIG', 'utf8'));
+        console.log(Object.keys(cfg.settings || {}).join(' '));
+    ")
+
+    local tmp_dir
+    tmp_dir=$(mktemp -d)
+    trap "rm -rf $tmp_dir" EXIT
+
+    for cat in $categories; do
+        echo "  reading $cat..."
+        luna_get "$cat" > "$tmp_dir/$cat.json" || true
+    done
+
+    # Merge TV values into the config, keeping only the keys the config cares about
+    node_parse "
+        var fs = require('fs');
+        var cfg = JSON.parse(fs.readFileSync('$CONFIG', 'utf8'));
+        var cats = Object.keys(cfg.settings || {});
+
+        cats.forEach(function(cat) {
+            var raw;
+            try { raw = fs.readFileSync('$tmp_dir/' + cat + '.json', 'utf8'); }
+            catch(e) { return; }
+
+            // luna-send output may have non-JSON preamble (tty escape codes)
+            var jsonStart = raw.indexOf('{');
+            if (jsonStart < 0) return;
+            raw = raw.substring(jsonStart);
+            // Find the last closing brace
+            var depth = 0, end = -1;
+            for (var i = 0; i < raw.length; i++) {
+                if (raw[i] === '{') depth++;
+                else if (raw[i] === '}') { depth--; if (depth === 0) { end = i + 1; break; } }
+            }
+            if (end < 0) return;
+            raw = raw.substring(0, end);
+
+            var resp;
+            try { resp = JSON.parse(raw); }
+            catch(e) { console.error('  warn: could not parse ' + cat + ': ' + e.message); return; }
+
+            var tvSettings = resp.settings || {};
+            var cfgKeys = Object.keys(cfg.settings[cat] || {});
+
+            cfgKeys.forEach(function(key) {
+                if (tvSettings.hasOwnProperty(key)) {
+                    cfg.settings[cat][key] = tvSettings[key];
+                }
+            });
+        });
+
+        fs.writeFileSync('$CONFIG', JSON.stringify(cfg, null, 2) + '\n');
+        console.log('Updated ' + '$CONFIG' + ' with current TV values.');
+    "
+}
+
+cmd_diff() {
+    require_config
+
+    local categories
+    categories=$(node_parse "
+        var cfg = JSON.parse(require('fs').readFileSync('$CONFIG', 'utf8'));
+        console.log(Object.keys(cfg.settings || {}).join(' '));
+    ")
+
+    local tmp_dir
+    tmp_dir=$(mktemp -d)
+    trap "rm -rf $tmp_dir" EXIT
+
+    for cat in $categories; do
+        luna_get "$cat" > "$tmp_dir/$cat.json" || true
+    done
+
+    node_parse "
+        var fs = require('fs');
+        var cfg = JSON.parse(fs.readFileSync('$CONFIG', 'utf8'));
+        var cats = Object.keys(cfg.settings || {});
+        var diffs = [];
+
+        cats.forEach(function(cat) {
+            var raw;
+            try { raw = fs.readFileSync('$tmp_dir/' + cat + '.json', 'utf8'); }
+            catch(e) { return; }
+            var jsonStart = raw.indexOf('{');
+            if (jsonStart < 0) return;
+            raw = raw.substring(jsonStart);
+            var depth = 0, end = -1;
+            for (var i = 0; i < raw.length; i++) {
+                if (raw[i] === '{') depth++;
+                else if (raw[i] === '}') { depth--; if (depth === 0) { end = i + 1; break; } }
+            }
+            if (end < 0) return;
+            raw = raw.substring(0, end);
+
+            var resp;
+            try { resp = JSON.parse(raw); } catch(e) { return; }
+            var tvSettings = resp.settings || {};
+            var cfgKeys = Object.keys(cfg.settings[cat] || {});
+
+            cfgKeys.forEach(function(key) {
+                var want = cfg.settings[cat][key];
+                var have = tvSettings[key];
+                if (have === undefined) {
+                    diffs.push('  ' + cat + '.' + key + ': (not on TV) → ' + JSON.stringify(want));
+                } else if (JSON.stringify(have) !== JSON.stringify(want)) {
+                    diffs.push('  ' + cat + '.' + key + ': ' + JSON.stringify(have) + ' → ' + JSON.stringify(want));
+                }
+            });
+        });
+
+        if (diffs.length === 0) {
+            console.log('No differences.');
+        } else {
+            console.log(diffs.length + ' difference(s):');
+            diffs.forEach(function(d) { console.log(d); });
+        }
+    "
+}
+
+cmd_write() {
+    require_config
+
+    echo "Writing settings to TV..."
+
+    node_parse "
+        var fs = require('fs');
+        var cfg = JSON.parse(fs.readFileSync('$CONFIG', 'utf8'));
+        var cats = Object.keys(cfg.settings || {});
+        var cmds = [];
+
+        cats.forEach(function(cat) {
+            var keys = Object.keys(cfg.settings[cat] || {});
+            keys.forEach(function(key) {
+                var val = cfg.settings[cat][key];
+                var json_val = JSON.stringify(val);
+                // luna-send needs the value to be valid JSON inside the payload
+                cmds.push(cat + ' ' + key + ' ' + json_val);
+            });
+        });
+
+        cmds.forEach(function(c) { console.log(c); });
+    " | while IFS=' ' read -r cat key value; do
+        echo "  $cat.$key = $value"
+        luna_set "$cat" "$key" "$value" > /dev/null || echo "    warn: failed to set $cat.$key"
+    done
+
+    echo "Done."
+}
+
+cmd_push() {
+    require_config
+
+    echo "Pushing custom config to TV..."
+
+    # --- Files ---
+    local files_json
+    files_json=$(node_parse "
+        var cfg = JSON.parse(require('fs').readFileSync('$CONFIG', 'utf8'));
+        var files = (cfg.custom || {}).files || {};
+        Object.keys(files).forEach(function(dest) {
+            var f = files[dest];
+            console.log(JSON.stringify({dest: dest, source: f.source, mode: f.mode || '0644'}));
+        });
+    ")
+
+    if [[ -n "$files_json" ]]; then
+        echo "$files_json" | while IFS= read -r line; do
+            local dest source mode
+            dest=$(node_parse "console.log(JSON.parse('$line').dest)")
+            source=$(node_parse "console.log(JSON.parse('$line').source)")
+            mode=$(node_parse "console.log(JSON.parse('$line').mode)")
+
+            local local_path="$REPO_DIR/$source"
+            if [[ ! -f "$local_path" ]]; then
+                echo "  skip: $source (not found)"
+                continue
+            fi
+
+            echo "  push: $source → $dest (mode $mode)"
+            scp "${SSH_OPTS[@]}" "$local_path" "${TV_USER}@${TV_HOST}:$dest"
+            ssh_cmd "chmod $mode '$dest'"
+        done
+    fi
+
+    # --- Hosts append ---
+    local hosts
+    hosts=$(node_parse "
+        var cfg = JSON.parse(require('fs').readFileSync('$CONFIG', 'utf8'));
+        var h = ((cfg.custom || {}).hosts_append || []);
+        h.forEach(function(line) { console.log(line); });
+    ")
+
+    if [[ -n "$hosts" ]]; then
+        echo "  appending to /etc/hosts..."
+        echo "$hosts" | ssh_cmd "
+            while IFS= read -r line; do
+                grep -qF \"\$line\" /etc/hosts 2>/dev/null || echo \"\$line\" >> /etc/hosts
+            done
+        "
+    fi
+
+    echo "Done."
+    echo ""
+    echo "Note: service kills and securitymanager neutralization are handled by"
+    echo "the init.d script (pushed as a file above), not by this tool directly."
+    echo "Reboot the TV for the init.d script to take effect."
+}
+
+# --- Main ---
+
+case "${1:-}" in
+    read)   cmd_read ;;
+    write)  cmd_write ;;
+    diff)   cmd_diff ;;
+    push)   cmd_push ;;
+    dump)   shift; cmd_dump "$@" ;;
+    *)
+        echo "Usage: tv-settings {read|write|diff|push|dump [category...]}"
+        echo ""
+        echo "  read    Read current TV settings into tv-config.json"
+        echo "  write   Write tv-config.json settings to the TV"
+        echo "  diff    Show what would change (TV vs config)"
+        echo "  push    Push files from the custom section to the TV"
+        echo "  dump    Dump raw luna settings for given categories"
+        exit 1
+        ;;
+esac
