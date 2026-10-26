@@ -1,0 +1,152 @@
+#!/usr/bin/env bash
+# install — deploy the custom runtime overlay to the TV
+#
+# Usage:
+#   scripts/install              Push init.d script + apply luna settings
+#   scripts/install --dry-run    Show what would happen without touching the TV
+#   scripts/install --remove     Remove the init.d script from the TV
+#
+# Reads TV_HOST and TV_USER from .env.
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+ENV_FILE="$REPO_DIR/.env"
+if [[ -f "$ENV_FILE" ]]; then
+    # shellcheck disable=SC1090
+    . "$ENV_FILE"
+fi
+
+TV_HOST="${TV_HOST:?Set TV_HOST in .env}"
+TV_USER="${TV_USER:-root}"
+CONFIG="${TV_CONFIG:-$REPO_DIR/tv-config.json}"
+
+SSH_OPTS=(-o ConnectTimeout=6 -o BatchMode=yes -o LogLevel=ERROR)
+INIT_D_SCRIPT="scripts/50-custom-runtime"
+INIT_D_DEST="/var/lib/webosbrew/init.d/50-custom-runtime"
+
+DRY_RUN=false
+REMOVE=false
+
+for arg in "$@"; do
+    case "$arg" in
+        --dry-run) DRY_RUN=true ;;
+        --remove)  REMOVE=true ;;
+        -h|--help)
+            echo "Usage: scripts/install [--dry-run] [--remove]"
+            echo ""
+            echo "  (no args)    Push init.d script + apply luna settings from tv-config.json"
+            echo "  --dry-run    Show what would happen"
+            echo "  --remove     Remove the init.d script; reboot to restore stock"
+            exit 0
+            ;;
+        *) echo "Unknown arg: $arg"; exit 1 ;;
+    esac
+done
+
+ssh_cmd() { ssh "${SSH_OPTS[@]}" "${TV_USER}@${TV_HOST}" "$@"; }
+ssh_tty() { ssh -tt "${SSH_OPTS[@]}" "${TV_USER}@${TV_HOST}" "$@" 2>/dev/null; }
+
+# --- Connectivity check ---
+echo "Checking TV at $TV_HOST..."
+if ! ssh_cmd 'echo ok' >/dev/null 2>&1; then
+    echo "error: cannot reach $TV_HOST via SSH" >&2
+    exit 1
+fi
+echo "  connected."
+
+# --- Remove mode ---
+if $REMOVE; then
+    echo "Removing $INIT_D_DEST..."
+    if $DRY_RUN; then
+        echo "  (dry-run) would remove $INIT_D_DEST"
+    else
+        ssh_cmd "rm -f '$INIT_D_DEST'" && echo "  removed." || echo "  not found."
+        echo ""
+        echo "Reboot the TV to restore stock behavior."
+    fi
+    exit 0
+fi
+
+# --- Install mode ---
+
+# 1. Push the init.d script
+echo ""
+echo "=== init.d script ==="
+LOCAL_SCRIPT="$REPO_DIR/$INIT_D_SCRIPT"
+if [[ ! -f "$LOCAL_SCRIPT" ]]; then
+    echo "error: $INIT_D_SCRIPT not found" >&2
+    exit 1
+fi
+
+if $DRY_RUN; then
+    echo "  (dry-run) would push $INIT_D_SCRIPT → $INIT_D_DEST"
+else
+    echo "  pushing $INIT_D_SCRIPT → $INIT_D_DEST"
+    scp "${SSH_OPTS[@]}" "$LOCAL_SCRIPT" "${TV_USER}@${TV_HOST}:${INIT_D_DEST}"
+    ssh_cmd "chmod 0755 '$INIT_D_DEST'"
+    echo "  installed."
+fi
+
+# 2. Push any extra files from the custom section
+if [[ -f "$CONFIG" ]]; then
+    echo ""
+    echo "=== custom files ==="
+    node -e "
+        var fs = require('fs');
+        var cfg = JSON.parse(fs.readFileSync('$CONFIG', 'utf8'));
+        var files = (cfg.custom || {}).files || {};
+        Object.keys(files).forEach(function(dest) {
+            var f = files[dest];
+            // Skip the init.d script itself — already handled above
+            if (dest === '$INIT_D_DEST') return;
+            console.log(JSON.stringify({dest: dest, source: f.source, mode: f.mode || '0644'}));
+        });
+    " 2>/dev/null | while IFS= read -r line; do
+        dest=$(node -e "console.log(JSON.parse(process.argv[1]).dest)" "$line")
+        source=$(node -e "console.log(JSON.parse(process.argv[1]).source)" "$line")
+        mode=$(node -e "console.log(JSON.parse(process.argv[1]).mode)" "$line")
+
+        local_path="$REPO_DIR/$source"
+        if [[ ! -f "$local_path" ]]; then
+            echo "  skip: $source (not found locally)"
+            continue
+        fi
+
+        if $DRY_RUN; then
+            echo "  (dry-run) would push $source → $dest (mode $mode)"
+        else
+            echo "  pushing $source → $dest (mode $mode)"
+            scp "${SSH_OPTS[@]}" "$local_path" "${TV_USER}@${TV_HOST}:$dest"
+            ssh_cmd "chmod $mode '$dest'"
+        fi
+    done
+
+    # 3. Apply luna settings
+    echo ""
+    echo "=== luna settings ==="
+    if $DRY_RUN; then
+        echo "  (dry-run) would run: tv-settings diff"
+        TV_HOST="$TV_HOST" TV_USER="$TV_USER" "$SCRIPT_DIR/tv-settings" diff
+    else
+        echo "  checking diff..."
+        diff_output=$(TV_HOST="$TV_HOST" TV_USER="$TV_USER" "$SCRIPT_DIR/tv-settings" diff 2>&1)
+        if echo "$diff_output" | grep -q "No differences"; then
+            echo "  no differences — skipping."
+        else
+            echo "$diff_output"
+            echo "  applying..."
+            TV_HOST="$TV_HOST" TV_USER="$TV_USER" "$SCRIPT_DIR/tv-settings" write
+        fi
+    fi
+fi
+
+echo ""
+echo "=== done ==="
+echo "The init.d script will run on the next boot (or run it now over SSH):"
+echo "  ssh ${TV_USER}@\$TV_HOST sh $INIT_D_DEST"
+echo ""
+echo "To remove and restore stock:"
+echo "  scripts/install --remove"

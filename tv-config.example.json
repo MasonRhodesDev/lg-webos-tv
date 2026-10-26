@@ -70,16 +70,13 @@
 
     "apps_close": [
       "com.webos.app.googleassistant",
-      "com.webos.app.airplay",
-      "netflix",
-      "cobalt"
+      "com.webos.app.airplay"
     ],
 
     "luna_services_block": [
-      "com.webos.service.acr2",
       "com.webos.service.livepick",
-      "com.webos.service.scd",
-      "com.webos.service.ad"
+      "com.webos.service.contentminer",
+      "com.webos.service.dot"
     ],
 
     "securitymanager_noop": true,
