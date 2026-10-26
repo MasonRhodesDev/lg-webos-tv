@@ -62,7 +62,7 @@ R = `respawn`. Running/PIDs from `initctl list` as root, cross-checked with `ps`
 
 ## Other findings
 
-- **ACR/ads still active with Live Plus off.** `option.livePlus: off`, `general.personalRecommend: off`, `homePromotion: off`, but `general.adCookie: on`, `option.watchedListCollection: on`, `option.webOSPromotionVideo: on`; `/var/luna/preferences/FirstPOPUPACR` = `ACR Success`. `acr2`, `livepick`, `scd-service`, `admanager` resident (livepick/scd started ~10 min after boot).
+- **ACR/ads still active with Live Plus off.** `option.livePlus: off`, `general.personalRecommend: off`, `homePromotion: off`, and `general.adCookie`, `option.watchedListCollection`, `option.webOSPromotionVideo`, `option.hbbTvDeviceId` have been set to `off` via luna (verified stuck after 5 s). The stored User Agreements (`/var/luna/preferences/eula`: `acrOnAllowed`, `acrAdAllowed`, `customAdAllowed` etc. still true) have no local luna setter and are left alone because changing them goes through LG's servers; `/var/luna/preferences/FirstPOPUPACR` = `ACR Success`. `acr2`, `livepick`, `scd-service`, `admanager` resident (livepick/scd started ~10 min after boot).
 - **Telemetry only partly neutered:** spools are read-only, but rdxd, uploadd, crashreportd, remotelogger, contentminer still run; hosts block covers only the four update hosts.
 - **Updates:** hosts blackhole active, but `update` and `certupdmgr_timer` still run.
 - **Nothing respawn-looping:** all upstart PIDs have etime ≈ uptime. No current crashes (`/var/log/crashd`, `/var/log/reports/librdx` empty).
