@@ -62,7 +62,7 @@ R = `respawn`. Running/PIDs from `initctl list` as root, cross-checked with `ps`
 
 ## Other findings
 
-- **ACR/ads still active with Live Plus off.** `option.livePlus: off`, `general.personalRecommend: off`, `homePromotion: off`, and `general.adCookie`, `option.watchedListCollection`, `option.webOSPromotionVideo`, `option.hbbTvDeviceId` have been set to `off` via luna (verified stuck after 5 s). The stored User Agreements (`/var/luna/preferences/eula`: `acrOnAllowed`, `acrAdAllowed`, `customAdAllowed` etc. still true) have no local luna setter and are left alone because changing them goes through LG's servers; `/var/luna/preferences/FirstPOPUPACR` = `ACR Success`. `acr2`, `livepick`, `scd-service`, `admanager` resident (livepick/scd started ~10 min after boot).
+- **ACR/ads still active with Live Plus off** (as of 2026-10-25; blocked since, see [ACR / ads daemon block](#acr--ads-daemon-block-2026-10-26)). `option.livePlus: off`, `general.personalRecommend: off`, `homePromotion: off`, and `general.adCookie`, `option.watchedListCollection`, `option.webOSPromotionVideo`, `option.hbbTvDeviceId` have been set to `off` via luna (verified stuck after 5 s). The stored User Agreements (`/var/luna/preferences/eula`: `acrOnAllowed`, `acrAdAllowed`, `customAdAllowed` etc. still true) have no local luna setter and are left alone because changing them goes through LG's servers; `/var/luna/preferences/FirstPOPUPACR` = `ACR Success`. `acr2`, `livepick`, `scd-service`, `admanager` resident (livepick/scd started ~10 min after boot).
 - **Telemetry only partly neutered:** spools are read-only, but rdxd, uploadd, crashreportd, remotelogger, contentminer still run; hosts block covers only the four update hosts.
 - **Updates:** hosts blackhole active, but `update` and `certupdmgr_timer` still run.
 - **Nothing respawn-looping:** all upstart PIDs have etime ≈ uptime. No current crashes (`/var/log/crashd`, `/var/log/reports/librdx` empty).
@@ -149,7 +149,7 @@ Only a real wake can show: whether the airplay app and Netflix preload recur
 after every wake, and whether anything else follows `instant-boot-done`.
 Check with `grep NL_APP_LAUNCH_BEGIN /var/log/messages` after one cycle.
 
-## Disable candidates (none applied)
+## Disable candidates (none applied; ACR/ads block applied 2026-10-26, see below)
 
 `/` is read-only, so job files can't change. Settings persist. Upstart jobs can only be stopped per boot via an `init.d` script running `initctl stop <job>` (at ~37 s, after they already started). Killing a respawn job's PID just restarts it. On-demand ls-hubd services can only be blocked by bind-mounting over their `.service` file (risky).
 
@@ -158,10 +158,50 @@ Check with `grep NL_APP_LAUNCH_BEGIN /var/log/messages` after one cycle.
 | **Root telnet :23** | `touch /var/luna/preferences/webosbrew_telnet_disabled`, reboot | low; loses the failsafe recovery shell |
 | Default root password | fixed on next reboot (keys exist); optionally disable dropbear password auth | low |
 | ACR / ad tracking | Settings → user agreements: ad tracking, viewing info, watched-list collection off; optional hosts entries | low via UI; hosts blocking can break Content Store/home tiles |
-| acr2, livepick, scd, admanager | bind-mount empty over `.service` from init.d | medium–high: callers may hang, failsafe may trip |
+| acr2, livepick, scd, admanager | bind-mount empty over `.service` from init.d | applied 2026-10-26 with a hub rescan; see [ACR / ads daemon block](#acr--ads-daemon-block-2026-10-26) |
 | rdxd, uploadd, crashreportd, remotelogger | `initctl stop` from init.d | low–medium; small gain (spools already ro) |
 | contentminer | `initctl stop` from init.d | medium: may feed home/search |
 | update, certupdmgr_timer | `initctl stop` from init.d | medium: certupdmgr may refresh TLS roots |
 | **Never touch** | ls-hubd (watchdog reboots TV), sam, bootd, tvservice, surface-manager, configd, db8*, PmLogDaemon, lginit_app | boot loop / brick territory |
 
 Gotchas: `luna-send` over plain `ssh` prints nothing — use `ssh -tt`. Busybox `timeout` needs `-t`.
+
+## ACR / ads daemon block (2026-10-26)
+
+Applied live and added to Phase 3 of `scripts/50-custom-runtime`.
+
+**How they start.** `acr2`, `admanager`, `scd-service`, `sdx`, `livepick` and `nlpmanager` are children of `ls-hubd`, not upstart jobs. ls-hubd launches one on the first luna call to its name, using the `.service` file named in the service's manifest (`/usr/share/luna-service2/manifests.d/*.manifest.json`). Most of those calls come from activitymanager activities (`/etc/palm/activities/<service>/`, plus activities the daemons register themselves):
+
+| Daemon | Service file | What calls it |
+|---|---|---|
+| `acr2` (content recognition) | `/usr/share/dbus-1/{services,system-services}/com.webos.service.acr.service` | `rest-boot-done`; its own `acr_wake_up_by_power_on` / `..._liveplus_on` activities (every wake from Active Standby) |
+| `admanager` (ad cookie, ad app) | `dbus-1/…/com.webos.service.admanager.service` | network up; its own activities on wake, suspend, power-off, foreground app, `adCookie` change |
+| `scd-service` (captures HDMI frames and fingerprints set-top-box banners) | `dbus-1/…/com.webos.service.scd.service` | activity on any HDMI input coming to the foreground. This is why it came back 30 minutes after boot. |
+| `sdx` (client for LG's server API: signing, login session, EULA, clock) | `dbus-1/…/com.webos.service.sdx.service` | network up; `admanager` and `acr2` send through it |
+| `livepick` | `luna-service2/services.d/com.webos.service.livepick.service` | activity on live TV or HDMI in the foreground |
+| `nlpmanager` (voice intent routing) | `luna-service2/services.d/com.webos.service.nlpmanager.service` | the activity that starts it at boot fires when `sdx` registers. It is stopped, not blocked: a direct `nlpmanager/load` call would still relaunch it. |
+
+**Why the old Phase 3 did nothing.** It blanked the `livepick`, `contentminer` and `dot` service files at about 32 s. ls-hubd had already parsed them seconds into boot and doesn't watch the files. Verified: with the file blanked, `kill` livepick, then `livepick/wakeup` relaunched it within 0.3 s. A blanked file only takes effect after a hub rescan, which is SIGHUP to `ls-hubd` (what `ls-control scan-services` sends; `pmServicePostInstall.sh` and HBC's `elevate-service` run it routinely).
+
+**Why not stub the binaries.** An exit-0 no-op bind-mounted over `/usr/sbin/admanager` made every call to it hang: the hub waits for the child to register for `LaunchTimeout` (300 s in `/etc/luna-service2/ls-hubd.conf`) and doesn't fail the call when the child exits. Measured: two calls, each killed by `timeout -t 20` after 20 s with no reply.
+
+**What Phase 3 now does.** It blanks both dbus-1 copies of the acr, admanager, scd and sdx service files (plus the three it already had), sends SIGHUP to ls-hubd, then TERMs and KILLs any running `livepick acr2 admanager scd-service sdx nlpmanager`. After that every call returns `Service does not exist: com.webos.service.<name>.` in about 10 ms, so the activities on wake fail fast and nothing relaunches. The bind mounts and the hub's rescanned state survive Active Standby, because the process tree is kept. A later rescan, for example from HBC, re-reads the same blanked files.
+
+**Left alone:**
+- `tnm` is the thumbnail manager (JPEG decode/encode for cbox, videothumbnailer and live TV). It isn't tracking.
+- `com.webos.app.livepick` is a `Type=static` entry and doesn't run.
+
+**Side effects:**
+- The rescan also activates the existing `dot` and `contentminer` blanks. `bluetooth-dot-service`, the proximity popup for LG soundbars and Tone+ headsets, keeps running, but its luna API now answers "Service does not exist". contentminer is already stopped in Phase 1.
+- With `sdx` gone, anything that needs LG's servers fails fast. The firewall already blocks those servers.
+
+**Verified live (about 4.7 h uptime):**
+- After the block, nothing respawned in more than 5 minutes.
+- `ls-hubd` kept its PID, and HBC's own service and the volatile-dir services still answer.
+- The HDMI input stayed in the foreground and `applicationManager/running` was unchanged.
+- `initctl list` matched the baseline, and no crash files appeared.
+
+**Not yet tested:**
+- A wake from Active Standby. Expected: the wake activities fail fast and leave no process.
+- A cold boot. It runs the race between sdx and acr2 starting at 22–32 s and this script at about 32 s. The SIGHUP lands in the boot tail (`boot-done` is at about 34 s, when `bluetooth-dot-service` starts). The `dot` and `contentminer` blanks take effect at boot for the first time. After the first reboot, check that `initctl list | grep dot` and `ps` show one steady `bluetooth-dot-service` PID, not a respawn loop. Also check that `/tmp/custom-runtime.log` shows the stopped/killed lines.
+- The clock after a cold boot. `time/getSystemTime` reports `systemTimeSource: "sdp"`, which is the clock `sdx` sets from LG's server. LunaSysService also has an NTP path (`setTimeWithNTP`, run by a periodic activity) that may be gated (`AllowNTPTime`). Untested whether NTP or broadcast time takes over when `sdx` is blocked. A wrong clock would break TLS in apps.

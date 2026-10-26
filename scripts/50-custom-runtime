@@ -75,17 +75,51 @@ echo "aiservice neutralized"
 # ---------------------------------------------------------------------------
 # Phase 3: Block on-demand luna-service2 daemons
 # ---------------------------------------------------------------------------
-# These are activated by ls-hubd on first IPC call, not by upstart.
-# Bind-mounting an empty file over the .service definition prevents activation.
+# ACR / ads daemons are launched by ls-hubd on the first IPC call (many of the
+# calls come from activitymanager activities that fire on boot, on HDMI input,
+# on network up and on every wake from Active Standby). Bind-mounting an empty
+# file over the .service definition makes the hub answer "Service does not
+# exist" at once, so callers fail fast instead of waiting.
+#
+# Do NOT stub these binaries with an exit-0 no-op instead: the hub then waits
+# for the child to register for LaunchTimeout (300 s in ls-hubd.conf), and
+# every caller hangs that long.
 cp /dev/null /tmp/.empty-svc-file 2>/dev/null
 for svcfile in \
     /usr/share/luna-service2/services.d/com.webos.service.livepick.service \
     /usr/share/luna-service2/services.d/com.webos.service.contentminer.service \
     /usr/share/luna-service2/services.d/com.webos.service.dot.service \
+    /usr/share/dbus-1/services/com.webos.service.acr.service \
+    /usr/share/dbus-1/system-services/com.webos.service.acr.service \
+    /usr/share/dbus-1/services/com.webos.service.admanager.service \
+    /usr/share/dbus-1/system-services/com.webos.service.admanager.service \
+    /usr/share/dbus-1/services/com.webos.service.scd.service \
+    /usr/share/dbus-1/system-services/com.webos.service.scd.service \
+    /usr/share/dbus-1/services/com.webos.service.sdx.service \
+    /usr/share/dbus-1/system-services/com.webos.service.sdx.service \
 ; do
     if [ -f "$svcfile" ]; then
         mount --bind /tmp/.empty-svc-file "$svcfile" && echo "blocked $svcfile"
     fi
+done
+
+# ls-hubd parsed the service files when it started, seconds into boot, so the
+# blanked files do nothing until it rescans. SIGHUP is what
+# `ls-control scan-services` sends (pmServicePostInstall.sh and HBC's
+# elevate-service run it routinely). ls-control itself waits in an unbounded
+# loop for a luna-send reply, so signal the hub directly.
+kill -HUP "$(pidof ls-hubd)" && echo "ls-hubd rescan requested"
+sleep 2
+
+# Instances that started before the rescan keep running; stop them. nlpmanager
+# (voice intent routing) is not blocked: the activity that launches it at boot
+# fires when sdx registers, which no longer happens.
+for bin in livepick acr2 admanager scd-service sdx nlpmanager; do
+    pids=$(pidof "$bin") && kill $pids && echo "stopped $bin ($pids)"
+done
+sleep 2
+for bin in livepick acr2 admanager scd-service sdx nlpmanager; do
+    pids=$(pidof "$bin") && kill -9 $pids && echo "killed $bin ($pids)"
 done
 
 # ---------------------------------------------------------------------------
