@@ -102,7 +102,8 @@ First run: `/mnt/lg/cmn_data/admanager/cache` (39 ad creatives), `admanager/cook
 | `enable` + `apply` (live) | 12 s, no failures |
 | `verify.sh` ~1 min later | 138 OK, 1 FAIL: Netflix (`GIBBON_MAIN`) UDP socket to 8.8.8.8:53, router-only. 7 WARN: jail hosts copies, including a new `lg.thinqai.adapter` jail built while reverted. No target process running |
 | Clock | correct (`2026-10-25 19:46 PDT`), `systemTimeSource: sdp`, kept by the micom RTC across reboots. sdx is masked after it has already set the time at boot. **Untested:** a cold boot after mains power loss (no RTC). `AllowNTPTime` ships `false`, so the clock would then come only from broadcast or SDP |
-| Second cold boot + verify | **not run**: the reboot was refused by this session's permission policy. The boot-time apply was already proven on the first reboot |
+| Second cold boot (the owner's power cycle, 19:47) + verify | boot apply clean (~13 s, no failures). The 5 settings had persisted (no writes needed). **`verify.sh`: 0 FAIL**, 7 WARN (jail hosts copies only), 135 OK |
+| `eulaStatus` after the cold boot | **came back `true` for all eight flags** and the kit withdrew them again at 19:48:00. The other settings persisted. Likely cause: sdx re-syncs `eulaStatus` at about 20 s, before the hook, from its accepted-terms list (`/mnt/lg/cmn_data/sdp/sdx/eula.json`, every term status `A`, untouched since 2023). That is unconfirmed: the TV's `messages` log had no EULA lines. Effect: the flags are `true` for the first ~35 s of every cold boot, and the router block covers that window. Not seen with standby wakes (untested) |
 | Standby wake + verify | **not run**: needs the owner (remote power button twice) |
 | HDMI picture, CEC input switching, audio | **owner by-eye check pending** |
 
@@ -337,5 +338,5 @@ Keep logging for the first week online and repeat the cold-boot test after any f
 ## Phase 2 checks (still open)
 
 - **`eulaStatus` persistence.** sdx compares `eula.json` against `eulaInfoNetwork` (fw: `_compare`, "eula.json is NOT Equal"), and the stock UI writes `eulaInfoNetwork.eulaList` alongside `eulaStatus`. The kit writes only `eulaStatus`. It re-asserts every boot, so it self-heals, but after the first reboot re-read `eulaStatus` to confirm sdx doesn't put the flags back.
-- **Re-read `eulaStatus` after the next reboot**, in case sdx or the EULA app restores it (the kit re-asserts at every boot either way).
+- **`eulaStatus` is restored on cold boot** (see results). Next: find the writer (watch `eulaStatus` with a subscribed `getSystemSettings` across a boot, or read sdx's `EulaConfigMgr::updateEulaInfoHandle` in REA), then decide whether to edit sdx's `eula.json` status list, which is riskier, or accept the ~35 s window.
 - `uninstall.sh` itself is not run yet; its revert step is the tested `revert`.
