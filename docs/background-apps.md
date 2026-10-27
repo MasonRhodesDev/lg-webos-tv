@@ -31,6 +31,34 @@ Other policy entries cost no RAM: livetv, hdmi1/3/4, livemenu, fullhome use `pre
 - Override paths in the binary (`strings`): `/var/preferences/webos-preload-manager-conf.json`, `/var/preferences/webos-preload-manager-debug-conf.json`, `/etc/palm/webos-preload-manager-m16p3-conf.json`; messages `"MaxPreloadApp is 0, Disabled"`, `"Preloading app is disabled at runtime"`. `/var` is rw ext4 and persists.
 - Policy writers: `memchute`, `libairplay-webengine`, the preload manager itself. The `"permanent"` key suggests `permanent:true` persists a runtime change (unverified).
 
+### Preloading disabled (2026-10-27)
+
+The preload limit is a configd value, `com.webos.service.preloadmanager.maxPreloadApp`
+(default 4 from `/etc/configd/layers/base`). Setting it through configd sticks:
+
+```sh
+ssh -tt root@"$TV_HOST" "luna-send -n 1 luna://com.webos.service.config/setConfigs \
+  '{\"configs\":{\"com.webos.service.preloadmanager.maxPreloadApp\":0}}'"
+initctl restart webos-preload-manager   # on the TV, to apply without a reboot
+```
+
+configd writes the value to `/var/preferences/configd_factory_db.json` and
+lists it under `com.webos.service.config.usrDefined`. That is its store for
+user-defined overrides, on the writable `/var`. To undo, set it back to `4`.
+
+- **The file override does nothing.** `/var/preferences/webos-preload-manager-conf.json`
+  with `setting.maxPreloadApp: 0` was ignored on the next boot, and the preload
+  manager still launched Google Assistant, the browser, tips and livetv.
+- **Verified on the running TV.** After the restart, `getPreloadPolicy` returns
+  `{"applications":[]}`. No preload launches happened in about 10 minutes. Before
+  the change there were six in the first two minutes after boot, then one every
+  7–17 s in bursts.
+- **This covers the apps the overlay kept closing.** Google Assistant came back
+  about 54 s after boot as a preload. AirPlay re-enables its own preload policy at
+  runtime, but with a limit of 0 there are no slots to fill.
+- **Not yet verified:** that the value survives a cold boot, and that nothing is
+  preloaded on the first boot after it.
+
 ### Open question
 
 Netflix shows `isEnabled:false` in runtime policy yet was launched with `"reason":"preload"` (`PL=T`). Either the flag flips after a successful preload or something disabled it afterwards. Check `getPreloadPolicy` right after a reboot, before ~+62 s.
