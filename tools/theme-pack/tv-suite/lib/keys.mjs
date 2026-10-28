@@ -53,6 +53,7 @@ export function guard(key, state, allow = {}) {
   if (!k) return 'unknown key ' + key;
   if (k.never) return key + ' is never pressed: ' + k.never;
   if (['VOLUMEUP', 'VOLUMEDOWN', 'MUTE'].includes(key)) return allow.volume ? null : key + ' only in the volume scenarios';
+  if (state.systemUi === 'unknown') return key === 'BACK' ? null : "systemUIManager's answer is unreadable: whether LG's UI is open is unknown, so only BACK";
   if (key === 'QMENU') return null;
   const s = state.settings || {};
   const own = s.menu && s.menu.open ? 'menu' : s.quick && s.quick.open ? 'quick' : null;

@@ -289,7 +289,9 @@ node tools/theme-pack/tv-suite/tv-suite.mjs rollback            # prints the und
   each step it checks the TV (getAppInfo, getLook, the layer's reports, the hook's log, `mount`), prints that step's
   rollback, and stops at the first failure with the reason (the hook's own "settings left stock (...)" line, a
   report's text). `--check` only checks, `--from STEP` and `--only STEP` pick steps (`look`, `layer`, `boot`).
-- **run** presses keys through LG's network input socket (`keys.py`, piped to the TV's Python), waits by polling the
+- **run** presses keys through LG's network input socket (`keys.py`, piped to the TV's Python; the service makes the
+  socket only on demand, so every command that presses keys asks `networkinput/getPointerInputSocket` first, again after
+  a reboot or compositor restart, and stops if the socket is still missing), waits by polling the
   TV's state, captures the compositor's output (the video shows black), asserts, and cleans up. Every key goes through a
   guard (`lib/keys.mjs`) that reads where focus is first: no key that could change a setting, switch the input, pair,
   join or reset is ever sent; the scenario fails instead. Around each scenario the suite snapshots the settings it

@@ -42,6 +42,8 @@ export async function breakLayer(ctx, kind) {
   const t0 = await ctx.tv.now();
   const r = await sh(ctx, 'webos/own-layer-tv.sh', ['apply'], t);
   fs.rmSync(t, { recursive: true, force: true });
+  // A compositor restart: ask for the key socket again before the next key.
+  ctx.tv.resetKeys();
   return { t0, out: r.out };
 }
 
@@ -49,6 +51,7 @@ export async function breakLayer(ctx, kind) {
 export async function rerunHook(ctx, { unmount = true } = {}) {
   if (unmount) await ctx.tv.sh('sh -s', { input: fs.readFileSync(path.join(THEME, 'webos', 'settings-unmount.sh')) });
   const r = await ctx.tv.sh(HOOK + '; tail -8 /tmp/themepack.log', { timeout: 300000 });
+  ctx.tv.resetKeys();
   const at = r.stdout.lastIndexOf('\n=== ');
   return at >= 0 ? r.stdout.slice(at + 1) : r.stdout;
 }
@@ -60,6 +63,7 @@ export async function restoreLayer(ctx) {
   const t0 = await ctx.tv.now();
   const a = await sh(ctx, 'webos/own-layer-tv.sh', ['apply']);
   const b = await sh(ctx, 'webos/install-boot.sh', ['install']);
+  ctx.tv.resetKeys();
   const ready = (await ctx.tv.reports(t0)).some((x) => x.text === 'settings: host ready');
   const ok = ready && await mounted(ctx);
   ctx.check('the good layer is back: host ready and the stub mounted', ok, ok ? '' : (a.status || b.status) ? 'a script failed' : ready ? 'not mounted' : 'no "settings: host ready"');

@@ -14,6 +14,19 @@ const SS = 'luna://com.webos.settingsservice';
 // purpose, and put back by the scenario; anything still different afterwards fails it and is restored here.
 const WATCHED = ['pictureMode', 'energySaving', 'soundOutput', 'soundMode', 'deviceName', 'parentalControl', 'quickStartMode'];
 
+// The system UI app in front (LG's Quick Settings, the input picker), from systemUIManager's foregroundAppInfo list:
+// one of its appIds, '' for none, or 'unknown' when the answer has another shape or none comes (the guard then refuses
+// every key but Back rather than assume nothing of LG's is open).
+export async function systemUiFront(tv) {
+  let a;
+  try { a = await tv.luna('luna://com.webos.service.systemUIManager/getForegroundAppInfo', {}); } catch (e) { return 'unknown'; }
+  const list = a && a.foregroundAppInfo;
+  if (!Array.isArray(list) || list.some((x) => !x || typeof x.appId !== 'string')) return 'unknown';
+  const ids = list.map((x) => x.appId);
+  for (const id of ['com.webos.app.quicksettings', 'com.webos.app.quickinputpicker']) if (ids.includes(id)) return id;
+  return ids[0] || '';
+}
+
 export class Refused extends Error {}
 export class Skip extends Error {}
 
@@ -39,8 +52,7 @@ export function makeCtx({ tv, out, say = console.log, poll = 250, sleep }) {
     async luna(uri, payload, opts) { return tv.luna(uri, payload, opts); },
     async state() {
       const p = await tv.probes();
-      let systemUi = '';
-      try { systemUi = (await tv.luna('luna://com.webos.service.systemUIManager/getForegroundAppInfo', {})).appId || ''; } catch (e) { /* no answer: none in front */ }
+      const systemUi = await systemUiFront(tv);
       return { settings: p.Settings || null, picker: p.InputPicker || null, toast: p.Toast || null, volume: p.VolumeBar || null,
                mute: p.VolumeMute || null, systemUi };
     },
@@ -155,6 +167,8 @@ export async function runScenarios(ctx, scenarios) {
   let probes = {};
   try { probes = await ctx.tv.probes(); } catch (e) { throw new Error('the Look service does not answer getProbe (' + e.message + '): deploy this branch first'); }
   if (!probes.Settings) throw new Error('the layer on the TV publishes no probe for our Settings: deploy this branch first (tv-suite.mjs deploy)');
+  ctx.tv.resetKeys();
+  await ctx.tv.ensureKeys();
   const runs = [];
   const start = await snapshot(ctx);
   ctx.note('start', start);

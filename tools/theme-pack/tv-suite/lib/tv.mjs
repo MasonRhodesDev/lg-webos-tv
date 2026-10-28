@@ -54,9 +54,27 @@ export function makeTv({ host = process.env.TV_HOST, log = () => {}, python = pr
     log('scp', remote + ' -> ' + local, r.status);
     if (r.status !== 0) throw new Error('scp ' + remote + ': ' + r.stderr.trim());
   }
+  // LG's network input service is started on demand: its key socket exists only once someone has asked for it. Asked
+  // for at the start of every command that presses keys and after every reboot or compositor restart (resetKeys),
+  // then checked before the first key.
+  const SOCK = '/tmp/netinput.pointer.sock';
+  let keysReady = false;
+  async function ensureKeys() {
+    let a;
+    try { a = await luna('luna://com.webos.service.networkinput/getPointerInputSocket', {}); } catch (e) { a = { returnValue: false, errorText: e.message }; }
+    const sock = a.socketPath || SOCK;
+    const r = await sh('[ -S ' + sock + ' ]');
+    if (r.status !== 0) throw new Error('the key socket ' + sock + ' is missing after getPointerInputSocket (' + JSON.stringify(a).slice(0, 200) + '): no key can be pressed');
+    keysReady = true;
+  }
+  function resetKeys() { keysReady = false; }
   async function keys(names) {
-    const r = await sh(python + ' - ' + names.join(' '), { input: fs.readFileSync(KEYS_PY), timeout: 15000 + names.length * 1000 });
-    if (r.status !== 0) throw new Error('keys ' + names.join(' ') + ': ' + (r.stderr.trim() || 'exit ' + r.status));
+    if (!keysReady) await ensureKeys();
+    const send = () => sh(python + ' - ' + names.join(' '), { input: fs.readFileSync(KEYS_PY), timeout: 15000 + names.length * 1000 });
+    let r = await send();
+    // The service may have gone (a restart in between): ask for the socket again, once.
+    if (r.status !== 0 && /No such file|Connection refused|socket/i.test(r.stderr + r.stdout)) { await ensureKeys(); r = await send(); }
+    if (r.status !== 0) throw new Error('keys ' + names.join(' ') + ': ' + ((r.stderr + r.stdout).trim().split('\n').pop() || 'exit ' + r.status));
   }
   // The compositor's output: our layer and LG's UI, never the video (it shows black).
   async function capture(local) {
@@ -90,5 +108,5 @@ export function makeTv({ host = process.env.TV_HOST, log = () => {}, python = pr
     const [now, up] = r.stdout.trim().split(/\s+/).map(Number);
     return r.status === 0 && now > 0 && up >= 0 ? { now, up } : null;
   }
-  return { host, target, sh, luna, pull, keys, capture, now, reports, probes, disconnect, clock };
+  return { host, target, sh, luna, pull, keys, ensureKeys, resetKeys, capture, now, reports, probes, disconnect, clock };
 }

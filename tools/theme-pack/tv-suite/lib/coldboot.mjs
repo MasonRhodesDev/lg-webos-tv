@@ -30,6 +30,8 @@ export async function coldboot(ctx, { upTimeout = 600, hookTimeout = 300 } = {})
   if (!up) throw new Error('the TV did not come back on ssh within ' + upTimeout + ' s');
   const boot = up.now - up.up;
   out.timings.sshUp = round(up.up);
+  // A boot drops LG's on-demand key socket; runScenarios asks for it again.
+  tv.resetKeys();
   ctx.say('ssh up ' + out.timings.sshUp + ' s after power-on');
   // The hook's last line is one of its Settings verdicts.
   let last = '';

@@ -80,6 +80,9 @@ test('the guard lets through only keys that change nothing', async () => {
   assert.match(guard('ENTER', kb('Password for Home'), { type: true }), /password/);
   assert.strictEqual(guard('VOLUMEUP', none, { volume: true }), null);
   assert.match(guard('NOSUCHKEY', none), /unknown/);
+  const odd = Object.assign({}, none, { systemUi: 'unknown' });
+  for (const k of ['QMENU', 'UP', 'ENTER', 'LEFT']) assert.match(guard(k, odd), /unknown/, k + ' with systemUIManager unreadable');
+  assert.strictEqual(guard('BACK', odd), null);
   assert.ok(Object.keys(KEYS).every((k) => ['proven', 'table', 'unverified'].includes(KEYS[k].from)));
 });
 
@@ -311,4 +314,33 @@ test('dry run: the manual pass prints its checklist, breaks the layer on purpose
   assert.deepStrictEqual(s.events, []);
   assert.strictEqual(go('', 'report', out).status, 0);
   assert.match(fs.readFileSync(path.join(out, 'index.html'), 'utf8'), /Manual pass/);
+});
+
+test("systemUIManager's foregroundAppInfo list is read as the TV answers it, and anything else is unknown", async () => {
+  const { systemUiFront } = await imp('lib/run.mjs');
+  const tv = (answer) => ({ luna: async () => { if (answer instanceof Error) throw answer; return answer; } });
+  assert.strictEqual(await systemUiFront(tv({ foregroundAppInfo: [], returnValue: true })), '');
+  assert.strictEqual(await systemUiFront(tv({ foregroundAppInfo: [{ appId: 'com.webos.app.quicksettings' }], returnValue: true })), 'com.webos.app.quicksettings');
+  assert.strictEqual(await systemUiFront(tv({ foregroundAppInfo: [{ appId: 'x' }, { appId: 'com.webos.app.quickinputpicker' }] })), 'com.webos.app.quickinputpicker');
+  assert.strictEqual(await systemUiFront(tv({ appId: 'com.webos.app.quicksettings', returnValue: true })), 'unknown');
+  assert.strictEqual(await systemUiFront(tv({ foregroundAppInfo: [{}] })), 'unknown');
+  assert.strictEqual(await systemUiFront(tv(new Error('no answer'))), 'unknown');
+});
+
+test('dry run: the key socket is asked for before the first key, and a missing one stops the run clearly', async () => {
+  const ok = await dryRun({}, ['quick-sheet']);
+  assert.strictEqual(ok.run('quick-sheet').status, 'pass');
+  assert.ok(ok.state.netinput, 'getPointerInputSocket was called');
+  await assert.rejects(dryRun({ faults: { noKeySocket: true } }, ['quick-sheet']), /key socket \/tmp\/netinput\.pointer\.sock is missing after getPointerInputSocket/);
+  const odd = await dryRun({ faults: { oddSystemUi: true } }, ['quick-sheet', 'input-picker']);
+  assert.strictEqual(odd.run('quick-sheet').status, 'fail', 'no key is pressed while LG\'s UI state is unknown');
+  assert.strictEqual(odd.run('input-picker').status, 'skip');
+  assert.deepStrictEqual(odd.state.events, []);
+});
+
+test('dry run: the Look app opens the Look page, and a bus refusal in the log fails it', async () => {
+  const ok = await dryRun({}, ['look-app']);
+  assert.strictEqual(ok.run('look-app').status, 'pass', ok.run('look-app').reason);
+  const bad = await dryRun({ faults: { lookAppDenied: true } }, ['look-app']);
+  assert.ok(bad.run('look-app').checks.some((c) => !c.ok && /no permission error/.test(c.name) && /Permission denied/.test(c.detail)));
 });

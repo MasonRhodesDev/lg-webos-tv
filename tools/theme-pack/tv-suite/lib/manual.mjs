@@ -19,10 +19,10 @@ const scenarios = (ids) => SCENARIOS.filter((s) => ids.includes(s.id));
 
 export const CHECKLIST = [
   { group: '1. The Home screen and the Settings tile', items: [
-    { id: 'home-tile', covers: ['home-tile', 'home-tile-launch'],
-      press: 'Press HOME. Look at the Settings tile, then open it.',
-      look: "The tile shows a Settings icon, not the Look app's. Our Settings opens at its top with focus in the categories. Before it, nothing of LG's Settings shows: no splash, no blank or black frame, no spinner.",
-      pass: 'Settings icon on the tile, and only our Settings ever on screen.',
+    { id: 'home-tile', covers: ['home-tile', 'home-tile-launch', 'look-app-launch'],
+      press: 'Press HOME. Look at the Settings tile and the Look tile, then open Settings; close it with BACK, then open Look.',
+      look: "The Settings tile shows a Settings icon, the Look tile the Look icon. Settings opens our Settings at its top with focus in the categories; Look opens our Settings at its Look page. Before either, nothing else shows: no splash, no blank or black frame, no spinner, and the picture does not change.",
+      pass: 'The right icon on each tile, and only our Settings ever on screen.',
       check: (saw) => saw.some((l) => /settings Picture categories/.test(l.what)) },
     { id: 'picture-blink', covers: ['picture-blink'],
       press: 'On Live TV, open the Settings tile again and close it with BACK. Then switch to an HDMI input yourself and do the same.',
@@ -161,6 +161,8 @@ async function summary(ctx) {
 // Runs the pass. `answer(question)` returns the person's line ("p", "f note", "s"...). `only` picks item ids.
 export async function manual(ctx, { answer, only, includeLater = true, watchEvery } = {}) {
   const results = [];
+  ctx.tv.resetKeys();
+  await ctx.tv.ensureKeys();
   for (const g of CHECKLIST) {
     for (const it of g.items) {
       if (only && !only.includes(it.id)) continue;

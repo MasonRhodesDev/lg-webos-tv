@@ -384,9 +384,9 @@ Item {
             keyClick(Qt.Key_Down);
             compare(focused(), "Volume");
             keyClick(Qt.Key_Right);
-            compare(TvSettings.volume, 21, "volume writes are paced");
-            wait(250);
-            compare(TvSettings.volume, 22, "Right steps the volume");
+            // The write goes out on the store's flush (writes are paced), so wait for it rather than racing it.
+            tryCompare(TvSettings, "volume", 22, 2000, "Right steps the volume, once the store flushes its paced write");
+            compare(Object.keys(part.store.queued).length, 0, "nothing left queued after the flush");
             keyClick(Qt.Key_Down);
             keyClick(Qt.Key_Down);
             compare(focused(), "Energy saving");

@@ -27,7 +27,7 @@ export function initialState(over = {}) {
     menu: { open: false, stack: [], area: 'categories', cat: 0, index: 0, editing: null, pin: null, dialog: false },
     reports: [], ownLayerLog: '', themepackLog: '',
     installed: false, layerFiles: false, layer: false, stub: false, hook: false, mounted: false, lgQs: false,
-    files: {}, events: [], writes: [], unknown: [], keys: [], bootAt: Date.now() - 3600e3, down: 0, boots: 0, broken: null, settingsHost: false
+    files: {}, events: [], writes: [], unknown: [], keys: [], bootAt: Date.now() - 3600e3, netinput: false, down: 0, boots: 0, broken: null, settingsHost: false
   }, over);
 }
 
@@ -288,7 +288,7 @@ function hook(s) {
 // the boot hook runs.
 function reboot(s) {
   s.boots++;
-  Object.assign(s, { mounted: false, layer: false, settingsHost: false, reports: [], themepackLog: '', ownLayerLog: '', files: {}, lgQs: false,
+  Object.assign(s, { mounted: false, layer: false, settingsHost: false, netinput: false, reports: [], themepackLog: '', ownLayerLog: '', files: {}, lgQs: false,
                      down: s.faults.slowBoot ? 6 : 2, bootAt: Date.now() });
   s.quick.open = false; closeMenu(s); s.picker.shown = false;
   if (s.hook) hook(s);
@@ -337,11 +337,19 @@ function luna(s, uri, p) {
       if (p.id === 'com.palm.app.settings') return ok({ appInfo: s.mounted ? { id: p.id, version: '1.0.0', vendor: 'theme-pack' } : { id: p.id, version: '4.10.0', vendor: 'LGE', usePrerendering: true } });
       return { returnValue: false, errorText: 'app not found' };
     case 'com.webos.applicationManager/launch':
-      if (p.id === 'com.palm.app.settings') launchSettings(s, p.params); else { s.fg = p.id; event(s, 'launched ' + p.id); }
+      if (p.id === 'com.palm.app.settings') launchSettings(s, p.params);
+      else if (p.id === APP.id) { if (s.settingsHost) openAt(s, 'Look'); }
+      else { s.fg = p.id; event(s, 'launched ' + p.id); }
       return ok({});
     case 'com.webos.applicationManager/closeByAppId': return ok({});
+    // The TV's shape: a list, not one appId.
     case 'com.webos.service.systemUIManager/getForegroundAppInfo':
-      return ok({ appId: s.lgQs ? 'com.webos.app.quicksettings' : s.picker.shown ? 'com.webos.app.quickinputpicker' : '' });
+      if (s.faults.oddSystemUi) return ok({ foreground: 'quicksettings' });
+      return ok({ foregroundAppInfo: (s.lgQs ? [{ appId: 'com.webos.app.quicksettings', windowType: '_WEBOS_WINDOW_TYPE_OVERLAY' }] : [])
+        .concat(s.picker.shown ? [{ appId: 'com.webos.app.quickinputpicker', windowType: '_WEBOS_WINDOW_TYPE_OVERLAY' }] : []) });
+    case 'com.webos.service.networkinput/getPointerInputSocket':
+      if (!s.faults.noKeySocket) s.netinput = true;
+      return ok({ socketPath: '/tmp/netinput.pointer.sock' });
     case 'com.webos.service.systemUIManager/launch':
       if (p.appId === 'com.webos.app.quickinputpicker') { if (s.picker.shown) event(s, 'picker launched while open: input switched'); s.picker.shown = true; }
       return ok({});
@@ -425,6 +433,8 @@ export function ssh(s, cmd, stdin) {
   const r = (stdout = '', status = 0) => ({ status, stdout });
   if (/^python - /.test(cmd)) {
     if (!/netinput\.pointer\.sock/.test(stdin)) return r('', 1);
+    // LG's network input service makes its socket only when asked (getPointerInputSocket).
+    if (!s.netinput) return { status: 1, stdout: 'no key socket at /tmp/netinput.pointer.sock ([Errno 2] No such file or directory): ask getPointerInputSocket first\n' };
     for (const k of cmd.split(/\s+/).slice(2)) key(s, k);
     return r('sent\n');
   }
@@ -437,6 +447,9 @@ export function ssh(s, cmd, stdin) {
   if (/^\/var\/lib\/webosbrew\/init\.d\/60-themepack; tail -8 \/tmp\/themepack\.log$/.test(cmd)) { if (s.hook) hook(s); return r(s.themepackLog.trim().split('\n').slice(-8).join('\n') + '\n'); }
   if (/^date -u /.test(cmd)) return r(iso().slice(0, 19) + '\n');
   if (cmd === 'true') return r();
+  if (cmd === '[ -S /tmp/netinput.pointer.sock ]') return r('', s.netinput ? 0 : 1);
+  if (cmd === 'wc -l < /var/log/messages 2>/dev/null') return r('120\n');
+  if (/^tail -n \+\d+ \/var\/log\/messages \| grep/.test(cmd)) return r(s.faults.lookAppDenied ? 'Oct 28 ls-hubd: Permission denied for dev.themepack.look to call dev.themepack.look.service/openSettings\n' : '', s.faults.lookAppDenied ? 0 : 1);
   if (cmd === 'mount') return r('/dev/root on / type squashfs (ro)\n' + (s.mounted ? '/dev/mmcblk0p1 on /usr/palm/applications/com.palm.app.settings type ext4 (rw)\n' : ''));
   if (/^rm -f \/tmp\/tv-suite-capture\.png$/.test(cmd)) { delete s.files['/tmp/tv-suite-capture.png']; return r(); }
   if (/^mkdir \/tmp\/own-layer\.lock/.test(cmd)) return r();

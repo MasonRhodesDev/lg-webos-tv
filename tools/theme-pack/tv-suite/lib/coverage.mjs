@@ -24,6 +24,10 @@ export const COVERAGE = [
   { id: 'picture-blink', match: 'The live picture underneath does not blink or reload', how: MAN, by: 'manual picture-blink', reason: 'captures hold the UI layer only (the video is black); a person watches' },
   { id: 'launch-while-open', match: 'A launch while our Settings is already open', how: A, by: 'redirect' },
   { id: 'service-killed', match: "With the Look service's process killed", how: NO, reason: 'the suite kills no process on the TV' },
+  // The Look app
+  { id: 'look-app-launch', match: 'After installing the Look package, Home shows the Look icon', how: PT, by: 'look-app, manual home-tile',
+    reason: 'the launch, the page and the app leaving are automated through SAM; the icon on Home and the picture are a person\'s' },
+  { id: 'look-app-bus', match: "The app's bus calls reach the Look service as `dev.themepack.look`", how: A, by: 'look-app' },
   // Deep links
   { id: 'deep-links-all', match: 'For every key of `settings/catalog.json` `lgTargets.map`', how: A, by: 'redirect-all' },
   { id: 'unknown-target', match: 'An unknown target and no params both open the top', how: A, by: 'redirect' },

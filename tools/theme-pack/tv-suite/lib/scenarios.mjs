@@ -170,6 +170,7 @@ export const SCENARIOS = [
       const st = await ctx.state();
       // A second launch while it is open counts as an Input press and switches the input after 5 s.
       if (st.systemUi === PICKER || (st.picker && st.picker.shown)) ctx.skip('the input picker is already open');
+      if (st.systemUi === 'unknown') ctx.skip("systemUIManager's answer is unreadable: the picker might be open, and a second launch switches the input");
       const fg = await ctx.foreground();
       await ctx.luna(SYSUI + '/launch', { appId: PICKER });
       const p = await ctx.wait('our input picker', async () => { const s = await ctx.state(); return s.picker && s.picker.shown ? s.picker : null; });
@@ -197,7 +198,7 @@ export const SCENARIOS = [
       let q = await gear(ctx);
       ctx.check('the sheet lands on Picture mode', q.focus && q.focus.label === 'Picture mode', q.focus && q.focus.label);
       const st = await ctx.state();
-      ctx.check("no LG Quick Settings window", st.systemUi !== 'com.webos.app.quicksettings', st.systemUi);
+      ctx.check("no LG Quick Settings window", st.systemUi !== 'com.webos.app.quicksettings' && st.systemUi !== 'unknown', st.systemUi || 'none');
       ctx.check('reports: no fallback to LG', !(await ctx.tv.reports()).some((x) => /handed to LG's Quick Settings/.test(x.text)));
       await ctx.capture('sheet', { board: 'SmokeQuickSettings', scene: 'QuickSheet' });
       await ctx.key('DOWN');
@@ -508,6 +509,27 @@ export const SCENARIOS = [
     }
   },
   {
+    id: 'look-app',
+    title: "The Look app (Home's Look icon) opens our Settings at its Look page and leaves at once",
+    tvChecks: ['look-app-launch', 'look-app-bus'],
+    async run(ctx) {
+      const want = landing('Look');
+      const lines = Number((await ctx.tv.sh('wc -l < /var/log/messages 2>/dev/null')).stdout.trim()) || 0;
+      await ctx.luna(SAM + '/launch', { id: 'dev.themepack.look' });
+      const t0 = Date.now();
+      const v = await own(ctx, 'menu', (w) => w.open && same(w.stack, want.stack), 'our Settings at ' + want.stack.join('/'));
+      ctx.check('the Look app opens the Look page', top(v) === 'Look', v.stack.join('/'));
+      await ctx.capture('look-app', { scene: 'Settings' });
+      const left = await ctx.wait('the Look app to leave running', async () =>
+        !((await ctx.luna(SAM + '/running', {})).running || []).some((a) => a.id === 'dev.themepack.look'), { timeout: 3000 }).then(() => Date.now() - t0, () => null);
+      ctx.check('the Look app left running within 1 s of opening the page', left !== null && left <= 1000 + ctx.poll, left === null ? 'still running' : left + ' ms');
+      const log = await ctx.tv.sh(lines ? 'tail -n +' + (lines + 1) + ' /var/log/messages | grep -i "dev.themepack.look" | grep -i -E "permission|denied|not allowed|not permitted"' : 'true');
+      if (!lines) ctx.note('look-app.log', 'no /var/log/messages to read');
+      ctx.check('no permission error for dev.themepack.look in /var/log/messages', !log.stdout.trim(), log.stdout.trim().split('\n').slice(0, 3).join(' | '));
+      await backOut(ctx, 'menu');
+    }
+  },
+  {
     id: 'redirect',
     title: "The Settings redirect: com.palm.app.settings through SAM opens ours, and nothing of LG's shows",
     tvChecks: ['sam-description', 'home-tile-launch', 'stub-leaves', 'unknown-target', 'relaunch', 'launch-while-open', 'deep-back', 'stub-resident'],
@@ -600,7 +622,7 @@ export const SCENARIOS = [
       ctx.check('Settings stayed on Sound through the swap', top((await ctx.settings()).menu) === 'Sound');
       await backOut(ctx, 'menu');
       const st = await ctx.state();
-      if (st.systemUi !== PICKER && !(st.picker && st.picker.shown)) {
+      if (st.systemUi === '' && !(st.picker && st.picker.shown)) {
         await ctx.luna(SYSUI + '/launch', { appId: PICKER });
         await ctx.wait('our input picker', async () => { const s = await ctx.state(); return !!(s.picker && s.picker.shown); });
         await swap('picker', 'SmokeInputPicker', 'InputPicker');
