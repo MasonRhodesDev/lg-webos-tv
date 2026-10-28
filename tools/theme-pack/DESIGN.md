@@ -76,6 +76,7 @@ Every list in every menu uses one row (**ListRow**):
 - Height `row-h`, or `row-h-2` with a hint line (Smoke: both 96, as the boards draw them). Rows are `space-s` apart. Radius `r-row`, plate `inner`.
 - The icon takes the item's hue (`hue-0`..`hue-6`) and has no well; label is the `label` role, hint `caption`, value
   `value` in `ink-2`.
+- An optional `chip` (a count or alert) is an attachment centred on the row's top-right corner.
 - The trailing control says what OK does:
 
 | variant | trailing | OK / Left-Right |
@@ -112,9 +113,9 @@ Every list in every menu uses one row (**ListRow**):
 One tile (**Tile**), `tile-w` by `tile-h`, padding `tile-pad`, radius `r-tile`:
 
 - the icon (1.4 × `icon`, in its hue) or a picture at the top left;
-- an optional **Badge** at the top right ("Watching");
+- an optional **Badge** at the top right ("Watching"), an attachment;
 - the name (`tile` role) and a sub line (`caption`) at the bottom;
-- an optional **Chip** pinned over the top-right corner ("2").
+- an optional **Chip**, an attachment centred on the top-right corner ("2"), anchor (100%, 0%).
 
 **TileRibbon** lays tiles in a row, `space-m` apart, with `{ separator: true }` for a divider (`width` sizes its
 slot). A tile with `heading` starts a group: the name (`heading` role, `ink-3`) sits `space-s` above it, and `lead`
@@ -127,7 +128,7 @@ One treatment, drawn by **Plate** under every row, tile and button:
 
 - **Focused**: the plate fills with `focus` (or, where the style's `behaviour.focusFill` is `hue`, the item's hue); ink
   turns `focus-ink`; a `focus-edge` ring of `focus-w` runs inside the edge; an `elev-focus` shadow lifts it; the item
-  scales to `focus-scale` and is lifted above its neighbours (z), so its decoration is never covered. Controls on the
+  scales to `focus-scale` and its whole stack lifts above its neighbours (Layers), so its decoration is never covered. Controls on the
   fill invert (the toggle track goes `focus-ink`, the radio dot `focus-ink`, and so on).
 - **Current** (what is in use now: the input you are watching, the open category): a `current` bar of `current-w` along
   the bottom. While focused, the fill says enough and the bar hides. Radios and checks show their own current state.
@@ -201,6 +202,43 @@ under them take the clicks. Key codes are mapped in one place, `kit/keys.js`.
   sheet as its breadcrumb.
 - Pickers are pages of `choice` rows; confirmations are a Dialog with the safe button focused.
 
+## Layers
+
+The owner's canvas, page "Layer system", is the model; boards are cited by number.
+
+- **Three layers and attachments** (board 1). Every component is −1 back decoration, 0 the origin, +1 front
+  decoration, and its attachments. The origin is the component as the style draws it, states included; layout places
+  it and every layer is measured from it. ±1 are the themes' alone. Attachments (Chip, Badge: counts, alert dots,
+  tags) are child components anchored to the origin, out of layout, free to straddle its edge, and painted after its
+  +1. Each has its own −1/0/+1, so a theme dresses a chip as it dresses a tile. Only origins take focus; an
+  attachment is announced with its parent. Themes off hides ±1 only (board 6).
+- **Outsets** (board 2). Each layer's box is four outsets from the origin's edges, per recipe, per side, and per state
+  (`outset: { rest, focused, current, disabled }`, each a number or four). A change of state animates the outset over
+  `motion-focus`. Layout never sees an outset, so a growing glow never moves a neighbour; overlap is settled by
+  paint order. An attachment is placed by `anchor`, [x%, y%] of the origin, centred on it: a tile's chip sits at
+  (100%, 0%), centred on the corner.
+- **Paint order: passes and lift** (board 3, option C). Within a container, every resting component paints its −1,
+  then every origin, then every +1, then every attachment, so no decoration covers a neighbour's chip or focus ring.
+  The focused component leaves the passes and paints its whole stack (−1, 0, +1, attachments) last, so its glow
+  spreads over its neighbours.
+- **Nesting: escapes to the parent's margin** (board 5). A container's children paint their passes inside the
+  container's origin: over its surface and its −1, under its +1. Their decoration and attachments are not clipped to
+  the container's box and may reach into its margin (a panel's padding), so chips and glows read whole. Keep them
+  within it; nothing clips them before the screen. The screen is the root component: its margin is the overscan
+  inset (`safe-x` × `safe-y`), where decoration may go and content never does, and only the display's edge clips.
+- **The screen's own decoration** (a theme's sky, snow, icicles, corner pieces) shows only while a surface in the
+  Screen is showing, fading with it, and never over bare video.
+- **States** (board 4) are the style's, drawn inside the origin, which never moves or resizes: rest, focused (the fill
+  inverts), current (the bar), attention (an attached chip), disabled.
+
+In the kit, **Passes** is the container: Screen's children and a Panel's content paint in passes. A `Decor` joins the
+nearest Passes above it; one inside another component's origin (a toggle's knob in a row) stays part of that origin
+and lifts with it. A Passes keeps its components' layers in planes beside its content (back, content, front, attach,
+lift), so positioners lay out only origins and nothing clips. Each layer follows its origin's position, scale and
+opacity through bindings, so an idle screen runs no script; scrolling or a focus scale re-evaluates only the
+components that move. Rotation and `transform` lists are not followed: move and grow components with x, y and scale.
+A Decor outside any Passes keeps its layers to itself, in the same order.
+
 ## Decoration contract
 
 Each piece is wrapped in `Decor` with a target and the states it passes. Themes write recipes against these:
@@ -224,8 +262,8 @@ Each piece is wrapped in `Decor` with a target and the states it passes. Themes 
 
 - `*` with `when: focused` reaches rows, tiles and buttons only: leaf pieces never pass `focused`, so a slider in a
   focused row does not grow a second bloom.
-- Attachments (a tile's chip) are drawn after the tile's front decoration, so a theme never covers them. Chips and
-  badges are targets of their own, so a theme dresses them as it dresses the tile.
+- Attachments (a tile's chip and badge, a row's chip) go in `Decor`'s `attachments` and paint after every +1 of their
+  container (Layers). Chips and badges are targets of their own, so a theme dresses them as it dresses the tile.
 - Back (−1) holds glow, shadow, plate, pattern, artwork and snow. Front (+1) holds the focus ring, frost, frames and
   sparkle. Neither covers text or a value: front pieces sit on edges and corners, outside the content padding, unless
   a negative outset opts in.
