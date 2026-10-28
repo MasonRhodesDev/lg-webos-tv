@@ -1,0 +1,479 @@
+// A fake TV for dry runs: answers the ssh and scp commands the suite and the deploy scripts send, from a JSON state
+// file ($TV_SUITE_FAKE). Our layer is modelled from the code the layer runs (menu.js and pages.js through
+// lib/expect.mjs), so its probes have the real shape, rows and kinds; LG's side is a small stand-in. It records
+// everything a real TV would have been made to do that the suite must never cause (`events`), and every command it
+// did not recognise (`unknown`), so tests can assert on both. `faults` in the state make it misbehave on purpose.
+import fs from 'node:fs';
+import path from 'node:path';
+import zlib from 'node:zlib';
+import { fileURLToPath } from 'node:url';
+import { Catalog as C, Menu as M, Pages as P, stubTarget, landing } from '../lib/expect.mjs';
+
+const here = path.dirname(fileURLToPath(import.meta.url));
+const APP = JSON.parse(fs.readFileSync(path.join(here, '..', '..', 'tv', 'appinfo.json'), 'utf8'));
+const STYLES = [{ id: 'smoke', name: 'Smoke' }, { id: 'bubble', name: 'Bubble' }];
+const THEMES = [{ id: 'glow', name: 'Glow' }, { id: 'halloween', name: 'Halloween' }, { id: 'winter', name: 'Winter' }];
+const SHOW_MS = 1200;
+
+export function initialState(over = {}) {
+  return Object.assign({
+    faults: {},
+    volume: { volume: 12, muted: false, barUntil: 0, muteUntil: 0 },
+    look: { style: 'smoke', themes: ['halloween'] },
+    settings: { pictureMode: 'expert1', energySaving: 'auto', soundOutput: 'tv_speaker', soundMode: 'standard',
+                deviceName: 'Living room', parentalControl: false, systemPin: '0000' },
+    fg: 'com.webos.app.hdmi2', picker: { shown: false, focus: 1 }, toast: { message: '', until: 0 },
+    quick: { open: false, stack: [], index: 0, dialog: false },
+    menu: { open: false, stack: [], area: 'categories', cat: 0, index: 0, editing: null, pin: null, dialog: false },
+    reports: [], ownLayerLog: '', themepackLog: '',
+    installed: false, layerFiles: false, layer: false, stub: false, hook: false, mounted: false, lgQs: false,
+    files: {}, events: [], unknown: [], keys: []
+  }, over);
+}
+
+// A TV after a good deploy: the package, the layer (and its reports), the hook and the stub mounted.
+export function deployedState(over = {}) {
+  const s = initialState({ installed: true, layerFiles: true, stub: true, hook: true });
+  applyLayer(s, 'apply');
+  s.mounted = s.layer;
+  return Object.assign(s, over);
+}
+
+const load = (f) => JSON.parse(fs.readFileSync(f, 'utf8'));
+const save = (f, s) => fs.writeFileSync(f, JSON.stringify(s, null, 1));
+const iso = () => new Date().toISOString();
+
+// ---- our layer, as the probes see it ----
+
+function store(s) {
+  return {
+    unlocked: !!s.menu.unlocked, values: {},
+    state(ref) {
+      const item = C.items[ref] || M.extra[ref];
+      const d = (item && item.domain) || {};
+      const id = item ? item.id : ref;
+      const value = s.settings[id] !== undefined ? s.settings[id] : (d.values || [])[0];
+      return { item, visible: true, active: true, label: String(value === undefined ? '' : value), value,
+               options: (d.values || []).map((v) => ({ value: v, label: String(v), active: true })), min: d.min || 0, max: d.max || 1, step: 1 };
+    },
+    holds: () => true,
+    item: (ref) => C.items[ref] || M.extra[ref]
+  };
+}
+const LookArg = (s) => ({ available: { styles: STYLES, themes: THEMES }, chosen: s.look });
+function rows(s, entry) {
+  if (!entry) return [];
+  try { return Array.from(P.model(entry, store(s), LookArg(s))); } catch (e) { return []; }
+}
+const focusable = (r) => !!r && r.section === undefined && r.variant !== 'info' && !r.disabled;
+const topOf = (v) => v.stack[v.stack.length - 1];
+function cats() { return Array.from(P.categories('picture')); }
+function probeRow(r, i) {
+  if (!r) return null;
+  return { index: i, label: r.label || '', kind: r.kind || '', variant: r.variant || '', ref: r.ref || '',
+           choice: r.choice === undefined ? '' : String(r.choice), category: r.category || '', locked: !!r.locked };
+}
+function probes(s) {
+  const q = s.quick, m = s.menu, now = Date.now();
+  const qr = q.open ? rows(s, topOf(q)) : [], mr = m.open && m.area === 'page' ? rows(s, topOf(m)) : [];
+  const settings = {
+    quick: { open: q.open, stack: q.stack.map((e) => e.id), dialog: !!q.dialog, focus: q.open ? probeRow(qr[q.index], q.index) : null },
+    menu: { open: m.open, stack: m.stack.map((e) => e.id), area: m.area, category: m.stack.length ? P.categoryFor(m.stack[0].id) : 'picture',
+            dialog: !!m.dialog, focus: m.area === 'categories' ? probeRow(cats()[m.cat], m.cat) : probeRow(mr[m.index], m.index),
+            editing: m.editing ? { label: m.editing.label, length: m.editing.text.length } : null,
+            pin: m.pin ? { mode: m.pin.mode, length: m.pin.pin.length, error: m.pin.error, pad: m.pin.pad } : null }
+  };
+  if (s.faults.noProbe) return {};
+  const at = iso();
+  return {
+    'parts/Settings.qml': { at, state: settings },
+    'parts/VolumeBar.qml': { at, state: { shown: now < s.volume.barUntil, level: s.volume.volume, muted: s.volume.muted } },
+    'parts/VolumeMute.qml': { at, state: { shown: now < s.volume.muteUntil } },
+    'parts/Toast.qml': { at, state: { shown: now < s.toast.until, message: now < s.toast.until ? s.toast.message : '' } },
+    'parts/InputPicker.qml': { at, state: { shown: s.picker.shown, focus: s.picker.focus, tiles: 6 } }
+  };
+}
+
+function landOn(s, v) {
+  const r = rows(s, topOf(v));
+  v.index = topOf(v).index !== undefined ? topOf(v).index : P.landing(topOf(v), r);
+}
+function event(s, what) { s.events.push(what); }
+
+function openAt(s, target) {
+  const m = s.menu, want = landing(target);
+  s.quick.open = false;
+  m.stack = want.stack.map((id) => ({ id }));
+  m.area = want.area;
+  m.cat = Math.max(0, cats().findIndex((c) => c.category === P.categoryFor(m.stack[0].id)));
+  m.open = true; m.pin = null; m.editing = null; m.dialog = false;
+  landOn(s, m);
+  guardLocked(s);
+}
+function closeMenu(s) { Object.assign(s.menu, { open: false, pin: null, editing: null, dialog: false, unlocked: false }); }
+function guardLocked(s) {
+  const m = s.menu;
+  if (m.open && m.stack.length && P.lockedPage(topOf(m).id, store(s)) && !m.pin) m.pin = { mode: 'page', pin: '', error: '', pad: 0 };
+}
+function push(s, v, entry) {
+  topOf(v).index = v.index;
+  v.stack.push(entry);
+  landOn(s, v);
+  if (v === s.menu) guardLocked(s);
+}
+function pop(s, v) {
+  if (v.stack.length > 1) { v.stack.pop(); landOn(s, v); return; }
+  if (v === s.menu) { v.area = 'categories'; return; }
+  v.open = false;
+}
+function run(s, v, r) {
+  if (!r) return;
+  const which = v === s.menu ? 'menu' : 'quick';
+  if (r.kind === 'page') push(s, v, { id: r.entry.id });
+  else if (r.kind === 'settings') openAt(s, '');
+  else if (r.kind === 'item' && r.variant === 'value') push(s, v, P.drill(r, ''));
+  else if (r.kind === 'choose') { s.settings[C.items[r.ref] ? C.items[r.ref].id : r.ref] = r.choice; event(s, 'changed ' + r.ref); pop(s, v); }
+  else if (r.kind === 'item' && r.variant === 'toggle') { event(s, 'changed ' + r.ref); const id = C.items[r.ref] ? C.items[r.ref].id : r.ref; s.settings[id] = s.settings[id] === 'off' ? 'auto' : 'off'; }
+  else if (r.kind === 'style') s.look = { style: r.choice, themes: s.look.themes };
+  else if (r.kind === 'theme') { const t = s.look.themes.slice(), i = t.indexOf(r.choice); if (i >= 0) t.splice(i, 1); else t.push(r.choice); s.look = { style: s.look.style, themes: t }; }
+  else if (r.kind === 'text') s.menu.editing = { label: r.label, text: '' };
+  else if (r.kind === 'changePin') s.menu.pin = { mode: 'new', pin: '', error: '', pad: 0 };
+  else event(s, which + ': ran ' + (r.kind || '?') + ' ' + (r.ref || r.label));
+}
+function move(s, v, list, d) {
+  for (let i = v.index + d; i >= 0 && i < list.length; i += d) if (focusable(list[i])) { v.index = i; return; }
+}
+
+const PAD = ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'Clear', '0', 'Delete'];
+function key(s, k) {
+  s.keys.push(k);
+  const now = Date.now(), q = s.quick, m = s.menu;
+  if (k === 'VOLUMEUP' || k === 'VOLUMEDOWN') {
+    if (!s.faults.volumeStuck) s.volume.volume = Math.max(0, Math.min(100, s.volume.volume + (k === 'VOLUMEUP' ? 1 : -1)));
+    s.volume.muted = false; s.volume.barUntil = now + SHOW_MS; return;
+  }
+  if (k === 'MUTE') { s.volume.muted = !s.volume.muted; s.volume.muteUntil = s.volume.muted ? now + 60000 : 0; s.volume.barUntil = now + SHOW_MS; return; }
+  if (k === 'QMENU') {
+    if (s.faults.lgQuickSettings) { s.lgQs = !s.lgQs; return; }
+    if (q.open || m.open) { q.open = false; closeMenu(s); return; }
+    q.open = true; q.stack = [{ id: 'quick' }]; landOn(s, q); return;
+  }
+  if (s.lgQs) { if (k === 'BACK') s.lgQs = false; else event(s, "LG's Quick Settings got " + k); return; }
+  const own = m.open ? m : q.open ? q : null;
+  if (!own) {
+    if (s.picker.shown) {
+      if (k === 'LEFT' || k === 'RIGHT') s.picker.focus += k === 'RIGHT' ? 1 : -1;
+      else if (k === 'BACK') s.picker.shown = false;
+      else event(s, 'picker got ' + k + (k === 'ENTER' ? ': input switched' : ''));
+      return;
+    }
+    event(s, 'the app underneath got ' + k);
+    return;
+  }
+  if (own === m && m.editing) {
+    if (k === 'BACK') { if (s.faults.backIsBackspace) { m.editing.text = m.editing.text.slice(0, -1); } else m.editing = null; }
+    else if (k === 'ENTER') m.editing.text += 'a';
+    return;
+  }
+  if (own === m && m.pin) {
+    const p = m.pin;
+    if (k === 'BACK') {
+      if (s.faults.backIsBackspace) { p.pin = p.pin.slice(0, -1); return; }
+      const wasPage = p.mode === 'page'; m.pin = null;
+      if (wasPage) { while (m.stack.length > 1 && P.lockedPage(topOf(m).id, store(s))) m.stack.pop(); landOn(s, m); }
+      return;
+    }
+    if (k === 'UP' && p.pad >= 3) p.pad -= 3;
+    else if (k === 'DOWN' && p.pad < 9) p.pad += 3;
+    else if (k === 'LEFT' && p.pad % 3) p.pad -= 1;
+    else if (k === 'RIGHT' && p.pad % 3 < 2) p.pad += 1;
+    else if (k === 'ENTER') {
+      const d = PAD[p.pad];
+      if (!/^\d$/.test(d)) return;
+      p.pin += d; p.error = '';
+      if (p.pin.length === 4) {
+        if (p.pin === String(s.settings.systemPin)) { event(s, 'PIN accepted (' + p.mode + ')'); m.pin = null; m.unlocked = true; }
+        else { p.pin = ''; p.error = 'Wrong PIN. Try again.'; }
+      }
+    }
+    return;
+  }
+  if (own.dialog) { if (k === 'BACK') own.dialog = false; else event(s, 'dialog got ' + k); return; }
+  if (own === m && m.area === 'categories') {
+    const c = cats();
+    if (k === 'UP' || k === 'DOWN') {
+      const i = Math.max(0, Math.min(c.length - 1, m.cat + (k === 'DOWN' ? 1 : -1)));
+      if (i !== m.cat) { m.cat = i; m.stack = [{ id: P.topOf(c[i].category) }]; landOn(s, m); }
+    } else if (k === 'ENTER' || k === 'RIGHT') m.area = 'page';
+    else if (k === 'BACK') closeMenu(s);
+    return;
+  }
+  const list = rows(s, topOf(own)), r = list[own.index];
+  // A UI bug on purpose: Back out of a picker chooses its focused row.
+  if (k === 'BACK' && s.faults.backChooses && r && r.kind === 'choose') { run(s, own, r); return; }
+  if (k === 'UP' || k === 'DOWN') move(s, own, list, k === 'DOWN' ? 1 : -1);
+  else if (k === 'ENTER') run(s, own, r);
+  else if (k === 'BACK') pop(s, own);
+  else if (k === 'LEFT' || k === 'RIGHT') {
+    if (r && (r.variant === 'slider' || r.variant === 'stepper')) event(s, 'changed ' + r.ref + ' (' + k + ')');
+    else if (own === m && k === 'LEFT') pop(s, own);
+  }
+}
+
+// ---- LG's side ----
+
+function layerUp(s) {
+  if (!s.installed || s.faults.layerFails) return false;
+  const at = iso();
+  s.reports.push({ at, from: 'ui', kind: 'root', text: 'own layer root loaded' }, { at, from: 'ui', kind: 'ready', text: 'layer created' });
+  if (s.faults.hookA) s.reports.push({ at, from: 'ui', kind: 'gap', text: "settings: host up, but Hook A is not applied; not reporting ready" });
+  else s.reports.push({ at, from: 'ui', kind: 'ok', text: 'settings: the gear opens our quick sheet (system UI table)' }, { at, from: 'ui', kind: 'ready', text: 'settings: host ready' });
+  return true;
+}
+function applyLayer(s, how) {
+  s.ownLayerLog = '=== ' + iso() + ' ' + how + '\n';
+  if (how === 'revert') { s.layer = false; s.ownLayerLog += 'stock\ndone\n'; return; }
+  s.layer = layerUp(s);
+  s.ownLayerLog += (s.layer ? 'layer loaded after 7s' : 'layer root never reported; back to stock') + '\ndone\n';
+}
+function hook(s) {
+  const log = ['=== ' + iso()];
+  if (s.installed) log.push('service permissions set', 'bus rescanned'); else log.push('Look service not installed; skipping permissions');
+  if (s.layerFiles) { applyLayer(s, 'apply'); log.push(s.layer ? 'UI layer started (see /tmp/own-layer.log)' : 'UI layer did not load (see /tmp/own-layer.log)'); }
+  else log.push('compositor left stock (no layer installed)');
+  const ready = s.layer && !s.faults.hookA;
+  if (s.mounted) log.push('settings already mounted');
+  else if (!s.stub) log.push('settings left stock (no stub installed)');
+  else if (!s.layer || !s.installed) log.push('settings left stock (the stub needs our layer and the Look service)');
+  else if (!ready) log.push('settings left stock (our Settings host never reported ready)');
+  else { s.mounted = true; log.push('settings stub mounted'); }
+  s.themepackLog += log.join('\n') + '\n';
+}
+
+function launchSettings(s, params) {
+  if (!s.mounted) { s.fg = 'com.palm.app.settings'; event(s, "LG's Settings opened"); return; }
+  const t = params && typeof params.target === 'string' ? params.target : undefined;
+  const page = stubTarget(t);
+  if (s.menu.open && JSON.stringify(s.menu.stack.map((e) => e.id)) === JSON.stringify(landing(page).stack)) return;
+  openAt(s, page);
+}
+
+function luna(s, uri, p) {
+  const m = uri.replace(/^luna:\/\//, '');
+  const ok = (o) => Object.assign({ returnValue: true }, o);
+  const look = 'dev.themepack.look.service/';
+  if (m.startsWith(look) && !s.installed) return { returnValue: false, errorText: 'Service does not exist: dev.themepack.look.service.' };
+  switch (m) {
+    case look + 'getReports': return ok({ reports: s.reports });
+    case look + 'getProbe': return ok({ probes: s.layer ? probes(s) : {} });
+    case look + 'getLook': return ok({ look: s.look, available: { styles: STYLES, themes: THEMES } });
+    case look + 'setLook':
+      if (p.style !== undefined && !STYLES.some((x) => x.id === p.style)) return { returnValue: false, errorText: 'unknown style ' + p.style };
+      s.look = { style: p.style !== undefined ? p.style : s.look.style, themes: p.themes !== undefined ? p.themes : s.look.themes };
+      return ok({ look: s.look });
+    case look + 'openSettings': if (s.layer) openAt(s, p.target || ''); return ok({});
+    case look + 'closeSettings': return ok({});
+    case 'com.webos.audio/getVolume': return ok({ volume: s.volume.volume, muted: s.volume.muted, volumeMax: 100 });
+    case 'com.webos.audio/setVolume': s.volume.volume = p.volume; return ok({});
+    case 'com.webos.audio/setMute': s.volume.muted = !!p.mute; return ok({});
+    case 'com.webos.settingsservice/getSystemSettings': {
+      const out = {};
+      const eula = { acrOnAllowed: false, acrAdAllowed: false, customAdAllowed: false, additionalDataAllowed: false, voiceAllowed: false,
+                     voice2Allowed: false, takeOnAllowed: false, chpAllowed: false };
+      for (const k of p.keys || []) if (k === 'eulaStatus') out[k] = eula; else if (s.settings[k] !== undefined) out[k] = s.settings[k];
+      return ok({ category: p.category, settings: out });
+    }
+    case 'com.webos.settingsservice/setSystemSettings':
+      for (const [k, v] of Object.entries(p.settings || {})) { s.settings[k] = v; event(s, 'setSystemSettings ' + k); }
+      return ok({});
+    case 'com.webos.applicationManager/getForegroundAppInfo': return ok({ appId: s.fg });
+    case 'com.webos.applicationManager/running': return ok({ running: [{ id: s.fg }].concat(s.faults.stubLingers && s.mounted ? [{ id: 'com.palm.app.settings' }] : []) });
+    case 'com.webos.applicationManager/getAppInfo':
+      if (p.id === APP.id) return s.installed ? ok({ appInfo: { id: APP.id, version: APP.version } }) : { returnValue: false, errorText: 'app not found' };
+      if (p.id === 'com.palm.app.settings') return ok({ appInfo: s.mounted ? { id: p.id, version: '1.0.0', vendor: 'theme-pack' } : { id: p.id, version: '4.10.0', vendor: 'LGE', usePrerendering: true } });
+      return { returnValue: false, errorText: 'app not found' };
+    case 'com.webos.applicationManager/launch':
+      if (p.id === 'com.palm.app.settings') launchSettings(s, p.params); else { s.fg = p.id; event(s, 'launched ' + p.id); }
+      return ok({});
+    case 'com.webos.applicationManager/closeByAppId': return ok({});
+    case 'com.webos.service.systemUIManager/getForegroundAppInfo':
+      return ok({ appId: s.lgQs ? 'com.webos.app.quicksettings' : s.picker.shown ? 'com.webos.app.quickinputpicker' : '' });
+    case 'com.webos.service.systemUIManager/launch':
+      if (p.appId === 'com.webos.app.quickinputpicker') { if (s.picker.shown) event(s, 'picker launched while open: input switched'); s.picker.shown = true; }
+      return ok({});
+    case 'com.webos.service.systemUIManager/closeByAppId': if (p.id === 'com.webos.app.quickinputpicker') s.picker.shown = false; return ok({});
+    case 'com.webos.surfacemanager/showQuickSettings':
+      if (s.layer && !s.faults.lgQuickSettings) { s.quick.open = true; s.quick.stack = [{ id: 'quick' }]; landOn(s, s.quick); } else s.lgQs = true;
+      return ok({});
+    case 'com.webos.surfacemanager/captureCompositorOutput': s.files[p.output] = surface(s); return ok({});
+    case 'com.webos.notification/createToast': s.toast = { message: p.message, until: Date.now() + SHOW_MS }; return ok({});
+    case 'com.webos.service.connectionmanager/getstatus': return ok({ wired: { state: 'connected' }, wifi: { state: 'disconnected' } });
+    case 'com.webos.service.tv.display/getHDMIInfo': return ok({ width: 3840, height: 2160, frameRate: 120, scanType: true, HDMImode: true });
+    case 'com.webos.service.tv.systemproperty/getSystemInfo': return ok({ modelName: 'OLED00X0', firmwareVersion: '00.00.00' });
+    case 'com.palm.systemservice/osInfo/query': return ok({ core_os_release: '0.0.0' });
+    case 'com.palm.systemservice/getPreferences': return ok({ useNetworkTime: true });
+    case 'dev.themepack.look.service/getTelemetry': return ok({ kit: 'unknown' });
+    case 'com.webos.service.wifi/getstatus': return ok({ status: 'serviceDisabled' });
+    case 'com.webos.service.btaudiosrc/getPairedDevices': return ok({ devices: [{ address: '00:00:00:00:00:00', name: 'Speaker', state: 'paired' }] });
+    case 'com.webos.appInstallService/dev/install': s.installed = true; return ok({ id: p.id, details: { state: 'installed' } });
+    case 'com.webos.appInstallService/dev/remove': s.installed = false; return ok({});
+  }
+  s.unknown.push('luna ' + m);
+  return { returnValue: false, errorText: 'fake TV: no ' + m };
+}
+
+// What the capture shows, coarsely: the colour of the topmost surface of ours.
+function surface(s) {
+  const p = probes(s)['parts/Settings.qml'];
+  if (s.menu.open) return s.menu.pin ? 'pin' : s.menu.editing ? 'keyboard' : 'settings';
+  if (s.quick.open) return 'sheet';
+  if (s.picker.shown) return 'picker';
+  if (Date.now() < s.toast.until) return 'toast';
+  if (Date.now() < s.volume.barUntil) return 'volume';
+  return p ? 'none' : 'none';
+}
+const COLOURS = { settings: [255, 79, 163], pin: [198, 255, 61], keyboard: [120, 200, 255], sheet: [80, 120, 255], picker: [60, 200, 120], toast: [250, 220, 60], volume: [240, 240, 240], none: [0, 0, 0] };
+export function png(kind, w = 96, h = 54) {
+  const [r, g, b] = COLOURS[kind] || COLOURS.none;
+  const raw = Buffer.alloc((w * 3 + 1) * h);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const o = y * (w * 3 + 1) + 1 + x * 3, inside = x > w / 8 && x < w * 7 / 8 && y > h / 8 && y < h * 7 / 8;
+    raw[o] = inside ? r : 0; raw[o + 1] = inside ? g : 0; raw[o + 2] = inside ? b : 0;
+  }
+  const crcTable = Array.from({ length: 256 }, (_, n) => { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; return c >>> 0; });
+  const crc = (buf) => { let c = 0xffffffff; for (const x of buf) c = crcTable[(c ^ x) & 0xff] ^ (c >>> 8); return (c ^ 0xffffffff) >>> 0; };
+  const chunk = (type, data) => { const len = Buffer.alloc(4); len.writeUInt32BE(data.length); const td = Buffer.concat([Buffer.from(type), data]); const c = Buffer.alloc(4); c.writeUInt32BE(crc(td)); return Buffer.concat([len, td, c]); };
+  const ihdr = Buffer.alloc(13); ihdr.writeUInt32BE(w, 0); ihdr.writeUInt32BE(h, 4); ihdr[8] = 8; ihdr[9] = 2;
+  return Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), chunk('IHDR', ihdr), chunk('IDAT', zlib.deflateSync(raw)), chunk('IEND', Buffer.alloc(0))]);
+}
+
+// ---- commands ----
+
+const LUNA = /luna-send(?: -[nw] \d+| -i)* (luna:\/\/\S+) '((?:[^']|'\\'')*)'/g;
+// Every luna-send in the command, in order; the answer is the last one's.
+function lunaLine(s, cmd) {
+  let last = null;
+  for (const m of cmd.matchAll(LUNA)) {
+    let p = {};
+    try { p = JSON.parse(m[2].replace(/'\\''/g, "'")); } catch (e) { /* bad payload: answered as {} */ }
+    last = JSON.stringify(luna(s, m[1], p));
+  }
+  return last;
+}
+
+function burst(s, cmd) {
+  const m = cmd.match(/applicationManager\/launch '((?:[^']|'\\'')*)'/);
+  const p = m ? JSON.parse(m[1].replace(/'\\''/g, "'")) : {};
+  const out = [];
+  const fg = s.fg;
+  for (let i = 0; i < 8; i++) {
+    if (i === 1) luna(s, 'luna://com.webos.applicationManager/launch', p);
+    const t = i * 0.3;
+    s.files['/tmp/tv-suite-burst/f' + i + '.png'] = surface(s);
+    const running = s.mounted && (t < 0.3 || s.faults.stubLingers) ? 1 : 0;
+    out.push(i + ' ' + (100 + t).toFixed(2) + ' 100.00 ' + (s.faults.stubInFront && t >= 1 ? 'com.palm.app.settings' : fg) + ' ' + running);
+  }
+  return out.join('\n') + '\n';
+}
+
+// One ssh call: returns { status, stdout }.
+export function ssh(s, cmd, stdin) {
+  const r = (stdout = '', status = 0) => ({ status, stdout });
+  if (/^python - /.test(cmd)) {
+    if (!/netinput\.pointer\.sock/.test(stdin)) return r('', 1);
+    for (const k of cmd.split(/\s+/).slice(2)) key(s, k);
+    return r('sent\n');
+  }
+  if (cmd.includes('tv-suite-burst')) return r(burst(s, cmd));
+  if (/^date -u /.test(cmd)) return r(iso().slice(0, 19) + '\n');
+  if (cmd === 'true') return r();
+  if (cmd === 'mount') return r('/dev/root on / type squashfs (ro)\n' + (s.mounted ? '/dev/mmcblk0p1 on /usr/palm/applications/com.palm.app.settings type ext4 (rw)\n' : ''));
+  if (/^rm -f \/tmp\/tv-suite-capture\.png$/.test(cmd)) { delete s.files['/tmp/tv-suite-capture.png']; return r(); }
+  if (/^mkdir \/tmp\/own-layer\.lock/.test(cmd)) return r();
+  if (/^\[ ! -d \/tmp\/own-layer\.lock \]$/.test(cmd)) return r();
+  if (/^\(sh \S+\/own-layer\.sh (apply|revert);/.test(cmd)) { applyLayer(s, cmd.match(/own-layer\.sh (\w+)/)[1]); return r(); }
+  if (/^sed -n .* \/tmp\/own-layer\.log$/.test(cmd)) return r(s.ownLayerLog);
+  if (/^rm -rf \S+\/layer\.new && mkdir -p/.test(cmd)) return r();
+  if (/^tar -C \S+\/layer\.new -mxf -$/.test(cmd)) return r();
+  if (/^rm -rf \S+\/layer && mv \S+\/layer\.new \S+\/layer$/.test(cmd)) { s.layerFiles = true; return r(); }
+  if (/^tar -C \S+\/settings-stub\.new -mxf - && /.test(cmd)) { s.stub = true; return r(); }
+  if (/^rm -rf \S+\/settings \S+\/settings-stub\.new && mkdir -p/.test(cmd)) return r();
+  if (cmd === 'sh -s') {
+    if (/umount/.test(stdin)) { if (s.faults.stubBusy && s.mounted) return { status: 1, stdout: 'Settings is still in use; left mounted\n' }; s.mounted = false; }
+    return r();
+  }
+  if (/^chmod 755 \S+60-themepack && \S+60-themepack; tail -8 \/tmp\/themepack\.log$/.test(cmd)) {
+    if (!s.hook) return r('', 127);
+    hook(s);
+    return r(s.themepackLog.trim().split('\n').slice(-8).join('\n') + '\n');
+  }
+  if (/^rm -f \S+60-themepack$/.test(cmd)) { s.hook = false; return r(); }
+  if (/^rm -rf \S+\/settings \S+\/settings-stub; echo removed$/.test(cmd)) { s.stub = false; return r('removed\n'); }
+  if (/^s=\/media\/developer\/apps\/usr\/palm\/services\/\S+\/permissions\.sh; if/.test(cmd))
+    return r(s.installed ? 'compositor groups: dev.themepack.look.service.group settings.read settings.write audio\n' : '');
+  if (/appInstallService\/dev\/install/.test(cmd)) {
+    if (s.faults.installFails) return r('{"returnValue":true,"details":{"state":"install failed","reason":"fake"},"statusValue":"failed"}\n');
+    lunaLine(s, cmd);
+    return r('{"returnValue":true,"id":"' + APP.id + '","details":{"state":"installed"}}\n');
+  }
+  if (/^cat \/var\/luna-service2-dev\/client-permissions\.d\//.test(cmd))
+    return s.installed ? r('{"com.webos.surfacemanager.systemui":["dev.themepack.look.service.group","settings.read","audio"]}') : r('', 1);
+  const l = lunaLine(s, cmd);
+  if (l !== null) return r(l + '\n');
+  s.unknown.push('ssh ' + cmd.slice(0, 200));
+  return r('', 0);
+}
+
+// scp -q [opts] SRC DST, one side remote (host:path).
+export function scp(s, args) {
+  const files = args.filter((a, i) => !a.startsWith('-') && !(args[i - 1] === '-o'));
+  const [src, dst] = files.slice(-2);
+  const remote = (x) => /^[^/]*@[^:]+:/.test(x) || /^[\w.-]+:\//.test(x);
+  if (remote(dst)) {
+    const p = dst.slice(dst.indexOf(':') + 1);
+    if (/60-themepack$/.test(p)) s.hook = true;
+    s.files[p] = 'uploaded';
+    return 0;
+  }
+  if (remote(src)) {
+    const p = src.slice(src.indexOf(':') + 1);
+    if (!(p in s.files)) return 1;
+    fs.writeFileSync(dst, png(s.files[p]));
+    return 0;
+  }
+  return 1;
+}
+
+// ssh's arguments: options, the host, then the command.
+function command(argv) {
+  const args = argv.slice();
+  while (args.length && args[0].startsWith('-')) { const o = args.shift(); if (['-o', '-i', '-p', '-l'].includes(o)) args.shift(); }
+  args.shift();
+  return args.join(' ');
+}
+
+// Entry points for fake/ssh and fake/scp (state in the $TV_SUITE_FAKE file).
+export function main(kind, argv, stdin) {
+  const f = process.env.TV_SUITE_FAKE;
+  if (!f) { process.stderr.write('fake ' + kind + ': set TV_SUITE_FAKE to the fake TV state file\n'); return 255; }
+  const s = load(f);
+  let status;
+  if (kind === 'scp') status = scp(s, argv);
+  else {
+    const r = ssh(s, command(argv), stdin);
+    process.stdout.write(r.stdout);
+    status = r.status;
+  }
+  save(f, s);
+  return status;
+}
+
+// The same fake in this process, on a state object: an `exec` for lib/tv.mjs, so a test runs fast.
+export function inProcess(s) {
+  return async (cmd, argv, { input } = {}) => {
+    if (cmd === 'scp') return { status: scp(s, argv), stdout: '', stderr: '' };
+    if (cmd !== 'ssh') throw new Error('fake TV: no ' + cmd);
+    const r = ssh(s, command(argv), input === undefined ? '' : String(input));
+    return { status: r.status, stdout: r.stdout, stderr: '' };
+  };
+}

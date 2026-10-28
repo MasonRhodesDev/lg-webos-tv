@@ -268,6 +268,38 @@ The ring box is the outset box. The QML Ring reads a recipe's placement from its
 
 `node tools/theme-pack/render-assets.mjs` renders each `asset` from its recipe's html (needs `rsvg-convert`); the PNGs are committed, so building doesn't need it. The html must be one `<svg>`, or a field of `<svg>`s placed with `left`/`top` (sized from the style, or the 1920×1080 screen for a `screen` target). It renders at the CSS size ×2, at the svg's own aspect (`width="100%"`: 128 px on the longer side), and a screen-wide box at ×1. The ring's style `opacity` is baked in. It lists html it can't draw (a `<div>`, a CSS background), which then fails the tests: draw gradients and glows inside the svg.
 
+## TV integration suite
+
+`tv-suite/` puts what is built on the TV, drives every built screen with remote keys, captures each one and checks it
+against TV-CHECKS.md. It needs root SSH to the TV (Homebrew Channel), Python on the TV (for the key helper), and Node,
+`ssh`, `scp`, `tar` and `gzip` here; the contact sheet's boards need Chromium (`CHROMIUM` names another binary).
+
+```sh
+export TV_HOST=<tv address>
+node tools/theme-pack/tv-suite/tv-suite.mjs deploy OUT_DIR      # Look package, our layer, boot hook and stub; checked step by step
+node tools/theme-pack/tv-suite/tv-suite.mjs run OUT_DIR         # every scenario (--scenario ID to pick, --list to list them)
+node tools/theme-pack/tv-suite/tv-suite.mjs report OUT_DIR --boards CANVAS_DIR [--preview RENDER_DIR]
+node tools/theme-pack/tv-suite/tv-suite.mjs rollback            # prints the undo commands, newest step first
+```
+
+- **deploy** builds and installs the Look package (`tv/build-ipk.sh`, `tv/install-tv.sh`, which runs `permissions.sh`),
+  applies the layer (`own-layer-tv.sh apply`) and installs the boot hook and stub (`install-boot.sh install`). After
+  each step it checks the TV (getAppInfo, getLook, the layer's reports, the hook's log, `mount`), prints that step's
+  rollback, and stops at the first failure with the reason (the hook's own "settings left stock (...)" line, a
+  report's text). `--check` only checks, `--from STEP` and `--only STEP` pick steps (`look`, `layer`, `boot`).
+- **run** presses keys through LG's network input socket (`keys.py`, piped to the TV's Python), waits by polling the
+  TV's state, captures the compositor's output (the video shows black), asserts, and cleans up. Every key goes through a
+  guard (`lib/keys.mjs`) that reads where focus is first: no key that could change a setting, switch the input, pair,
+  join or reset is ever sent; the scenario fails instead. Around each scenario the suite snapshots the settings it
+  could touch, fails the scenario if any changed, and puts them back; the Look is restored at the end.
+- The state comes from the parts themselves: each part of our layer publishes a small `probe` (what it shows, the
+  open pages, the focused row and its kind) to the Look service (`getProbe`), next to the reports.
+- **report** writes `OUT_DIR/index.html`: each capture beside its board, rendered from the canvas's saved `.dc.html`
+  sources, or beside the matching preview shot; the assertions; and every TV-CHECKS item as automated, partly, manual
+  or not covered (`lib/coverage.mjs`, which a test keeps in step with TV-CHECKS.md).
+- `--dry-run` runs any of these against a fake TV (`tv-suite/fake/`: `ssh` and `scp` first on `PATH`, state in a JSON
+  file), so deploy runs the real scripts; `test/tv-suite.test.js` runs the whole suite that way, with faults.
+
 ## Every boot
 
 The read-only system and the boot snapshot undo mounts and bus permissions at each power-on. `webos/60-themepack` is a Homebrew Channel boot hook that puts them back: bus permissions and a rescan, our UI layer in the compositor, then the Settings stub over LG's Settings app, only when the layer loaded and the Look service is installed (otherwise LG's Settings stays). It logs to `/tmp/themepack.log`.

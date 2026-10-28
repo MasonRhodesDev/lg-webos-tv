@@ -131,7 +131,10 @@ Focus and Back (SETTINGS-PLAN.md 3.4)
       the app underneath on close (the live TV channel keys work again at once).
 - [ ] Back over live TV and over an HDMI input: one page back, then closed. Over an app that refuses Back, our menu
       closes as LG goes Home. Record which foreground apps refuse it.
-- [ ] Whether Back arrives as `Qt.Key_Back` or `Key_Escape` (both are mapped in `kit/keys.js`).
+- [ ] Whether Back arrives as `Qt.Key_Back` or `Key_Escape` (both are mapped in `kit/keys.js`), and not as
+      `Key_Backspace`: our keyboard and PIN pad take Backspace as erase, so a BACK that arrived as Backspace would erase
+      instead of closing them. With nothing typed, BACK closes the TV name keyboard (Keyboard and text) and the PIN
+      prompt of a locked page (tv-suite `back-in-prompts`).
 - [ ] The magic remote's pointer: rows follow it and a click activates (`keyFilter.cursorVisible`).
 
 Board content: the adapters behind the designed pages (UNVERIFIED reads, from LG's Settings bundle)

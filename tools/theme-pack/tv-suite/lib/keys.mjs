@@ -1,0 +1,76 @@
+// The remote's buttons as LG's network input service names them, and the guard every key the suite presses goes
+// through. Provenance: "proven" were pressed on the TV through the socket; "table" are names in the service binary's
+// key table (network-input-service), not yet pressed; "unverified" were not found in that table.
+export const KEYS = {
+  QMENU: { from: 'proven', what: 'the gear: Quick Settings (ours through Hook A)' },
+  UP: { from: 'proven' }, DOWN: { from: 'proven' }, LEFT: { from: 'proven' }, RIGHT: { from: 'proven' },
+  ENTER: { from: 'proven', what: 'OK' },
+  BACK: { from: 'proven' },
+  VOLUMEUP: { from: 'table' }, VOLUMEDOWN: { from: 'table' }, MUTE: { from: 'table' },
+  // Never pressed by the suite: they leave the app underneath (Home, Exit), switch input (Input), change channel or
+  // turn the TV off. The checks that need them are manual.
+  HOME: { from: 'table', never: 'opens Home over the app underneath' },
+  EXIT: { from: 'table', never: 'closes the app underneath' },
+  INPUT_HUB: { from: 'table', never: 'a second Input press switches the input after 5 s' },
+  CHANNELUP: { from: 'table', never: 'changes the channel' },
+  CHANNELDOWN: { from: 'table', never: 'changes the channel' },
+  POWER: { from: 'unverified', never: 'turns the TV off' },
+  '0': { from: 'unverified', never: 'digit names are not in the service table; the PIN pad is driven with the D-pad' }
+};
+
+const MOVES = new Set(['UP', 'DOWN', 'LEFT', 'RIGHT']);
+// Row variants Left/Right do not change (RowList steps only sliders and steppers).
+const STILL = new Set(['nav', 'value', 'choice', 'toggle', 'action', 'category', 'info']);
+
+// What OK on a row does, from its kind and variant (pages.js, PageView.run): only these open something without
+// changing anything. `allow` widens it for one press: text (open the keyboard), look (a Look page style or theme row,
+// restored by the run), pin (a digit on a locked page's PIN pad).
+function enterSafe(f, allow) {
+  if (!f) return 'no row has focus';
+  if (f.locked) return 'a locked row asks for the PIN and then acts';
+  if (f.variant === 'category') return null;
+  if (f.kind === 'page' || f.kind === 'settings') return null;
+  if (f.kind === 'item' && f.variant === 'value') return null;
+  if (f.kind === 'text' && allow.text) return null;
+  if ((f.kind === 'style' || f.kind === 'theme') && allow.look) return null;
+  return 'OK on a ' + (f.kind || '?') + '/' + (f.variant || '?') + ' row ("' + f.label + '") would change something';
+}
+
+// Whether `key` may be pressed now. `state` is { settings (the Settings part's probe), picker (the input picker's),
+// systemUi (the system UI app in front, or '') }. Returns null, or why not. The suite never presses a key the
+// guard refuses; the scenario fails there instead.
+export function guard(key, state, allow = {}) {
+  const k = KEYS[key];
+  if (!k) return 'unknown key ' + key;
+  if (k.never) return key + ' is never pressed: ' + k.never;
+  if (['VOLUMEUP', 'VOLUMEDOWN', 'MUTE'].includes(key)) return allow.volume ? null : key + ' only in the volume scenarios';
+  if (key === 'QMENU') return null;
+  const s = state.settings || {};
+  const own = s.menu && s.menu.open ? 'menu' : s.quick && s.quick.open ? 'quick' : null;
+  const picker = !!(state.picker && state.picker.shown) || state.systemUi === 'com.webos.app.quickinputpicker';
+  if (!own) {
+    if (state.systemUi === 'com.webos.app.quicksettings') return key === 'BACK' ? null : "LG's Quick Settings is open: " + key + ' could set a mode';
+    if (picker) return key === 'LEFT' || key === 'RIGHT' || key === 'BACK' ? null : 'the input picker is open: ' + key + ' could select an input';
+    if (key === 'BACK') return allow.back ? null : 'nothing of ours is open: BACK would reach the app underneath';
+    return 'nothing of ours is open: ' + key + ' would reach the app underneath';
+  }
+  const v = s[own];
+  if (key === 'BACK') return null;
+  if (v.dialog) return 'a dialog is up: only BACK';
+  if (v.editing) return 'the keyboard is up: only BACK (nothing is typed)';
+  if (v.pin) {
+    if (v.pin.mode !== 'page') return 'the PIN prompt is ' + v.pin.mode + ': only BACK';
+    if (MOVES.has(key)) return null;
+    return key === 'ENTER' && allow.pin ? null : 'the PIN prompt is up: ' + key + ' only in the PIN scenario';
+  }
+  const f = v.focus;
+  if (key === 'UP' || key === 'DOWN') return null;
+  if (key === 'LEFT' || key === 'RIGHT') {
+    if (own === 'quick') return 'Left/Right in the quick sheet change the volume';
+    if (v.area === 'categories') return key === 'RIGHT' ? null : 'Left in the categories does nothing we test';
+    if (key === 'RIGHT') return 'Right in a page steps a slider';
+    return f && STILL.has(f.variant) ? null : 'Left on a ' + (f ? f.variant : 'missing') + ' row could step it';
+  }
+  if (key === 'ENTER') return enterSafe(f, allow);
+  return 'no rule for ' + key;
+}

@@ -1,0 +1,7 @@
+#!/usr/bin/env node
+// The fake TV's ssh (dry runs put this directory first on PATH; see tv.mjs).
+const path = require('path');
+const chunks = [];
+const go = () => import(path.join(__dirname, 'tv.mjs')).then((m) => { process.exitCode = m.main('ssh', process.argv.slice(2), Buffer.concat(chunks).toString('latin1')); });
+if (process.stdin.isTTY) go();
+else { process.stdin.on('data', (d) => chunks.push(d)); process.stdin.on('end', go); }
