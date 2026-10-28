@@ -34,6 +34,13 @@ Launch shows nothing
 - [ ] With the Look service's process killed just before a launch, the launch still opens our Settings (the retry
       reaches the restarted service), or at worst the stub closes within 3 s with nothing on screen.
 
+The Look app (Home's Look icon)
+- [ ] After installing the Look package, Home shows the Look icon (`tv/icon.png`), and launching it opens our
+      Settings at its Look page, with nothing of the app on screen (no splash, no frame) and the picture underneath
+      unchanged; the app has left `applicationManager/running` within 1 s.
+- [ ] The app's bus calls reach the Look service as `dev.themepack.look` (its own package), with no permission error
+      in `/var/log/messages`.
+
 Every deep link lands on the right page
 - [ ] For every key of `settings/catalog.json` `lgTargets.map`:
       `luna-send -n 1 luna://com.webos.applicationManager/launch '{"id":"com.palm.app.settings","params":{"target":"<key>"}}'`

@@ -2,7 +2,7 @@ import QtQuick 2.4
 import Look 1.0
 import "pages.js" as Pages
 
-// One settings page as the kit draws it (DESIGN.md, a page): a Header above a RowList of the page's rows, live from
+// One settings page as the kit draws it: a Header above a RowList of the page's rows, live from
 // the store. The page framework (pages.js) turns the entry into rows; this does what OK and Left/Right mean on them
 // and says when the page wants another: open(entry) for a link or a picker, done() after a picker's choice,
 // allSettings(), confirm(row) for a row that asks first (Pages.choices), edit(request) for text (the keyboard),

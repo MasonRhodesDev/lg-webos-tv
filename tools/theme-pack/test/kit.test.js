@@ -36,3 +36,11 @@ test('every style names only type weights its font files carry', () => {
     });
   });
 });
+
+test('every Label role used in ui/ is one the styles size and weigh', () => {
+  const files = [];
+  (function walk(d) { fs.readdirSync(d, { withFileTypes: true }).forEach((e) => e.isDirectory() ? walk(path.join(d, e.name)) : /\.qml$/.test(e.name) && files.push(path.join(d, e.name))); })(path.join(__dirname, '..', 'ui'));
+  files.forEach((f) => [...fs.readFileSync(f, 'utf8').matchAll(/\brole: "([a-z-]+)"/g)].forEach((m) => {
+    assert.ok(TP.TOKENS.includes('type-' + m[1]) && TP.TOKENS.includes('type-' + m[1] + '-weight'), path.basename(f) + ': role ' + m[1]);
+  }));
+});

@@ -2,7 +2,7 @@ import QtQuick 2.4
 import QtGraphicalEffects 1.0
 import Look 1.0
 
-// The one focus treatment (DESIGN.md, Focus): the plate under a row, tile or button. At rest it is `rest`; focused it
+// The one focus treatment: the plate under a row, tile or button. At rest it is `rest`; focused it
 // fills with the focus colour (or the item's hue), gains the focus edge and a lift shadow; current adds the current
 // bar along the bottom; disabled keeps the plate and dims the ink. Components read `ink` for their text and icons
 // and scale themselves by focus-scale.

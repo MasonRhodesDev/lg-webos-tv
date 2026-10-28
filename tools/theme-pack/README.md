@@ -2,87 +2,73 @@
 
 A swappable look for a 10-foot TV interface. One **style** sets how things look (typeface, palette, radii, how focus is drawn). Any number of **themes** add decoration on top (holiday eye candy and the like). Swap either one without touching the other.
 
-The pack renders to plain HTML strings, so the same code drives the browser demo, the tests, and the exporter that writes Design-canvas boards. It targets the web engine on webOS 4.x TVs (Chromium 53), so it avoids flex `gap`, the `inset` shorthand, object spread, `?.` and `??`.
-
-## Run the demo
-
-Open `demo/index.html` in a browser. No build step and no server are needed.
-
-| Query | Effect |
-|---|---|
-| `?style=smoke` | pick the style (`smoke`, `bubble`) |
-| `?themes=glow,winter` | stack themes, inner to outer; empty for none |
-| `?screen=look` | open a screen (`home`, `quick`, `look`, `alert`) |
-| `?picture=URL` | image standing in for the HDMI picture; a flat gradient is used otherwise |
-| `?fonts=none` | skip the Google Fonts link (use on an offline TV with local fonts) |
-
-The **Look** screen is the on-device menu: arrow keys move focus, Enter selects a style or toggles a theme, and the choice is saved in `localStorage`. On a webOS remote the D-pad sends the same arrow keys.
+Our UI layer in the TV's compositor draws every surface from one QML component kit (`ui/Look/`), so a style and its
+themes reach everything it draws. The design is the owner's canvas, linked from
+[docs/design/README.md](../../docs/design/README.md); the boards and the packs here are the record.
 
 ## Layer model
 
-Every component renders the same five elements, in this DOM order, every time:
+Every component (`ui/Look/Decor.qml`) is four layers, measured from its origin: −1 back decoration, 0 the origin
+(the component as the style draws it, states included), +1 front decoration, and its attachments (chips, badges),
+which paint after its +1. Themes own ±1 only: with no themes those layers are there and empty, and meaning lives in
+the origin and its attachments, so turning themes off never hides focus, state or a chip. Later themes wrap further
+out: their back rings paint first, their front rings last.
 
-```
-wrapper            position: relative, no z-index (so it joins its container's paint passes)
-├─ back slot   −1  theme rings, behind everything        z 1   (lifted: 11)
-├─ origin       0  the component as the style draws it   z 2   (lifted: 12)
-├─ front slot  +1  theme rings, over the origin          z 3   (lifted: 13)
-└─ attach slot     child components such as the chip     z 4   (lifted: 14)
-```
+Within a container, resting components paint in passes (every −1, then every origin, then every +1, then every
+attachment), and the focused one lifts its whole stack above them: the canvas's `layers` page, board 3, option C.
+Qt Quick orders by z only among siblings, so `ui/Look/Passes.qml` is the container: it keeps its components' back, front and attachment layers in planes beside its content (positioners lay out only origins), and moves the focused component's whole stack, origin included, to a lift plane above them. Each layer follows its origin's position, scale and opacity through bindings, with no script on an idle screen. Screen's children and a Panel's content paint in passes, inside the parent's origin and free to reach into its margin (board 5); a `Decor` outside any Passes, or inside another component's origin, keeps its layers to itself. The Screen's own decoration (sky, snow, corner pieces) shows only while a surface in it is showing.
 
-- The back and front slots are always present. With no themes they are empty: the "vacant decorators".
-- Because the wrapper sets no z-index, siblings share one stacking context. All back slots paint first, then all origins, then all front slots, then all attachments. A container's origin uses `isolation: isolate`, so its children's passes stay inside it, over its surface and under its front slot; nothing clips them, so they may reach into the container's margin.
-- A focused component is lifted: its four layers move to z 11–14 together, above its neighbours' passes. This is the canvas's board 3, option C ("passes + lift"); nesting is board 5 ("escapes to the parent's margin"). DESIGN.md, Layers, has the whole model.
-- Attachments (`attach`) are placed by `anchor`, [x%, y%] of the origin, centred on it.
-- `outset` may be given per state (`{ rest, focused, current, disabled }`); the compositor animates between them.
-
-The compositor draws the same order. Qt Quick orders by z only among siblings, so `ui/Look/Passes.qml` is the container: it keeps its components' back, front and attachment layers in planes beside its content (positioners lay out only origins), and moves the focused component's whole stack, origin included, to a lift plane above them. Each layer follows its origin's position, scale and opacity through bindings, with no script on an idle screen. Screen's children and a Panel's content paint in passes; a `Decor` outside any Passes, or inside another component's origin, keeps its layers to itself. The Screen's own decoration (sky, snow, corner pieces) shows only while a surface in it is showing.
-- Meaning lives in the origin and its attachments. Turning themes off never hides focus, state or a chip.
+- Attachments are placed by `anchor`, [x%, y%] of the origin, centred on it.
+- `outset` may be given per state (`{ rest, focused, current, disabled }`); the Ring animates between them.
 
 ## Style pack schema
 
 ```js
-ThemePack.register({
+module.exports = {
   kind: 'style', id: 'smoke', name: 'Smoke',
-  font: { family: 'Lexend', stack: "Lexend, sans-serif", google: 'Lexend:wght@400;500;600;700' },
-  tokens: {                     // every style must define every key in ThemePack.TOKENS
+  font: { family: 'Lexend', google: 'Lexend:wght@400;500;600;700', files: ['Lexend/Lexend-400.ttf', ...] },
+  tokens: {                     // every style must define every key in TOKENS (packs/tokens.js)
     surface: 'rgba(10,10,18,0.72)', inner: 'rgba(255,255,255,0.08)', ...
   },
   behaviour: {
-    focusFill: 'token',         // 'token': focus uses the focus token; 'hue': the item's own hue
-    textShadow: true            // shadow under text on see-through surfaces
+    focusFill: 'token'          // 'token': focus uses the focus token; 'hue': the item's own hue
   }
-});
+};
 ```
 
-Tokens become CSS variables (`surface` → `--tp-surface`). The full list is `ThemePack.TOKENS` in `runtime/theme-pack.js`.
+Token values are CSS syntax (`rgba()`, `16px`, `cubic-bezier()`); `ui/Look/Look.qml` reads them as QML colours,
+numbers and easing curves, and keeps a stock value for each so the kit is whole before the Look service answers.
 
 ## Theme pack schema
 
 ```js
-ThemePack.register({
+module.exports = {
   kind: 'theme', id: 'winter', name: 'Winter',
-  reads: ['focus'],             // tokens the recipes use; every style provides them
   recipes: [
-    { target: 'tile', slot: 'back', when: 'focused', outset: 24, cost: 'glow', style: '...', fill: '#9AD8FF', radius: 56, blur: 16 },
-    { target: 'screen', slot: 'back', when: 'always', outset: 0, cost: 'static', style: '...', html: '<svg>...</svg>', asset: 'snow.png' }
+    { target: 'tile', slot: 'back', when: 'focused', outset: 24, cost: 'glow', fill: '#9AD8FF', radius: 56, blur: 16 },
+    { target: 'screen', slot: 'front', when: 'always', outset: 0, cost: 'static', style: 'bottom:auto;height:44px', html: '<svg>...</svg>', asset: 'icicles.png' }
   ]
-});
+};
 ```
 
-- `target` is a decoration target from DESIGN.md's decoration contract, or `*`. `slot` is `back` or `front`.
+- `target` is a decoration target (`TARGETS` in `packs/tokens.js`: the kit component each is, and the states it
+  passes), or `*`. `slot` is `back` or `front`.
 - `when` is `always`, `focused`, `current` or `disabled`.
 - `outset` is a number or `[top, right, bottom, left]` in px, measured out from the origin, or per state: `{ rest, focused, current, disabled }`, each a number or four (the first state the component is in that the recipe names, else `rest`). Negative values inset over the content.
-- `style` is inline CSS for the ring element. It may use `var(--tp-…)` tokens.
-- Themes listed later wrap further out: their back rings paint first, their front rings paint last.
+- `style` places the ring in its outset box (below, "Recipes the QML layer draws"); `html` is the art its `asset` is
+  rendered from.
 
-## Export to the Design canvas
+## Export the canvas's pack page
 
 ```sh
-node tools/theme-pack/export-canvas.mjs --out OUT_DIR [--picture URL] [--style smoke] [--themes winter]
+node tools/theme-pack/export-previews.mjs OUT_DIR [--scene NAME]... [--look STYLE[+THEME...]]...
 ```
 
-This writes one `.dc.html` board per screen. CSS variables are resolved to literal values so the boards paint while loading and stay editable in the canvas.
+Renders the shots for the canvas's generated `pack` page through the preview harness (below), so they are what the
+TV draws: by default every surface scene (Alert, InputPicker, QuickSettings, QuickSheet, Settings, Toast, VolumeBar,
+VolumeMute) in Smoke, Smoke + Winter, Smoke + Halloween and Bubble + Glow, in every state each scene declares. It
+writes the PNGs, `index.html` (a contact sheet) and `index.json` (each shot's scene, state, style, themes and file)
+into `OUT_DIR`. Putting them on the canvas is done by hand. It needs what the harness needs.
 
 ## Test
 
@@ -90,9 +76,13 @@ This writes one `.dc.html` board per screen. CSS variables are resolved to liter
 node --test tools/theme-pack/test/*.test.js
 ```
 
-The tests check the layer model on the rendered HTML: slot order, ring order, vacant slots, focus lift, and that every theme's `reads` exist in every style.
+The packs are checked as data (`test/assets.test.js`, `test/kit.test.js`): every style defines every token, recipes
+name only known targets, tokens and assets, the kit decorates exactly the contract's targets with the states each
+lists, and the assets match their art.
 
-`test/layer.test.js` runs the QML scenes in `preview/tests/` offscreen (for example the layer's late claims against a fake LG root). It needs Qt 5's `qml` tool, `qml-qt5` or whatever `QML_BIN` names, and is skipped without it.
+`test/layer.test.js` runs the QML scenes in `preview/tests/` offscreen: the layer model's paint order (`Passes.qml`),
+what themes may do to a component (`Decoration.qml`: themes off, ring order, dressed chips, thumbs and knobs,
+disabled decoration), the layer's late claims against a fake LG root, and more. It needs Qt 5's `qml` tool, `qml-qt5` or whatever `QML_BIN` names, and is skipped without it.
 
 `test/settings.test.js` checks our Settings: the generated catalog module is current, every page and item the menu names exists, every catalog page can be reached, every LG deep link lands on a page, and `preview/tests/tst_SettingsNav.qml` drives the Settings and the quick sheet with remote keys against the settings mock and a fake LG root. That last one needs Qt 5's `qmltestrunner` (`qmltestrunner-qt5`, `qmltestrunner`, or `QML_TEST_BIN`) and is skipped without it.
 
@@ -111,10 +101,10 @@ Prints one PASS/FAIL line per check over the commits `base..HEAD` and exits non-
 `preview/` renders the compositor layer's parts off the TV. A scene in `preview/scenes/` mocks the LG item a part replaces, as the part sees it, and may declare QML `states` (a row focused, a picker open, a toast of each kind). `preview/Shot.qml` draws one scene in one state over a stand-in picture at 1920×1080, with the Look service answered from a payload like the service's own, and fails if a part doesn't `claims()` its mock. Every scene renders its base state as well as each state it declares (a scene leaves the base out only with `property bool baseShot: false`; `preview/states.mjs`).
 
 ```sh
-node tools/theme-pack/preview/render.mjs [OUT_DIR] [--scene NAME]... [--jobs N]
+node tools/theme-pack/preview/render.mjs [OUT_DIR] [--scene NAME]... [--look STYLE[+THEME...]]... [--jobs N]
 ```
 
-renders every scene × state × style × theme set (no theme, then each theme alone) in parallel and writes the PNGs and `index.html`, a contact sheet grouped by scene and state, into `OUT_DIR` (default: a new directory under the OS temp dir). It exits non-zero and lists the QML errors if any shot fails. A scene whose part isn't written yet is listed as waiting, not rendered.
+renders every scene × state × style × theme set (no theme, then each theme alone) in parallel and writes the PNGs, `index.html` (a contact sheet grouped by scene and state) and `index.json` into `OUT_DIR` (default: a new directory under the OS temp dir). It exits non-zero and lists the QML errors if any shot fails. A scene whose part isn't written yet is listed as waiting, not rendered.
 
 It needs Qt 5's `qml` tool with QtQuick and QtGraphicalEffects (`qml-qt5` or `qml` on `PATH`, or `QML_BIN`), Xvfb, and Mesa (software OpenGL). Shots render through OpenGL on a virtual display per worker, because Qt's software backend draws no ShaderEffect and theme glows would be missing. To run one shot by hand:
 
@@ -129,30 +119,28 @@ DISPLAY=:5 LIBGL_ALWAYS_SOFTWARE=1 QT_FORCE_STDERR_LOGGING=1 QML2_IMPORT_PATH=$P
 
 ## Fonts on an offline TV
 
-Each style names its font (`font.family`) and the files that draw it (`font.files`, relative to `packs/fonts/`). The files are committed, with each font's `OFL.txt` beside them (both fonts are SIL Open Font License 1.1), so the package carries them and the TV never goes online for type. They are static per-weight TrueType files: the compositor's Qt 5.6 FreeType reads no WOFF2, and Chromium 53 predates variable fonts. `sh tools/theme-pack/tv/fetch-fonts.sh` downloads them again from Google Fonts, for when a style's font or weights change.
+Each style names its font (`font.family`) and the files that draw it (`font.files`, relative to `packs/fonts/`). The files are committed, with each font's `OFL.txt` beside them (both fonts are SIL Open Font License 1.1), so the package carries them and the TV never goes online for type. They are static per-weight TrueType files: the compositor's Qt 5.6 FreeType reads no WOFF2. `sh tools/theme-pack/tv/fetch-fonts.sh` downloads them again from Google Fonts, for when a style's font or weights change.
 
-The browser demo loads the same fonts from Google Fonts; open it with `?fonts=none` to see the fallback stack. The packaged app links the committed files instead, and the compositor layer loads them through `Look.font` (below).
+The Look service serves them from its package, and the compositor layer loads them through `Look.font` (below).
 
 ## Put it on a TV
 
-The demo ships as a webOS web app called **Look**. The build runs on any machine with internet; the TV only receives the finished package.
+The **Look package** carries the Look service (`service/`: the chosen look, the packs as JSON with their assets and
+fonts, Settings requests and the layer's reports) and the **Look app**, the Home screen's Look icon. The build runs
+on any machine; the TV only receives the finished package.
 
 ```sh
 sh tools/theme-pack/tv/build-ipk.sh tools/theme-pack/dist
 TV_HOST=<tv address> sh tools/theme-pack/tv/install-tv.sh tools/theme-pack/dist/dev.themepack.look_0.1.0_all.ipk
 ```
 
-`install-tv.sh` needs root SSH, which Homebrew Channel provides. It copies the package to `/tmp` on the TV and installs it with the TV's own `appInstallService`. Open **Look** from the home screen. Left and right switch screens, Back on Home closes the app.
+`install-tv.sh` needs root SSH, which Homebrew Channel provides. It copies the package to `/tmp` on the TV and installs it with the TV's own `appInstallService`.
 
-Launch parameters take the same keys as the demo's query string, so a screen and look can be opened remotely:
+The Look app draws nothing: it is the Settings stub's page (below) with no LG targets, so every launch asks the Look
+service for our Settings at its Look page (`openSettings {"target": "Look"}`) and closes. Style and themes are
+chosen there.
 
-```sh
-luna-send -n 1 luna://com.webos.applicationManager/launch '{"id":"dev.themepack.look","params":{"screen":"look","themes":"halloween"}}'
-```
-
-Two packaging details matter on webOS 4.x. The `.ipk` must be a plain `ar` archive: GNU `ar` writes member names with a trailing slash, which the installer rejects ("Failed to extract package"), so `build-ipk.sh` writes the archive itself. The fonts must be static per-weight files: Chromium 53 predates variable fonts and would draw everything at one weight.
-
-In the app the UI draws over a stand-in gradient, not the live HDMI picture: a full-screen web app replaces the input while it runs.
+The `.ipk` must be a plain `ar` archive: GNU `ar` writes member names with a trailing slash, which the installer rejects ("Failed to extract package"), so `build-ipk.sh` writes the archive itself.
 
 ## The Settings stub
 
@@ -255,9 +243,10 @@ TV_HOST=<tv address> sh tools/theme-pack/webos/own-layer-tv.sh capture out.png  
 
 Every surface the layer draws is composed from one component kit, `ui/Look/kit/` (in the `Look` module): Screen, Panel,
 Header, RowList and ListRow, Tile and TileRibbon, Toggle, Radio, Check, Slider, Stepper, Chip, Badge, Button and
-ButtonRow, ToastCard, Dialog, Scrim, KeyHints, Icon and Label. [DESIGN.md](DESIGN.md) is the language they implement:
-surface, placement, row and tile anatomy, focus, type, spacing, motion and the decoration targets themes write to.
-`preview/scenes/Kit.qml` and `KitOverlays.qml` are its contact sheet; render them with `preview/Shot.qml`.
+ButtonRow, ToastCard, Dialog, Scrim, KeyHints, Icon and Label. They implement the canvas's
+`smoke` page; each kit file's header states its contract, and the token list and decoration targets are
+`packs/tokens.js`. A surface uses only the kit: if it needs something the kit lacks, add it to the kit.
+`preview/scenes/Kit.qml`, `KitForms.qml` and `KitOverlays.qml` are its contact sheet.
 
 ### Recipes the QML layer draws
 
@@ -268,11 +257,12 @@ The compositor can't draw HTML, and has no SVG plugin. A recipe is drawn by the 
 - `stroke` (a colour or a token name) and `strokeWidth` in px, with optional `radius`: a crisp ring inside the ring box.
 
 `opacity` applies to all three. `radius` is px, or a radius token (`r-row`) grown by the outset, so the ring stays
-concentric with the component in every style. Every recipe must name one of the three (a test checks it); the HTML
-renderer draws the same recipe from its `html` and `style`. Every recipe also declares its `cost`: `static` or
-`glow` (a blurred fill). DESIGN.md's decoration contract has the rules and what each theme gives each target.
+concentric with the component in every style. Every recipe must name one of the three (a test checks it). Every
+recipe also declares its `cost`: `static` or `glow` (a blurred fill, a shader that costs GPU each frame it moves or
+fades). Back (−1) holds glow, shadow, plate and artwork; front (+1) holds rings, frost and corner pieces. Neither
+covers text or a value, and decoration on a disabled component is drawn at half opacity.
 
-The ring box is the outset box, as in CSS. The QML Ring also reads a recipe's placement from its `style`, so there is one source for both renderers (`ui/Look/place.js`): `width`/`height` in px size the ring, and `left:auto`/`top:auto` put it against the right/bottom edge (`right:auto`/`bottom:auto` against the left/top). Without a size it fills the box. Edges only take `auto`, since the outset sets them; the tests reject anything else.
+The ring box is the outset box. The QML Ring reads a recipe's placement from its `style` (`ui/Look/place.js`), the same declarations `render-assets.mjs` composes the art by: `width`/`height` in px size the ring, and `left:auto`/`top:auto` put it against the right/bottom edge (`right:auto`/`bottom:auto` against the left/top). Without a size it fills the box. Edges only take `auto`, since the outset sets them; the tests reject anything else.
 
 `node tools/theme-pack/render-assets.mjs` renders each `asset` from its recipe's html (needs `rsvg-convert`); the PNGs are committed, so building doesn't need it. The html must be one `<svg>`, or a field of `<svg>`s placed with `left`/`top` (sized from the style, or the 1920×1080 screen for a `screen` target). It renders at the CSS size ×2, at the svg's own aspect (`width="100%"`: 128 px on the longer side), and a screen-wide box at ×1. The ring's style `opacity` is baked in. It lists html it can't draw (a `<div>`, a CSS background), which then fails the tests: draw gradients and glows inside the svg.
 

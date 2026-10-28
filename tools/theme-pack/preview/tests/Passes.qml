@@ -3,7 +3,7 @@ import QtQuick.Window 2.2
 import Preview 1.0
 import Look 1.0
 
-// The layer model's paint order (DESIGN.md, Layers; canvas boards 3 and 5), read from the item tree: which plane
+// The layer model's paint order (the design canvas's layers page, boards 3 and 5), read from the item tree: which plane
 // each layer lives in, and the order the scene graph paints them in (children by z, then by index). Exits 1 on the
 // first failure: qml Passes.qml
 Window {

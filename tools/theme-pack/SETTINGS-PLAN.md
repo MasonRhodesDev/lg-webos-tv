@@ -1,7 +1,7 @@
 # Our own Settings: research and plan
 
-Goal: the remote's settings button opens **our** Settings, drawn by our compositor layer from the kit (`ui/Look/kit`,
-see `DESIGN.md` on `sys/design`), and the household never meets LG's Settings app (`com.palm.app.settings`). No LG
+Goal: the remote's settings button opens **our** Settings, drawn by our compositor layer from the kit (`ui/Look/kit`;
+the design is linked from `docs/design/README.md` at the repo root), and the household never meets LG's Settings app (`com.palm.app.settings`). No LG
 file is edited.
 
 This is research and a plan. Nothing here is built yet. Everything was read offline from the stock QML, the stock
@@ -208,7 +208,7 @@ removed. Eight categories instead of LG's seven, with names a family member woul
 | **Network** | Status (online, how); Wi-Fi networks | Cable; TV name; Turn on by phone; IP and DNS | Network/* |
 | **Timers & power** | Sleep timer | Auto power off; No-signal off; Power on/off timers; Quick Start+ | General/Timers, General/EcoMode |
 | **Captions & access** | Captions on/off | Caption look; Audio description; Spoken menus; High contrast; Pointer | Accessibility/* |
-| **Look** | Style; Themes | (our own: the Look picker's choices) | (ours) |
+| **Look** | Style; Themes | (our own: the styles and themes the Look service lists) | (ours) |
 | **TV** | Time; Language | Location; Parental locks (PIN); Channels (scan, edit, copy); About and updates; Home screen options; Advertising and AI; Reset | General/*, Safety/*, Channels/* |
 
 - The **quick sheet** (what the gear opens) is a short side panel of tier-1 rows: Picture mode, Sound mode, Sound

@@ -2,7 +2,7 @@ import QtQuick 2.4
 import Look 1.0
 import "passes.js" as Passes
 
-// One component in the layer model (DESIGN.md, Layers): theme rings behind (−1), the component as the style draws it
+// One component in the layer model (the design canvas's layers page): theme rings behind (−1), the component as the style draws it
 // (the origin, given as this item's children), theme rings in front (+1), and its attachments (`attachments`: chips,
 // badges, counts), which paint after its +1. Meaning lives in the origin and the attachments, so turning themes off
 // never hides a value or a state.

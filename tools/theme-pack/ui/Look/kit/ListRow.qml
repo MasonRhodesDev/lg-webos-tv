@@ -1,7 +1,7 @@
 import QtQuick 2.4
 import Look 1.0
 
-// The one row anatomy every list uses (DESIGN.md, Row): icon slot, label (and an optional hint line), value, and a
+// The one row anatomy every list uses: icon slot, label (and an optional hint line), value, and a
 // trailing control chosen by `variant`:
 //   nav      chevron: opens a page (a value, if given, shows what it is set to)
 //   value    the value text and a chevron: opens a picker for it

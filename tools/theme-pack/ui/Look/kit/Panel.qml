@@ -1,9 +1,8 @@
 import QtQuick 2.4
 import Look 1.0
 
-// A panel: the surface material, decorated as `target`, placed by the placement grammar (DESIGN.md, Placement) and
-// entering and leaving with the style's motion. Its children are the content, inset by `padding`; they paint in the
-// panel's passes (DESIGN.md, Layers).
+// A panel: the surface material, decorated as `target`, placed by `placement` and entering and leaving with the
+// style's motion. Its children are the content, inset by `padding`; they paint in the panel's passes.
 //   side-left, side-right  the full safe height at a side edge, panel-w wide (Quick Settings, sub-menus)
 //   bar                    a pill at the top-right of the safe area, volume-w by volume-h (the volume bar)
 //   ribbon                 the full safe width at the bottom (the input picker; usually `bare`)

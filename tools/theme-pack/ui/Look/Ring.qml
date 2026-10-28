@@ -32,7 +32,7 @@ Item {
     width: box.width
     height: box.height
     visible: { var w = recipe.when || "always"; return w === "always" || host[w] === true; }
-    // Decoration on a disabled component recedes with it (DESIGN.md, Decoration contract).
+    // Decoration on a disabled component recedes with it.
     opacity: (recipe.opacity !== undefined ? recipe.opacity : 1) * (host.disabled ? 0.5 : 1)
 
     Image {
