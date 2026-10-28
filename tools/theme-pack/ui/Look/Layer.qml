@@ -12,7 +12,7 @@ Item {
 
     // Each file is one part. A part is an Item with `property Item lg` and `function claims(item)`; it may set
     // `searchDepth` (how deep under the root its LG item sits, default 2).
-    readonly property var parts: ["parts/VolumeBar.qml"]
+    readonly property var parts: ["parts/VolumeBar.qml", "parts/Toast.qml"]
 
     function find(item, part, depth) {
         var kids = item.children;
