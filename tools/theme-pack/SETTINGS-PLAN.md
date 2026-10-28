@@ -285,11 +285,20 @@ and writes. Pages bind to it and never call the bus.
   a FocusScope, and the page stack inside gives `focus` to the current page's RowList. The kit's lists handle
   Up/Down/OK/Left/Right (`kit/keys.js`). No `FocusHandler` import of our own is needed, which avoids the unverified
   layer-7 scheme.
-- **Back.** By default the key policy closes the whole overlay on Back (`KeyFilters/systemUi.js`, case
-  `Key_webOS_Back`: `overlayView.access.keyFilter.back` is true unless the window says otherwise,
-  `AccessControlPolicy.qml` `policy_keyfilter`). Our window calls
-  `webOSShell.setWindowProperty("_WEBOS_ACCESS_POLICY_KEYS_BACK", "true")` at launch, so Back reaches the focused
-  RowList, which emits `back`: pop one page; on the first page, close. Exit and Home still close it (policy).
+- **Back.** The container's `AccessControlPolicy` starts with `keyFilter.back = true` ("filter out";
+  `AccessControlPolicy.qml` `Component.onCompleted` → `reset()`), and `KeyFilters/systemUi.js` case `Key_webOS_Back`
+  then closes the whole overlay (`overlayView.close()`). That is why Back closes LG's Quick Settings in one step.
+  Our window calls `webOSShell.setWindowProperty("_WEBOS_ACCESS_POLICY_KEYS_BACK", "true")` at launch, which
+  `policy_keyfilter` turns into `keyFilter.back = false` (`StarfishViewContainer.qml` `updateProperties`). The policy
+  then falls through to `activeSurfaceAcceptsBackKey()`, which asks the **fullscreen app underneath** (a system UI is
+  not a surface):
+  - if that app accepts Back, the key is NotAccepted and reaches our focused RowList, which emits `back`: pop one
+    page; on the first page, close;
+  - if it does not, the policy emits `backReleased` and `YSM.qml` `onBackReleased` launches Home; our window cannot
+    veto that, so it also closes on `host.keyFilter.backReleased` rather than lingering over Home.
+  Which foreground apps on this TV refuse Back (live TV, the HDMI input apps) decides how often the second case
+  happens (**TV**). If it is common, the fallback is to leave the property unset: Back then always closes our whole
+  overlay (never Home), at the cost of page-by-page Back. Exit and Home close it either way.
 - Inputs keep working underneath: an overlay system UI does not take the screen; the live picture shows through the
   Scrim, which matters when tuning picture.
 - Audio guidance: when `option.audioGuidance` is on, focused rows speak their label and value through
@@ -313,8 +322,8 @@ and writes. Pages bind to it and never call the bus.
 
 ## 4. Harness mocks
 
-The preview mock `preview/mocks/WebOSServices/Service.qml` answers the Look service from `Fixture`. For Settings it
-answers these from a settings fixture (a JSON file per scene, defaulting to one built from the catalog's domains):
+The preview mock `preview/mocks/WebOSServices/Service.qml` answers the Look service from `Fixture`. The settings
+fixtures go where `preview/render.mjs` scenes can load them (main has it now). For Settings the mock answers these from a settings fixture (a JSON file per scene, defaulting to one built from the catalog's domains):
 
 | Call | Mock answer |
 |---|---|
@@ -337,7 +346,7 @@ picture-mode list switches to the HDR set); an error rollback toast.
 ## 5. Open items
 
 - **TV** reads listed in section 1 (permission groups, configd `systemUIManager`/`keyFilters` shape, live desc).
-- Whether `setWindowProperty('_WEBOS_ACCESS_POLICY_KEYS_BACK', 'true')` on a system UI makes Back arrive as
+- Back delivery (3.4): which foreground apps accept Back, and whether the delivered key arrives as
   `Qt.Key_Back`/`Key_Escape` in QML (LG's QS listens for `Key_Escape` releases, `QuickSettings.qml:101`).
 - Kit gaps: text field with the system keyboard; busy indicator.
 - The owner decides on the launch stub (section 2) and whether our quick sheet replaces LG's Quick Settings (hook A as
