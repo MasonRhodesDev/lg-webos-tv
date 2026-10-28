@@ -28,3 +28,11 @@ test('the layer claims on-demand LG items when LG shows them, and lets go when L
   assert.ok(/late claims: all passed/.test(out), out);
   assert.ok(!/FAIL /.test(out), out);
 });
+
+test('Look asks for our Settings only on a new open request, never on a subscription\'s first answer', { skip: !haveQml && QML + ' not found' }, () => {
+  const r = runScene('SettingsRequests.qml');
+  const out = r.stdout + r.stderr;
+  assert.strictEqual(r.status, 0, out);
+  assert.ok(/settings requests: all passed/.test(out), out);
+  assert.ok(!/FAIL /.test(out), out);
+});

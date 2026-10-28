@@ -10,12 +10,14 @@ var packsDir = path.join(__dirname, 'packs');
 // The service runs sandboxed as a non-root user; data/ is the one directory the package makes writable for it.
 var lookFile = path.join(__dirname, 'data', 'look.json');
 var subscribers = {};
-var lastLoadMs = null;
 // What the TV's renderers reported (loaded, errors), newest last. They cannot write files, so this is their log.
 var reports = [];
 // Whether our Look picker is open in the compositor's UI layer. `at` changes with every request, so the layer acts on
 // requests rather than on state: a compositor restart must not reopen a picker nobody asked for.
 var picker = { open: false, at: 0 };
+// Whether our Settings is open, and at which page (a page id from settings/catalog.json, or '' for the top). Same
+// request semantics as the picker.
+var settings = { open: false, target: '', at: 0 };
 
 // Stay running after the first call: a cold start drops the call that woke the service.
 service.activityManager.create('keepAlive', function () {});
@@ -45,8 +47,8 @@ function payload() {
     returnValue: true,
     look: look,
     subscribers: Object.keys(subscribers).length,
-    lastLoadMs: lastLoadMs,
     picker: picker,
+    settings: settings,
     // Theme assets are files next to the packs; renderers resolve a recipe's `asset` against this.
     assets: 'file://' + path.join(packsDir, 'assets') + '/',
     // The styles' font files; a style's font.files are relative to this.
@@ -61,8 +63,6 @@ function payload() {
 }
 
 service.register('getLook', function (message) {
-  var t = message.payload && message.payload.loadMs;
-  if (typeof t === 'number') lastLoadMs = t;
   if (message.isSubscription) subscribers[message.uniqueToken] = message;
   message.respond(payload());
 }, function (message) {
@@ -102,6 +102,21 @@ service.register('openPicker', function (message) {
 });
 service.register('closePicker', function (message) {
   picker = { open: false, at: Date.now() };
+  message.respond(notify());
+});
+
+// The Settings stub (mounted over LG's Settings app) calls openSettings with the page LG's caller asked for; the
+// layer calls closeSettings when our Settings closes.
+service.register('openSettings', function (message) {
+  var target = (message.payload || {}).target;
+  if (target !== undefined && typeof target !== 'string') {
+    return message.respond({ returnValue: false, errorText: 'target must be a page id' });
+  }
+  settings = { open: true, target: target || '', at: Date.now() };
+  message.respond(notify());
+});
+service.register('closeSettings', function (message) {
+  settings = { open: false, target: '', at: Date.now() };
   message.respond(notify());
 });
 
