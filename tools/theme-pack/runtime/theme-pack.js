@@ -163,6 +163,21 @@
 
   var C = {};
 
+  function track(pct, fill, width, ctx) {
+    return '<span style="position:relative;display:block;' + (width ? 'width:' + width + 'px;' : '-webkit-box-flex:1;flex:1;') + 'height:12px;border-radius:999px;background:var(--tp-track)">' +
+      '<span style="position:absolute;left:0;top:0;bottom:0;width:' + pct + '%;border-radius:999px;background:' + fill + '"></span>' +
+      render(el('thumb', { place: 'position:absolute;left:' + pct + '%;top:50%;margin-left:-15px;margin-top:-15px;' }), ctx) + '</span>';
+  }
+
+  // The thumb and knob are their own components so themes can dress them; their origin always shows the value.
+  C.thumb = function (p, kids, ctx) {
+    return layered('thumb', p, 'width:30px;height:30px;border-radius:999px;background:var(--tp-ink);box-shadow:0 2px 8px rgba(0,0,0,0.45)', '', ctx);
+  };
+
+  C.knob = function (p, kids, ctx) {
+    return layered('knob', p, 'width:32px;height:32px;border-radius:999px;background:' + (p.on ? 'var(--tp-knob)' : '#FFFFFF'), '', ctx);
+  };
+
   C.screen = function (p, kids, ctx) {
     var pic = p.picture
       ? '<img src="' + esc(p.picture) + '" alt="" style="position:absolute;left:0;top:0;width:1920px;height:1080px;object-fit:cover">'
@@ -209,10 +224,10 @@
     if (p.value != null) control += '<span style="font-size:24px;font-weight:500;opacity:0.9;margin-left:16px">' + esc(p.value) + '</span>';
     if (p.control === 'toggle') {
       control += '<span style="width:72px;height:40px;box-sizing:border-box;padding:4px;margin-left:16px;border-radius:999px;background:' + (p.on ? 'var(--tp-current)' : 'var(--tp-track)') +
-        ';display:-webkit-box;display:flex;justify-content:' + (p.on ? 'flex-end' : 'flex-start') + '"><span style="width:32px;height:32px;border-radius:999px;background:' + (p.on ? 'var(--tp-knob)' : '#FFFFFF') + '"></span></span>';
+        ';display:-webkit-box;display:flex;justify-content:' + (p.on ? 'flex-end' : 'flex-start') + '">' + render(el('knob', { on: p.on }), ctx) + '</span>';
     }
     if (p.control === 'slider') {
-      control += '<span style="width:300px;height:12px;margin-left:16px;border-radius:999px;background:var(--tp-track);display:-webkit-box;display:flex"><span style="width:' + p.pct + '%;border-radius:999px;background:' + (f ? fc.ink : '#FFFFFF') + '"></span></span>' +
+      control += '<span style="margin-left:16px">' + track(p.pct, f ? fc.ink : 'var(--tp-ink)', 280, ctx) + '</span>' +
         '<span style="width:52px;text-align:right;font-size:26px;font-weight:700">' + esc(p.pct) + '</span>';
     }
     if (p.control === 'check' && p.current) control += '<span style="margin-left:16px">' + icon('check', f ? fc.ink : 'var(--tp-current)', 32) + '</span>';
@@ -224,7 +239,7 @@
       'box-sizing:border-box;height:' + (p.hint ? 96 : 88) + 'px;padding:0 28px;border-radius:var(--tp-r-row);display:-webkit-box;display:flex;align-items:center;' +
       'background:' + (f ? fc.bg : 'var(--tp-inner)') + ';color:' + ink + ';box-shadow:' + (edges.join(',') || 'none') + ';' +
       (p.disabled ? 'outline:2px dashed rgba(255,255,255,0.35);outline-offset:-2px;' : '') + (f ? '' : shadow(ctx)),
-      html, ctx);
+      html, ctx, { container: true });
   };
 
   C.panel = function (p, kids, ctx) {
@@ -252,10 +267,10 @@
 
   C.volume = function (p, kids, ctx) {
     var html = icon('speaker', 'var(--tp-ink)') +
-      '<span style="-webkit-box-flex:1;flex:1;height:12px;margin:0 20px;border-radius:999px;background:var(--tp-track);display:-webkit-box;display:flex"><span style="width:' + p.value + '%;border-radius:999px;background:var(--tp-ink)"></span></span>' +
+      '<span style="display:block;-webkit-box-flex:1;flex:1;margin:0 24px">' + track(p.value, 'var(--tp-ink)', 0, ctx) + '</span>' +
       '<span style="font-size:34px;font-weight:700">' + esc(p.value) + '</span>';
     return layered('volume', p, 'box-sizing:border-box;width:460px;height:80px;padding:0 28px;border-radius:999px;background:var(--tp-surface);' + EDGE +
-      'display:-webkit-box;display:flex;align-items:center;' + shadow(ctx), html, ctx);
+      'display:-webkit-box;display:flex;align-items:center;' + shadow(ctx), html, ctx, { container: true });
   };
 
   C.button = function (p, kids, ctx) {

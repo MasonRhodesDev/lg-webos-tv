@@ -71,7 +71,7 @@ test('attachments come after the front slot and are full components', () => {
   const attach = slotBody(m, 'attach');
   assert.match(attach, /data-tp="chip"/);
   assert.deepStrictEqual(slots(attach), ['back', 'origin', 'front', 'attach']);
-  assert.ok(ringIds(slotBody(attach, 'front')).includes('winter'), 'chip gets its own winter frost');
+  assert.ok(ringIds(slotBody(attach, 'back')).includes('winter'), 'chip gets its own winter decoration');
 });
 
 test('disabled keeps its surface; only the ink changes', () => {
@@ -130,4 +130,21 @@ test('runtime source avoids syntax Chromium 53 lacks', () => {
     assert.doesNotMatch(src, /\?\.|\?\?|\.\.\.[a-zA-Z({[]|\basync\b|\bawait\b/, f + ' uses syntax newer than Chromium 53');
     assert.doesNotMatch(src, /[;"']\s*gap:|\binset:/, f + ' uses flex gap or the inset shorthand');
   });
+});
+
+test('sliders and switches carry a thumb and knob that themes can dress', () => {
+  const vol = html(el('volume', { value: 40 }), { themes: ['halloween'] });
+  assert.match(vol, /data-tp="thumb"/);
+  const thumb = vol.slice(vol.indexOf('data-tp="thumb"'));
+  assert.ok(ringIds(slotBody(thumb, 'front')).includes('halloween'), 'thumb gets the pumpkin');
+  const row = html(el('row', { label: 'x', control: 'toggle', on: true }), { themes: ['winter'] });
+  const knob = row.slice(row.indexOf('data-tp="knob"'));
+  assert.ok(ringIds(slotBody(knob, 'front')).includes('winter'), 'knob gets the snowflake');
+});
+
+test('with themes off the thumb is still a plain dot showing the value', () => {
+  const vol = html(el('volume', { value: 40 }));
+  const thumb = vol.slice(vol.indexOf('data-tp="thumb"'));
+  assert.strictEqual(slotBody(thumb, 'front'), '');
+  assert.match(vol, /left:40%/);
 });

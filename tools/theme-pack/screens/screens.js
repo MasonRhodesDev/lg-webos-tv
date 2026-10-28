@@ -50,7 +50,7 @@
         el('row', { label: 'Sleep timer', value: 'Off', control: 'drill', icon: 'moon', hue: 3 }),
         el('row', { label: 'Energy saving', control: 'toggle', on: true, icon: 'leaf', hue: 4 }),
         el('row', { label: 'Look', value: lookLabel(o), control: 'drill', icon: 'palette', hue: 2, focused: true }),
-        el('row', { label: 'Screen off', icon: 'power', hue: 5 }),
+        el('row', { label: 'Volume', control: 'slider', pct: 21, icon: 'speaker', hue: 5 }),
         el('row', { label: 'All settings', control: 'drill', icon: 'sliders', hue: 6 })
       ])]);
     },
