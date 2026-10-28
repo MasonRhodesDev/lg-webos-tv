@@ -1,9 +1,11 @@
 import QtQuick 2.4
 import QtGraphicalEffects 1.0
 import Look 1.0
+import "place.js" as Place
 
 // One theme recipe drawn around a component: an image from the theme's asset pack, or a soft fill (a glow).
-// The outset is [top, right, bottom, left] in px out from the component, or one number for all four.
+// The outset is [top, right, bottom, left] in px out from the component, or one number for all four. A recipe whose
+// style gives a size sits at an edge of that box instead of filling it (place.js).
 Item {
     id: ring
     property Item host
@@ -12,10 +14,11 @@ Item {
 
     readonly property var o: typeof recipe.outset === "number" ? [recipe.outset, recipe.outset, recipe.outset, recipe.outset]
                                                                : (recipe.outset || [0, 0, 0, 0])
-    x: -o[3]
-    y: -o[0]
-    width: host.width + o[1] + o[3]
-    height: host.height + o[0] + o[2]
+    readonly property var box: Place.rect(Place.placement(recipe.style), host.width + o[1] + o[3], host.height + o[0] + o[2])
+    x: -o[3] + box.x
+    y: -o[0] + box.y
+    width: box.width
+    height: box.height
     visible: { var w = recipe.when || "always"; return w === "always" || host[w] === true; }
     opacity: recipe.opacity !== undefined ? recipe.opacity : 1
 
