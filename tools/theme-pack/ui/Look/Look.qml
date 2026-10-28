@@ -166,6 +166,9 @@ QtObject {
     function report(kind, text) {
         bus.call(service, "/report", JSON.stringify({ "from": "ui", "kind": kind, "text": text }));
     }
+    function probe(from, state) {
+        bus.call(service, "/setProbe", JSON.stringify({ "from": from, "state": state }));
+    }
 
     property var bus: Service {
         appId: "com.webos.surfacemanager.systemui"

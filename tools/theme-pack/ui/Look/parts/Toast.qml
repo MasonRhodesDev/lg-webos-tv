@@ -16,6 +16,7 @@ Item {
     // LG shows at most one toast at a time, the model's last row.
     readonly property var current: model && model.count > 0 ? model.get(model.count - 1) : null
     readonly property bool shown: lg !== null && lg.visible && current !== null
+    readonly property var probe: ({ "shown": shown, "message": shown ? toast.message : "" })
     // Kept after LG removes the row, so the toast keeps its text while it leaves.
     property var toast: ({ "title": "", "message": "", "iconPath": "", "standard": true, "link": false })
     onCurrentChanged: if (current) toast = { "title": current.title || "", "message": current.message || "",

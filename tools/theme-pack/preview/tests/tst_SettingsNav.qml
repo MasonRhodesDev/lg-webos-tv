@@ -760,6 +760,44 @@ Item {
             compare(part.store.values["lock.systemPin"], undefined, "and the PIN is gone again");
         }
 
+        // The probe the TV suite reads (Layer.qml publishes it): open pages, focus and the kind of row it is on, prompts.
+        function test_8z_probe() {
+            part.closeAll();
+            compare(part.probe.menu.open, false);
+            compare(part.probe.quick.open, false);
+            SettingsBus.quickSettingsRequested(null);
+            compare(part.probe.quick.open, true);
+            compare(part.probe.quick.stack.join(), "quick");
+            compare(part.probe.quick.focus.label, "Picture mode");
+            compare(part.probe.quick.focus.variant, "value");
+            keyClick(Qt.Key_Return);
+            compare(part.probe.quick.stack.join(), "quick,pick:pictureMode", "a picker is a page on the stack");
+            compare(part.probe.quick.focus.kind, "choose");
+            keyClick(Qt.Key_Escape);
+            keyClick(Qt.Key_Escape);
+            compare(part.probe.quick.open, false);
+            openSettings("", 40);
+            compare(part.probe.menu.area, "categories");
+            compare(part.probe.menu.focus.category, "picture");
+            openSettings("keyboard-input", 41);
+            compare(part.probe.menu.stack[part.probe.menu.stack.length - 1], "KeyboardInput");
+            down("TV name");
+            compare(part.probe.menu.focus.kind, "text");
+            keyClick(Qt.Key_Return);
+            compare(part.probe.menu.editing.label, "TV name", "the keyboard is up");
+            keyClick(Qt.Key_Escape);
+            compare(part.probe.menu.editing, null, "Back closed it");
+            openSettings("RatingLocks", 42);
+            compare(part.probe.menu.pin.mode, "page", "a locked page asks for the PIN");
+            compare(part.probe.menu.pin.length, 0);
+            keyClick(Qt.Key_Return);
+            compare(part.probe.menu.pin.length, 1, "OK on the pad types its digit");
+            compare(part.probe.menu.pin.pad, 0);
+            keyClick(Qt.Key_Escape);
+            compare(part.probe.menu.pin, null, "Back closed the prompt");
+            part.closeAll();
+        }
+
         function test_9_no_host_hands_the_gear_to_lg() {
             part.destroy();
             wait(50);

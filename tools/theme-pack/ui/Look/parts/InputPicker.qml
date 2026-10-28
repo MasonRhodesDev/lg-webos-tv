@@ -103,6 +103,7 @@ Item {
     onShownChanged: if (shown) rebuild()
 
     readonly property int focusIndex: ribbonLg && ribbonLg.currentIndex >= 0 && ribbonLg.currentIndex < map.length ? map[ribbonLg.currentIndex] : -1
+    readonly property var probe: ({ "shown": shown, "focus": ribbonLg ? ribbonLg.currentIndex : -1, "tiles": lgCount })
 
     // LG's add-on button (eject, device connector, channel tuning) belongs to its focused tile. LG decides when it
     // shows and whether it holds focus; we draw it where LG's sits.

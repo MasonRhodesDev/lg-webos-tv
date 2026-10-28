@@ -25,6 +25,26 @@ FocusScope {
     property alias store: store
     anchors.fill: parent
 
+    // Where the sheet and Settings stand, for the TV suite (Layer.qml publishes it): which pages are open, where focus
+    // is and what kind of row holds it, and any dialog, keyboard or PIN prompt up.
+    function probeRow(r, i) {
+        if (!r) return null;
+        return { "index": i, "label": r.label || "", "kind": r.kind || "", "variant": r.variant || "", "ref": r.ref || "",
+                 "choice": r.choice === undefined ? "" : String(r.choice), "category": r.category || "", "locked": !!r.locked };
+    }
+    function probeIds(stack) { var out = []; for (var i = 0; i < stack.length; i++) out.push(stack[i].id); return out; }
+    readonly property var probe: ({
+        "quick": { "open": quick.open, "stack": probeIds(quick.stack), "dialog": quick.confirming !== null,
+                   "focus": probeRow(quick.view.focusedRow, quick.view.list.currentIndex) },
+        "menu": { "open": menu.open, "stack": probeIds(menu.stack), "area": menu.area, "category": menu.category,
+                  "dialog": menu.confirming !== null,
+                  "focus": menu.area === "categories" ? probeRow(menu.categories.spec(menu.categories.currentIndex), menu.categories.currentIndex)
+                                                      : probeRow(menu.page.focusedRow, menu.page.list.currentIndex),
+                  "editing": menu.editing ? { "label": menu.editing.label || "", "length": menu.entry.text.length } : null,
+                  "pin": menu.pinning ? { "mode": menu.pinning.mode, "length": menu.pin.pin.length, "error": menu.pin.error,
+                                          "pad": menu.pin.pad.currentIndex } : null }
+    })
+
     SettingsStore { id: store }
     property var toast: Service { appId: store.appId }
     // LG's focus chain; tests give a stand-in with the same two functions.

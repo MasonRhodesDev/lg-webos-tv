@@ -22,6 +22,25 @@ Item {
     readonly property int lateDepth: 3
     property var waiting: []
 
+    // A part may say what it shows in `probe` (a plain object); it goes to the Look service on each change, batched,
+    // for the TV suite to read (getProbe).
+    property var probing: ({})
+    function watchProbe(part, file) {
+        if (part.probe === undefined) return;
+        part.probeChanged.connect(function () { layer.probing[file] = part; probeTimer.restart(); });
+        probing[file] = part;
+        probeTimer.restart();
+    }
+    Timer {
+        id: probeTimer
+        interval: 50
+        onTriggered: {
+            var due = layer.probing;
+            layer.probing = {};
+            for (var f in due) Look.probe(f, due[f].probe);
+        }
+    }
+
     function find(item, part, depth) {
         var kids = item.children;
         for (var i = 0; i < kids.length; i++) {
@@ -85,17 +104,19 @@ Item {
             if (c.status === Component.Error) { Look.report("error", parts[i] + ": " + c.errorString()); continue; }
             var part = c.createObject(layer);
             if (!part) { Look.report("error", parts[i] + ": could not be created"); continue; }
-            if (part.claims === undefined) { Look.report("ok", parts[i] + ": own part, no LG counterpart"); continue; }
+            if (part.claims === undefined) { Look.report("ok", parts[i] + ": own part, no LG counterpart"); watchProbe(part, parts[i]); continue; }
             var lg = find(host, part, part.searchDepth !== undefined ? part.searchDepth : 2);
             var entry = { "part": part, "file": parts[i], "claimed": false };
             if (part.onDemand === true) {
                 part.visible = Qt.binding((function (p) { return function () { return p.lg !== null; }; })(part));
                 late.push(entry);
+                watchProbe(part, parts[i]);
                 if (lg) claim(entry, lg);
                 continue;
             }
             if (!lg) { part.destroy(); Look.report("gap", parts[i] + ": LG item not found, left to LG"); continue; }
             claim(entry, lg);
+            watchProbe(part, parts[i]);
         }
         waiting = late;
         if (late.length) watchViews();

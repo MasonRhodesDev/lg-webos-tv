@@ -137,3 +137,15 @@ service.register('report', function (message) {
 service.register('getReports', function (message) {
   message.respond({ returnValue: true, reports: reports });
 });
+
+// What each part of the layer shows right now (its `probe`, Layer.qml), latest only, by part file. The TV suite
+// reads it to wait for a state and to check where focus is before it presses OK.
+var probes = {};
+service.register('setProbe', function (message) {
+  var p = message.payload || {};
+  probes[String(p.from || '')] = { at: new Date().toISOString(), state: p.state === undefined ? null : p.state };
+  message.respond({ returnValue: true });
+});
+service.register('getProbe', function (message) {
+  message.respond({ returnValue: true, probes: probes });
+});

@@ -20,6 +20,7 @@ Item {
     readonly property string cause: audio && audio.cause ? audio.cause : ""
     readonly property real fraction: audio && audio.volumeMax > 0 ? Math.max(0, Math.min(1, audio.volume / audio.volumeMax)) : 0
     readonly property bool shown: lg !== null && lg.visible && lg.state !== "hidden"
+    readonly property var probe: ({ "shown": shown, "level": level, "muted": muted })
 
     // LG's own grouping of scenarios (Volume.qml): these report no level, only up or down.
     readonly property bool exterior: ["mastervolume_ext_speaker_optical", "mastervolume_ext_speaker_arc", "mastervolume_lineout",

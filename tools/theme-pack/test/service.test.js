@@ -108,3 +108,16 @@ test('getTelemetry says active only while the telemetry-off blackhole is live an
     delete process.env.TELEMETRY_OFF_HOSTS;
   }
 });
+
+test('setProbe keeps the latest state per part, without telling Look subscribers', () => {
+  const { call } = start();
+  const sub = call('getLook', {}, true);
+  call('setProbe', { from: 'parts/Settings.qml', state: { menu: { open: true } } });
+  call('setProbe', { from: 'parts/Settings.qml', state: { menu: { open: false } } });
+  call('setProbe', { from: 'parts/Toast.qml', state: { shown: true, message: 'hi' } });
+  const probes = call('getProbe')[0].probes;
+  assert.deepStrictEqual(probes['parts/Settings.qml'].state, { menu: { open: false } });
+  assert.strictEqual(probes['parts/Toast.qml'].state.message, 'hi');
+  assert.match(probes['parts/Toast.qml'].at, /^\d{4}-\d\d-\d\dT/);
+  assert.strictEqual(sub.length, 1);
+});
