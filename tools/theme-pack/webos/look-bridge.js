@@ -5,6 +5,10 @@
   var URI = 'luna://dev.themepack.look.service/';
   var VARS = { focus: '--tp-focus', 'focus-ink': '--tp-focus-ink' };
   var listeners = [];
+  // A warm-up launch at boot loads the app out of sight and closes it into keep-alive, so the first real open is instant.
+  var warm = false;
+  try { warm = !!JSON.parse((window.PalmSystem && window.PalmSystem.launchParams) || '{}').themepackWarm; } catch (e) { warm = false; }
+  if (warm) document.documentElement.style.visibility = 'hidden';
   var latest = null;
 
   function apply(msg) {
@@ -60,6 +64,7 @@
     if (root && root._reactRootContainer) {
       var ms = Math.round(Date.now() - window.performance.timing.navigationStart);
       call('getLook', { loadMs: ms }, function () {});
+      if (warm) setTimeout(function () { document.documentElement.style.visibility = ''; window.close(); }, 300);
       return;
     }
     setTimeout(reportLoad, 50);

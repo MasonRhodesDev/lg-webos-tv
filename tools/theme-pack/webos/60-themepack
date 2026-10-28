@@ -1,0 +1,46 @@
+#!/bin/sh
+# theme-pack boot hook (Homebrew Channel init.d). Re-applies the Look setup after every boot. Each step is guarded:
+# anything missing or mismatched leaves that part of the TV stock.
+LOG=/tmp/themepack.log
+exec >>"$LOG" 2>&1
+echo "=== $(date)"
+
+ROOT=/media/developer/themepack
+APP=/usr/palm/applications/com.palm.app.settings
+PKG=dev.themepack.look
+SVC=$PKG.service
+DEV=/var/luna-service2-dev
+
+# 1. The bus resumes from the boot snapshot without the Look service's public permissions.
+if [ -d /media/developer/apps/usr/palm/services/$SVC ]; then
+  printf '{"public":["%s/*"]}' $SVC > $DEV/api-permissions.d/$SVC.api.public.json
+  node -e 'var f=process.argv[1],p=process.argv[2],fs=require("fs"),m=JSON.parse(fs.readFileSync(f));if(m.apiPermissionFiles.indexOf(p)<0){m.apiPermissionFiles.push(p);fs.writeFileSync(f,JSON.stringify(m))}' \
+    $DEV/manifests.d/$PKG.json $DEV/api-permissions.d/$SVC.api.public.json && echo "service permissions set"
+  timeout -t 60 ls-control scan-services >/dev/null && echo "bus rescanned"
+else
+  echo "Look service not installed; skipping permissions"
+fi
+
+# 2. Patched Settings, only over the exact stock build it was made from.
+if mount | grep -q " $APP "; then
+  echo "settings already mounted"
+elif [ -f "$ROOT/settings/main.js" ] && [ -f "$ROOT/settings/.stock-main.md5" ] &&
+     [ "$(md5sum $APP/main.js | cut -c1-32)" = "$(cut -c1-32 $ROOT/settings/.stock-main.md5)" ]; then
+  mount --bind "$ROOT/settings" "$APP" && echo "settings mounted"
+else
+  echo "settings left stock (patch missing, or firmware differs from the patch)"
+fi
+
+# 3. Warm Settings up out of sight once the system has settled, so the first open is instant.
+# Skipped when Settings is already resident: a launch would then bring it on screen.
+warm() {
+  sleep 30
+  if luna-send -n 1 -w 10000 luna://com.webos.applicationManager/running '{}' | grep -q '"com.palm.app.settings"'; then
+    echo "settings already resident"
+    return
+  fi
+  luna-send -n 1 luna://com.webos.applicationManager/launch '{"id":"com.palm.app.settings","params":{"themepackWarm":true}}' >/dev/null && echo "settings warmed"
+}
+if mount | grep -q " $APP "; then
+  warm &
+fi

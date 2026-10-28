@@ -3,6 +3,7 @@
 // Works on your own copy of the app: --app is the stock app directory, --out receives a patched copy.
 // Every edit is an anchored replacement that must match exactly once, so a different firmware fails loudly.
 import { copyFileSync, cpSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -53,6 +54,8 @@ const panel = `function __themepackLook(n){var r=n(0),s=n.n(r),p=n(5),h=n(8),c=n
   `return LookPanel}`;
 
 cpSync(app, out, { recursive: true });
+// Record which stock main.js this was built from, so the TV can refuse a patch made for other firmware.
+writeFileSync(join(out, '.stock-main.md5'), createHash('md5').update(readFileSync(join(app, 'main.js'))).digest('hex') + '\n');
 const mainPath = join(out, 'main.js');
 let js = readFileSync(mainPath, 'utf8');
 
