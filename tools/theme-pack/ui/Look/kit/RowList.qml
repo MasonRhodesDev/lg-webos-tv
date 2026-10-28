@@ -51,14 +51,16 @@ ListView {
         }
         return isFinite(best) ? best : to;
     }
-    // Scroll only as far as keeps the focused row, and a row's worth beyond it, inside the list.
-    function reveal(animated) {
+    // Scroll only as far as keeps the focused row, and a row's worth beyond it, inside the list, starting from `from`.
+    // Moving focus starts from where the list is. A change of size starts from the top: where the list opens then
+    // depends only on the focused row and the final size, not on the sizes it passed through while being laid out.
+    function reveal(animated, from) {
         var item = currentItem;
         if (!item) return;
-        var margin = Look.px("row-h") / 2, to = contentY;
-        if (item.y - margin < contentY) to = item.y - margin;
-        else if (item.y + item.height + margin > contentY + height) to = item.y + item.height + margin - height;
-        to = snap(to, to > contentY);
+        var margin = Look.px("row-h") / 2, to = from;
+        if (item.y - margin < from) to = item.y - margin;
+        else if (item.y + item.height + margin > from + height) to = item.y + item.height + margin - height;
+        to = snap(to, to > from);
         to = Math.max(originY, Math.min(to, originY + contentHeight - height));
         if (to === contentY) return;
         scroll.stop();
@@ -67,9 +69,9 @@ ListView {
         scroll.start();
     }
     NumberAnimation { id: scroll; target: list; property: "contentY"; duration: Look.px("motion-value"); easing.type: Easing.Bezier; easing.bezierCurve: Look.curve("ease-enter") }
-    onCurrentIndexChanged: reveal(true)
-    onHeightChanged: reveal(false)
-    onContentHeightChanged: reveal(false)
+    onCurrentIndexChanged: reveal(true, contentY)
+    onHeightChanged: reveal(false, originY)
+    onContentHeightChanged: reveal(false, originY)
 
     Keys.onPressed: {
         var k = KeyMap.nav(event, Qt), r = spec(currentIndex);

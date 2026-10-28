@@ -3,7 +3,8 @@ import Look 1.0
 
 // The one tile anatomy (DESIGN.md, Tile): icon (or picture) at the top left, an optional badge at the top right, the
 // name and a sub line at the bottom; an optional chip centred on the top-right corner. Badge and chip are
-// attachments. Tiles float on the picture, so their plate is the surface. Decoratable as `tile`; focus is the one focus treatment (Plate).
+// attachments. Tiles float on the picture, so their plate is the surface. Decoratable as `tile`; focus is the one
+// focus treatment (Plate).
 Item {
     id: tile
     property string label

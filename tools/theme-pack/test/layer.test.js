@@ -11,8 +11,8 @@ const QML = process.env.QML_BIN || 'qml-qt5';
 const haveQml = QML.indexOf('/') >= 0 ? fs.existsSync(QML) : (process.env.PATH || '').split(path.delimiter)
   .some((d) => { try { fs.accessSync(path.join(d, QML), fs.constants.X_OK); return true; } catch (e) { return false; } });
 
-function runScene(file) {
-  return spawnSync(QML, [path.join(dir, 'preview/tests', file)], {
+function runScene(file, args) {
+  return spawnSync(QML, [path.join(dir, 'preview/tests', file)].concat(args ? ['--'].concat(args) : []), {
     encoding: 'utf8', timeout: 20000,
     env: Object.assign({}, process.env, {
       QT_FORCE_STDERR_LOGGING: '1', QT_QPA_PLATFORM: 'offscreen', QT_QUICK_BACKEND: 'software',
@@ -53,3 +53,19 @@ test('components paint in passes, the focused one lifted, attachments last, chil
   assert.ok(!/FAIL /.test(out), out);
   assert.ok(!/\.qml:\d+/.test(out), 'QML warnings:\n' + out);
 });
+
+// The Look service's answer for one style, as service/service.js's payload() builds it.
+function stylePayload(id) {
+  const style = require(path.join(dir, 'packs/styles', id + '.js'));
+  return JSON.stringify({ returnValue: true, look: { style: id, themes: [] }, style, themes: [] });
+}
+
+for (const id of fs.readdirSync(path.join(dir, 'packs/styles')).filter((f) => f.endsWith('.js')).map((f) => f.replace(/\.js$/, ''))) {
+  test('a list opens at its top unless its focused row is below the fold: ' + id, { skip: !haveQml && QML + ' not found' }, () => {
+    const r = runScene('ListOpens.qml', [stylePayload(id)]);
+    const out = r.stdout + r.stderr;
+    assert.strictEqual(r.status, 0, out);
+    assert.ok(/list opens: all passed/.test(out), out);
+    assert.ok(!/FAIL /.test(out), out);
+  });
+}

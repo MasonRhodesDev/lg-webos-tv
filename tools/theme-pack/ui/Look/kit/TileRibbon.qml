@@ -37,13 +37,14 @@ ListView {
     boundsBehavior: Flickable.StopAtBounds
     highlightFollowsCurrentItem: false
 
-    // Scroll only as far as keeps the focused tile, and part of the next, inside the ribbon.
-    function reveal(animated) {
+    // Scroll only as far as keeps the focused tile, and part of the next, inside the ribbon, starting from `from`: where
+    // it is when focus moves, its start when its size changes (as RowList).
+    function reveal(animated, from) {
         var item = currentItem;
         if (!item || !follows) return;
-        var margin = Look.px("tile-w") / 2, to = contentX;
-        if (item.x - margin < contentX) to = item.x - margin;
-        else if (item.x + item.width + margin > contentX + width) to = item.x + item.width + margin - width;
+        var margin = Look.px("tile-w") / 2, to = from;
+        if (item.x - margin < from) to = item.x - margin;
+        else if (item.x + item.width + margin > from + width) to = item.x + item.width + margin - width;
         to = Math.max(originX, Math.min(to, originX + contentWidth - width));
         if (to === contentX) return;
         scroll.stop();
@@ -52,9 +53,9 @@ ListView {
         scroll.start();
     }
     NumberAnimation { id: scroll; target: ribbon; property: "contentX"; duration: Look.px("motion-value"); easing.type: Easing.Bezier; easing.bezierCurve: Look.curve("ease-enter") }
-    onCurrentIndexChanged: reveal(true)
-    onWidthChanged: reveal(false)
-    onContentWidthChanged: reveal(false)
+    onCurrentIndexChanged: reveal(true, contentX)
+    onWidthChanged: reveal(false, originX)
+    onContentWidthChanged: reveal(false, originX)
 
     Keys.onPressed: {
         var k = KeyMap.nav(event, Qt);

@@ -3,6 +3,7 @@ singleton Look 1.0 Look.qml
 Decor 1.0 Decor.qml
 Ring 1.0 Ring.qml
 Passes 1.0 Passes.qml
+DecorLayer 1.0 DecorLayer.qml
 Label 1.0 kit/Label.qml
 Icon 1.0 kit/Icon.qml
 Surface 1.0 kit/Surface.qml
