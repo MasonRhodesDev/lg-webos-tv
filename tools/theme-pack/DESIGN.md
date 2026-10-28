@@ -37,7 +37,8 @@ shadow under it). Panels, the volume bar, key caps, toasts and dialogs are all m
 What settles the picture behind a surface (**Scrim**).
 
 - `dim`: an even veil (`dim`) under a modal dialog. Dialogs bring their own.
-- `left`, `right`, `bottom`: a gradient from that edge, reaching `scrim` at the edge, under side panels and ribbons.
+- `left`, `right`, `bottom`: a gradient from that edge, reaching `scrim` at the edge, under side panels and ribbons. The
+  `bottom` one is 480 tall and reaches full strength a third of the way down.
 
 ## Placement
 
@@ -100,13 +101,15 @@ Every list in every menu uses one row (**ListRow**):
 
 One tile (**Tile**), `tile-w` by `tile-h`, padding `tile-pad`, radius `r-tile`:
 
-- the icon (1.25 × `icon`, in its hue) or a picture at the top left;
+- the icon (1.4 × `icon`, in its hue) or a picture at the top left;
 - an optional **Badge** at the top right ("Watching");
 - the name (`tile` role) and a sub line (`caption`) at the bottom;
 - an optional **Chip** pinned over the top-right corner ("2").
 
-**TileRibbon** lays tiles in a row, `space-m` apart, with `{ separator: true }` for a divider. Focus scrolls into view
-by half a tile beyond it.
+**TileRibbon** lays tiles in a row, `space-m` apart, with `{ separator: true }` for a divider (`width` sizes its
+slot). A tile with `heading` starts a group: the name (`heading` role, `ink-3`) sits `space-s` above it, and `lead`
+adds space before it. Focus scrolls into view by half a tile beyond it. A ribbon that mirrors LG's (`follows: false`)
+never scrolls or fades itself: its surface places it so its tiles sit over LG's.
 
 ## Focus, current, disabled
 
@@ -118,7 +121,8 @@ One treatment, drawn by **Plate** under every row, tile and button:
   fill invert (the toggle track goes `focus-ink`, the radio dot `focus-ink`, and so on).
 - **Current** (what is in use now: the input you are watching, the open category): a `current` bar of `current-w` along
   the bottom. While focused, the fill says enough and the bar hides. Radios and checks show their own current state.
-- **Disabled**: the plate stays, ink and icons turn `ink-disabled`, controls dim. Our menus skip disabled rows. When
+- **Disabled**: the plate stays, ink and icons turn `ink-disabled`, controls dim. An edged plate (tiles, buttons) trades
+  its edge for a dashed one in `edge-disabled`. Our menus skip disabled rows. When
   LG puts focus on one, it gets the focus ring and lift but no fill.
 - Focus is never shown by theme decoration alone. Themes add to it (below); turning themes off loses nothing.
 
@@ -174,7 +178,8 @@ Move, Change/OK, Back.
 RowList, TileRibbon, ButtonRow and Dialog handle keys when they have focus: Up/Down (lists) or Left/Right (ribbons,
 buttons) move over focusable items; OK emits `activated`; Left/Right on a slider or stepper row emits `adjusted`;
 Back emits `back`. They never change their own model: the surface owns the data. Surfaces that mirror an LG item
-instead set `currentIndex` from LG and take no focus. Key codes are mapped in one place, `kit/keys.js`.
+instead set `currentIndex` from LG and take no focus, and their buttons set `pointer: false` so LG's mouse areas
+under them take the clicks. Key codes are mapped in one place, `kit/keys.js`.
 
 ## Decoration contract
 

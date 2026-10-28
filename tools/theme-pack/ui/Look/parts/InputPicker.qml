@@ -177,6 +177,7 @@ Item {
             readonly property Item slot: ribbon.currentItem
             icon: part.addonType === "usb" ? "eject" : "shortcut"
             focused: part.addonFocused
+            pointer: false
             height: part.lgAddon
             x: slot ? ribbon.x + slot.x + slot.lead + (slot.width - slot.lead - width) / 2 : 0
             y: ribbon.y - part.lgAddonBand

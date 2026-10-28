@@ -9,6 +9,8 @@ Item {
     property bool focused: false
     property bool disabled: false
     property int hue: -1
+    // False on a surface that mirrors LG: LG's own mouse area under ours takes the click.
+    property bool pointer: true
     signal clicked()
     height: Look.px("button-h")
     // With only an icon, a round button as wide as it is tall.
@@ -40,7 +42,7 @@ Item {
     }
     MouseArea {
         anchors.fill: parent
-        enabled: !button.disabled
+        enabled: button.pointer && !button.disabled
         onClicked: button.clicked()
     }
 }
