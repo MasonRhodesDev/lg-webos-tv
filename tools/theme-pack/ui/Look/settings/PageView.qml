@@ -60,6 +60,8 @@ FocusScope {
     onRowsChanged: {
         // Not landed yet: land, unless the user has already moved.
         if (!landed) { if (landIndex < 0 || list.currentIndex === landIndex) land(); else landed = true; return; }
+        // A page behind the PIN has no rows until it is entered; a list with nothing focused yet keeps it so.
+        if (!rows.length || list.currentIndex < 0) return;
         if (list.currentIndex < rows.length && rows[list.currentIndex].label === focusLabel) return;
         // The list may still hold the old rows while this runs, so the label is set here, not read back from it.
         for (var i = 0; i < rows.length; i++) if (rows[i].label === focusLabel) { list.currentIndex = i; focusLabel = rows[i].label; return; }

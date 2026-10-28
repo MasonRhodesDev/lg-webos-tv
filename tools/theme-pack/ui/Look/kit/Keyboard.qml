@@ -84,6 +84,8 @@ FocusScope {
     function reset() { layout = "letters"; shifted = false; row = 0; col = 0; }
 
     Keys.onPressed: {
+        // A USB keyboard's Backspace erases here; the remote's Back still closes.
+        if (event.key === Qt.Key_Backspace) { erased(); event.accepted = true; return; }
         var k = KeyMap.nav(event, Qt);
         if (k === "up") moveRow(-1);
         else if (k === "down") moveRow(1);

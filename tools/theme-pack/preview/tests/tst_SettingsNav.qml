@@ -54,6 +54,11 @@ Item {
         }
         return null;
     }
+    function specOf(ref) {
+        var l = rows();
+        for (var i = 0; i < l.rows.length; i++) if (l.rows[i].ref === ref || String(l.rows[i].ref).split("/").pop() === ref) return i;
+        return -1;
+    }
     function specNamed(label) {
         var l = rows();
         for (var i = 0; i < l.rows.length; i++) if (l.rows[i].label === label) return l.rows[i];
@@ -639,6 +644,63 @@ Item {
             keyClick(Qt.Key_Escape);
             keyClick(Qt.Key_Escape);
             verify(!part.menu.open);
+        }
+
+        function test_8f_pin_gate_layouts_backspace_and_none_paired() {
+            // The PIN is not kept once Settings closes (8d closed it).
+            compare(part.store.values["lock.systemPin"], undefined, "the PIN is gone after close");
+            // A page under Safety reached straight by its id asks for the PIN before it shows anything.
+            openSettings("RatingLocks", 20);
+            compare(topId(), "RatingLocks");
+            verify(part.menu.pinning !== null && part.menu.pinning.mode === "page", "a direct target to a lock page asks for the PIN");
+            compare(rows().rows.length, 0, "and shows no rows meanwhile");
+            wait(50);
+            keyClick(Qt.Key_1); keyClick(Qt.Key_2);
+            keyClick(Qt.Key_Backspace);
+            compare(part.menu.pin.pin, "1", "Backspace erases a PIN digit");
+            verify(part.menu.pinning !== null, "and does not close the prompt");
+            keyClick(Qt.Key_Escape);
+            verify(part.menu.pinning === null);
+            compare(topId(), "Safety", "Back from the PIN leaves the locked page");
+            openSettings("InputLocks", 21);
+            verify(part.menu.pinning !== null, "every lock page asks");
+            wait(50);
+            keyClick(Qt.Key_1); keyClick(Qt.Key_3); keyClick(Qt.Key_5); keyClick(Qt.Key_7);
+            verify(part.menu.pinning === null, "the right PIN opens it");
+            compare(topId(), "InputLocks");
+            verify(rows().rows.length > 0, "with its rows");
+            keyClick(Qt.Key_Escape);
+            compare(topId(), "Safety");
+            // A ZIP code opens the keyboard on its digits.
+            openSettings("Location", 22);
+            var at = specOf("zipcode");
+            verify(at >= 0, "the ZIP code row");
+            rows().currentIndex = at;
+            keyClick(Qt.Key_Return);
+            wait(50);
+            compare(part.menu.entry.keyboard.layout, "symbols", "the ZIP code opens on the digits");
+            keyClick(Qt.Key_1); keyClick(Qt.Key_2);
+            keyClick(Qt.Key_Backspace);
+            compare(part.menu.entry.text, "1", "Backspace erases on the keyboard");
+            verify(part.menu.editing !== null, "and does not close it");
+            keyClick(Qt.Key_Escape);
+            verify(part.menu.editing === null, "the remote's Back closes it");
+            wait(50);
+            openSettings("keyboard-input", 23);
+            down("TV name");
+            keyClick(Qt.Key_Return);
+            wait(50);
+            compare(part.menu.entry.keyboard.layout, "letters", "a name opens on the letters");
+            keyClick(Qt.Key_Escape);
+            // Nothing paired: Bluetooth surround waits for a speaker, Connection says so.
+            TvSettings.btPaired = [];
+            openSettings("sound", 24);
+            verify(specNamed("Bluetooth surround").disabled, "Bluetooth surround is greyed with nothing paired");
+            compare(specNamed("Bluetooth surround").hint, "Pair a Bluetooth speaker first");
+            openSettings("connection", 25);
+            compare(specNamed("Bluetooth devices").value, "None paired");
+            part.closeAll();
+            compare(part.store.values["lock.systemPin"], undefined, "and the PIN is gone again");
         }
 
         function test_9_no_host_hands_the_gear_to_lg() {

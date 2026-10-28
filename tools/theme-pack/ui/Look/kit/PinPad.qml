@@ -26,6 +26,8 @@ FocusScope {
         else digit(k);
     }
     Keys.onPressed: {
+        // A USB keyboard's Backspace erases here; the remote's Back still closes.
+        if (event.key === Qt.Key_Backspace) { erased(); event.accepted = true; return; }
         var k = KeyMap.nav(event, Qt), i = currentIndex;
         if (k === "up") { if (i >= 3) currentIndex = i - 3; }
         else if (k === "down") { if (i < 9) currentIndex = i + 3; }

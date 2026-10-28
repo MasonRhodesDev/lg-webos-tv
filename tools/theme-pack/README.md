@@ -213,8 +213,14 @@ Once live it reports `ready` "settings: host ready"; the boot hook mounts the Se
   locks behind our PIN prompt, change the PIN) and Keyboard and text (`keyboard-input`: the TV's name). Those ids are
   `menu.js` `aliases` of the pages that stand in for LG's (`Wifi`, `Bluetooth`, `Safety`, `KeyboardInput`). Every
   network and pairing action asks first (a Dialog, or the password prompt's Join), shows at once, and is rolled back
-  with a toast when the TV refuses it or does not answer (30 s for a join or a pairing, 5 s otherwise). The PIN is
-  checked against `lock.systemPin`, as LG's Settings does, and asked once per visit.
+  with a toast when the TV refuses it or does not answer: within 30 s for joining a network and for pairing,
+  connecting or disconnecting a device, 5 s for forgetting one and for Wi-Fi on/off. The Wi-Fi page scans for
+  networks as soon as it opens (a read; it stops when the page closes); a Bluetooth search starts only from its row.
+  Every page under Safety but its top asks for the PIN before it shows, however it is reached (a link, a deep link, a
+  target); the Safety page's own rows ask before they act. The PIN is checked against `lock.systemPin`, as LG's
+  Settings does, asked once per visit, and not kept: it is forgotten when Settings closes or its pages stop showing.
+  The keyboard opens on letters, or on digits for a ZIP code; a USB keyboard's Backspace erases, the remote's Back
+  closes.
 - The store's adapters beside settingsservice: the sleep timer, the network, the volume, the current input's signal
   (`tv.display getHDMIInfo`, for "HDMI 2 · 4K · 120 Hz"), the model and versions (`tv.systemproperty getSystemInfo`,
   `systemservice osInfo/query`) and network time (`systemservice getPreferences`). The Settings footer is the board's

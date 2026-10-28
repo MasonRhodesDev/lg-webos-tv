@@ -157,6 +157,9 @@ function refs(entry) {
         if (rows[i].text) out.push(rows[i].text);
         if (rows[i].pin || rows[i].changePin) out.push("Safety/systemPin");
     }
+    // Every Safety page can ask for the PIN, so it reads it while it shows.
+    var c = Catalog.catalog.pages[resolve(entry.id)];
+    if (c && c.category === "safety") out.push("Safety/systemPin");
     return out.concat(subRefs(d.sub));
 }
 
@@ -286,8 +289,16 @@ function pickerRows(entry, store) {
     return out;
 }
 
+// A page behind the PIN: every page under LG's Safety but its top (whose rows ask for the PIN themselves), until the
+// household has entered it this visit. Shows no rows while locked.
+function lockedPage(id, store) {
+    var c = Catalog.catalog.pages[resolve(id)];
+    return !!c && c.category === "safety" && c.lgPath.length > 1 && !store.unlocked;
+}
+
 // The page's rows, for RowList's `rows`. Bind it to store.revision so values stay live.
 function model(entry, store, Look) {
+    if (lockedPage(entry.id, store)) return [];
     if (entry.id === "Look") return lookRows(store, Look);
     if (entry.id.indexOf("pick:") === 0) return pickerRows(entry, store);
     if (entry.id.indexOf("adjust:") === 0) {

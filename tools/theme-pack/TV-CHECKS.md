@@ -97,7 +97,9 @@ Lists, forms and the PIN (all unverified on the TV; the shapes are read from LG'
       `signalBars` (1-4?), `connectState` (`ipConfigured` when joined) and `availableSecurityTypes`; our Wi-Fi page
       lists the networks and marks the joined one current. `getstatus` says `serviceEnabled`/`serviceDisabled`.
 - [ ] A join with a wrong password answers `errorCode` 10 (toast "the password is wrong"); how long a good join takes
-      to answer (our timeout is 30 s, `Store.joinTimeout`).
+      to answer (our timeout is 30 s, `Store.joinTimeout`, also used for Bluetooth pair, connect and disconnect).
+- [ ] The Wi-Fi page starts `findnetworks` as soon as it opens (a read, as LG's does) and cancels it on close: check
+      that the scan does not drop the current Wi-Fi connection while the page is open.
 - [ ] Our bus identity holds the wifi and btaudiosrc groups (`permissions.sh` lists them).
 - [ ] `com.webos.service.btaudiosrc`: `getPairedDevices` gives `devices [{address, name, state}]`; `startDiscovery
       {subscribe}` sends `{state: "started", device}` per device and `{state: "stopped"}`; `connect {address}` pairs a
@@ -106,6 +108,8 @@ Lists, forms and the PIN (all unverified on the TV; the shapes are read from LG'
       `settingsservice.allow`). If it is not, our PIN prompt refuses every PIN ("has not given us its PIN") and the
       locked rows stay closed; record it.
 - [ ] Writing `lock.systemPin` with `initialPinCode: false` changes the PIN LG's own prompts ask for.
+- [ ] Owner decision: our PIN prompt has no limit on wrong tries and no lockout.
+      Decide whether to add one.
 - [ ] Input locks: `lock.inputBlock` is a bitmask, bit `1 << i` for the i-th entry of LG's lockable input list
       (`getFinalLockableInputList`, built from `getExternalInputStatusList`); record that list's service and order
       before our Input locks page is built.

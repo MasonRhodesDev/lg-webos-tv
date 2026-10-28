@@ -36,6 +36,7 @@ FocusScope {
         cats.currentIndex = indexOfCategory(category);
         open = true;
         focusArea();
+        guard();
     }
     function close() {
         if (!open) return;
@@ -43,8 +44,9 @@ FocusScope {
         confirming = null;
         editing = null;
         pinning = null;
-        // The PIN is asked again on the next visit.
+        // The PIN is asked again on the next visit, and read afresh then.
         store.unlocked = false;
+        store.forgetPin();
         store.changed();
         closed();
     }
@@ -65,7 +67,13 @@ FocusScope {
         for (var i = 0; i < c.length; i++) if (c[i].category === id) return i;
         return 0;
     }
-    function focusArea() { if (area === "page") page.forceActiveFocus(); else cats.forceActiveFocus(); }
+    // A prompt that is up keeps the keys, whatever moved underneath it.
+    function focusArea() {
+        if (pinning !== null) pin.forceActiveFocus();
+        else if (editing !== null) entry.forceActiveFocus();
+        else if (area === "page") page.forceActiveFocus();
+        else cats.forceActiveFocus();
+    }
 
     property var confirming: null
     readonly property var choice: Pages.choices(confirming, store)
@@ -75,9 +83,23 @@ FocusScope {
     property alias entry: entry
     property alias pin: pin
 
+    // Everything the prompt opens with is set before it shows: it resets its keys from them as it opens.
     function startEdit(req) {
         entry.text = req.text;
+        entry.layout = req.layout;
         editing = req;
+    }
+    // A page behind the PIN (Pages.lockedPage), however it was reached (a link, a target, the back stack), asks for
+    // the PIN before it shows anything; Back from that prompt leaves it.
+    onTopEntryChanged: guard()
+    function guard() {
+        if (open && topEntry && Pages.lockedPage(topEntry.id, store) && pinning === null) pinning = { "mode": "page", "entry": topEntry };
+    }
+    function leaveLocked() {
+        var s = stack.slice();
+        while (s.length > 1 && Pages.lockedPage(s[s.length - 1].id, store)) s.pop();
+        if (Pages.lockedPage(s[s.length - 1].id, store)) s = [{ "id": Pages.topOf(Pages.categoryFor(s[0].id)) }];
+        stack = s;
     }
     function pinEntered(code) {
         var p = pinning;
@@ -91,6 +113,12 @@ FocusScope {
         } else if (p.mode === "new") {
             pinning = { "mode": "again", "first": code };
             pin.reset();
+        } else if (p.mode === "page") {
+            if (!store.pinKnown()) { pin.reject("The TV has not given us its PIN yet. Try again."); return; }
+            if (!store.pinMatches(code)) { pin.reject("Wrong PIN. Try again."); return; }
+            store.unlocked = true;
+            store.changed();
+            pinning = null;
         } else if (code === p.first) {
             pinning = null;
             store.set("Safety/systemPin", code);
@@ -211,7 +239,6 @@ FocusScope {
         maxLength: menu.editing ? menu.editing.max : 0
         secret: menu.editing ? menu.editing.secret : false
         doneLabel: menu.editing ? menu.editing.done : "Done"
-        layout: menu.editing ? menu.editing.layout : "letters"
         onShownChanged: if (shown) forceActiveFocus(); else menu.focusArea()
         onAccepted: { var e = menu.editing; menu.editing = null; page.finishEdit(e, text); }
         onCancelled: menu.editing = null
@@ -220,10 +247,14 @@ FocusScope {
         id: pin
         shown: menu.pinning !== null
         pointer: menu.pointer
-        title: !menu.pinning || menu.pinning.mode === "check" ? "Enter PIN" : menu.pinning.mode === "new" ? "Choose a new PIN" : "Enter it again"
-        body: !menu.pinning || menu.pinning.mode === "check" ? "Settings are locked" : menu.pinning.mode === "new" ? "Four digits" : "To be sure"
+        title: !menu.pinning || menu.pinning.mode === "check" || menu.pinning.mode === "page" ? "Enter PIN" : menu.pinning.mode === "new" ? "Choose a new PIN" : "Enter it again"
+        body: !menu.pinning || menu.pinning.mode === "check" || menu.pinning.mode === "page" ? "Settings are locked" : menu.pinning.mode === "new" ? "Four digits" : "To be sure"
         onShownChanged: if (shown) forceActiveFocus(); else menu.focusArea()
         onEntered: menu.pinEntered(pin)
-        onCancelled: menu.pinning = null
+        onCancelled: {
+            // Back out of a locked page's PIN: off the page, however it was reached.
+            if (menu.pinning && menu.pinning.mode === "page") menu.leaveLocked();
+            menu.pinning = null;
+        }
     }
 }

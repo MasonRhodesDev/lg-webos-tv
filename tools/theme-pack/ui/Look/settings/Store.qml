@@ -90,7 +90,7 @@ QtObject {
                 ch.dirty = true;
             }
         }
-        for (var n in channels) if (channels[n].dirty) open(n);
+        for (var n in channels) if (channels[n] && channels[n].dirty) open(n);
     }
 
     function unwatch(refs) {
@@ -98,10 +98,12 @@ QtObject {
             var it = source(item(refs[i])), name = channelOf(it), ch = channels[name];
             if (!ch) continue;
             ch.count--;
-            if (isSettings(it)) { var k = it.api.keys[0]; if (--ch.keys[k] <= 0) delete ch.keys[k]; }
+            if (isSettings(it)) { var k = it.api.keys[0]; if (--ch.keys[k] <= 0) ch.keys[k] = 0; }
             if (ch.count <= 0) {
                 close(name);
-                delete channels[name];
+                // Emptied, not deleted: deleting and re-adding members of these objects crashes the harness's Qt
+                // 5.15 V4 engine (Object::insertMember).
+                channels[name] = null;
                 // Not known again until the next open reads it: a stale "active" must not outlive its answer.
                 if (name === "kit") { delete values.telemetryKit; changed(); }
             }
@@ -113,6 +115,8 @@ QtObject {
         if (!ch) return;
         if (name === "bluetooth") btStop();
         if (name === "wifiScan") scanning.wifiNetworks = false;
+        // The PIN is read only while a page that asks for it shows, and kept no longer.
+        if (name === "settings:lock") forgetPin();
         for (var i = 0; i < ch.services.length; i++) drop(ch.services[i]);
         ch.services = [];
     }
@@ -124,7 +128,7 @@ QtObject {
         close(name);
         if (name.indexOf("settings:") === 0) {
             var category = name.slice(9), keys = [];
-            for (var k in ch.keys) keys.push(k);
+            for (var k in ch.keys) if (ch.keys[k] > 0) keys.push(k);
             if (!keys.length) return;
             var get = service(), d = service();
             get.response.connect(function (method, payload) { store.onSettings(category, payload); });
@@ -469,6 +473,7 @@ QtObject {
         return v !== undefined && v !== null && String(v) === String(pin);
     }
     function pinKnown() { return values["lock.systemPin"] !== undefined; }
+    function forgetPin() { values["lock.systemPin"] = undefined; }
 
     // tv.time answers a subscription once and never again, so the store reads it again after each write.
     function readSleep() {
