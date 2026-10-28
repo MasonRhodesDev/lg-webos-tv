@@ -2,6 +2,7 @@ import QtQuick 2.4
 import WebOSServices 1.0
 import Look 1.0
 import "../settings"
+import "../settings/menu.js" as Menu
 
 // Our own Settings and the gear button's quick sheet (SETTINGS-PLAN.md, the owner's Settings boards). A part of our
 // own: it replaces no LG item. It opens on
@@ -42,7 +43,10 @@ FocusScope {
     property real openedAt: 0
     function quickSettings(params) {
         var now = new Date().getTime();
-        if (params && params.activateType) { menu.close(); quick.openWith(params); openedAt = now; return; }
+        var hot = params && params.activateType ? Menu.activateTypes[params.activateType] : "";
+        // A hotkey for a page rather than a quick sheet row (aspect ratio) opens Settings there.
+        if (hot && !store.item(hot)) { settings(hot); return; }
+        if (hot) { menu.close(); quick.openWith(params); openedAt = now; return; }
         if (shown) {
             if (now - openedAt < Look.px("motion-enter")) return;
             quick.close();
@@ -52,9 +56,14 @@ FocusScope {
         quick.openWith(params);
         openedAt = now;
     }
-    function settings(target) {
+    // The Settings stub may ask twice for one launch; the same target while open is no change.
+    property string target: ""
+    function settings(t) {
+        t = t || "";
+        if (menu.open && t === target) return;
+        target = t;
         quick.close();
-        menu.openAt(target);
+        menu.openAt(t);
         openedAt = new Date().getTime();
     }
     function closeAll() { quick.close(); menu.close(); }
@@ -84,7 +93,7 @@ FocusScope {
     function writeFailed(ref, text) {
         toast.call("luna://com.webos.notification", "/createToast",
                    JSON.stringify({ "sourceId": "dev.themepack.look", "message": "Not changed: " + text }));
-        Look.report("error", "settings: " + ref + " not saved: " + text);
+        Look.report("warning", "settings: " + ref + " not saved: " + text);
     }
 
     Component.onCompleted: {

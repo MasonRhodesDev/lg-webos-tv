@@ -90,6 +90,8 @@ The tests check the layer model on the rendered HTML: slot order, ring order, va
 
 `test/layer.test.js` runs the QML scenes in `preview/tests/` offscreen (for example the layer's late claims against a fake LG root). It needs Qt 5's `qml` tool, `qml-qt5` or whatever `QML_BIN` names, and is skipped without it.
 
+`test/settings.test.js` checks our Settings: the generated catalog module is current, every page and item the menu names exists, every catalog page can be reached, every LG deep link lands on a page, and `preview/tests/tst_SettingsNav.qml` drives the Settings and the quick sheet with remote keys against the settings mock and a fake LG root. That last one needs Qt 5's `qmltestrunner` (`qmltestrunner-qt5`, `qmltestrunner`, or `QML_TEST_BIN`) and is skipped without it.
+
 `test/qml-compat.test.js` checks `ui/` against what the TV's compositor (Qt 5.6.2, an ES5 engine) can run: no ES2015+ syntax or library calls, no Qt 5.7+ types or properties, only the Qt modules the layer uses (QtQuick, QtQuick.Window, QtQml, QtGraphicalEffects), and every other import resolvable on the TV or in `ui/`. Code that breaks these rules runs fine in the preview, which is Qt 5.15, and fails silently on the TV. The TV's modules are listed in `test/fixtures/tv-qml.json`; `test/fixtures/tv-qml-inventory.mjs` rebuilds it from a TV's file listing and qmldir files (its header has the commands).
 
 ## Before merging a branch
@@ -171,6 +173,35 @@ Ask for our Settings by hand, the way the stub does:
 luna-send -n 1 luna://dev.themepack.look.service/openSettings '{"target":"PictureMode"}'
 luna-send -n 1 luna://dev.themepack.look.service/closeSettings '{}'
 ```
+
+## Our Settings
+
+Our Settings and the gear button's quick sheet are a part of our layer, `ui/Look/parts/Settings.qml`, drawn to the
+owner's Settings and Quick settings boards from the kit. The part opens Settings on `Look.settingsRequested(target)`
+(the Settings stub, `openSettings`) and the quick sheet on LG's Quick Settings launches (Hook A below), holds focus in
+LG's focus chain at layer 7 while open, and closes on Back or when LG takes Back itself (`keyFilter.backReleased`).
+Once live it reports `ready` "settings: host ready"; the boot hook mounts the Settings stub only after that report.
+
+- `ui/Look/settings/Store.qml` (`SettingsStore`) is the data store: every read, subscription and write. Writes are
+  optimistic and rolled back, with a toast, when the TV refuses them; slider writes are paced to one per 100 ms. Its
+  bus identity is one property (`appId`); `service/permissions.sh` grants that name the groups LG's services put our
+  methods in, read from the TV's own permission files.
+- `ui/Look/settings/catalog.js` is generated from `settings/*.json`: run `node tools/theme-pack/settings/build-catalog.mjs`
+  after changing the catalog (a test checks it is current).
+- `ui/Look/settings/menu.js` is our information architecture: the boards' categories (Picture, Sound, Connection,
+  General, Accessibility, Support), the pages we design as data (rows naming catalog items), the quick sheet, value
+  labels. `pages.js` is the page framework: it turns a page entry into a Header and RowList rows from the item types
+  (switch → toggle, enum → value with a picker page of choice rows, range → slider, action → action, with
+  confirmations as a Dialog), and draws every catalog page we have not designed from its items, so the whole tree can
+  be walked. `PageView.qml` draws one page, `SettingsMenu.qml` the Settings frame and its navigation stack,
+  `QuickSheet.qml` the quick sheet.
+- **Hook A** (`SystemUiHook.qml`): the layer gives LG's system UI manager a copy of its table whose Quick Settings
+  entry loads `QuickSettingsEntry.qml`, which hands each launch (the gear, the picture-mode and sleep hotkeys,
+  `showQuickSettings`) to our part and exits at once. Unverified on the TV; see TV-CHECKS.md. Hook B (our own key
+  policy for the Option and accessibility keys) is not built: reloading LG's key filters cancels its timers and
+  re-runs every policy's init, which is not clean enough to do blind.
+- The preview mocks LG's settings services in `preview/mocks/Preview/TvSettings.qml` (a US TV on HDMI 2 in Filmmaker
+  mode, TV speakers, online over Wi-Fi). Scenes and tests change its values, descriptions and forced failures.
 
 ## Our UI layer in the compositor
 

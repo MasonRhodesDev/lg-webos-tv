@@ -27,6 +27,7 @@ fi
 # 2. Our UI layer in the compositor. A client takes its bus groups when it connects, so the restart also picks up
 # step 1.
 layer=0
+t0=$(date -u +%Y-%m-%dT%H:%M:%S)
 if [ -f "$ROOT/layer/own-layer.sh" ]; then
   sh "$ROOT/layer/own-layer.sh" apply && layer=1 && echo "UI layer started (see /tmp/own-layer.log)"
   [ $layer = 1 ] || echo "UI layer did not load (see /tmp/own-layer.log)"
@@ -35,14 +36,26 @@ else
 fi
 
 # 3. The Settings stub over LG's Settings app, so the Home screen's Settings tile and LG's deep links open our
-# Settings. Only once our layer is running and the Look service is installed: the stub hands every launch to them,
-# so without them Settings would open nothing, and LG's app stays.
+# Settings. Only once our layer is running, the Look service is installed and our Settings host has said it is live
+# (parts/Settings.qml reports ready "settings: host ready"): the stub hands every launch to them, so without them
+# Settings would open nothing, and LG's app stays. Report times are UTC ISO strings, so they compare as text.
+settings_ready() {
+  last=$(luna-send -n 1 -w 5000 luna://$SVC/getReports '{}' | grep -o '"at":"[^"]*","from":"ui","kind":"ready","text":"settings: host ready"' | tail -1 | cut -d'"' -f4)
+  [ -n "$last" ] && [ "$last" \> "$t0" ]
+}
+host=0
+if [ $layer = 1 ]; then
+  i=0
+  while [ $i -lt 30 ]; do settings_ready && { host=1; break; }; sleep 1; i=$((i + 1)); done
+fi
 if mount | grep -q " $APP "; then
   echo "settings already mounted"
 elif ! grep -q '"vendor": "theme-pack"' "$STUB/appinfo.json" 2>/dev/null; then
   echo "settings left stock (no stub installed)"
 elif [ $layer != 1 ] || [ ! -d /media/developer/apps/usr/palm/services/$SVC ]; then
   echo "settings left stock (the stub needs our layer and the Look service)"
+elif [ $host != 1 ]; then
+  echo "settings left stock (our Settings host never reported ready)"
 else
   # SAM may hold the stock app's description from before the mount, whose localised entries name index.<locale>.html;
   # every such name serves the stub.

@@ -49,3 +49,47 @@ Back
       closed, and never lands on LG's Settings or reopens the stub.
 - [ ] Back over an app that refuses Back: our Settings closes and Home opens; no stub window is left behind.
 - [ ] Exit and Home close it from a deep-linked page as from the top.
+
+## Settings core (our Settings, the quick sheet, Hook A)
+
+Setup: our layer applied (`own-layer-tv.sh apply`), the Look package installed, `service/permissions.sh` run and the
+bus rescanned. Reports: `luna-send -n 1 luna://dev.themepack.look.service/getReports '{}'`.
+
+Host and boot order
+- [ ] The reports have `ready` "settings: host ready" within a few seconds of `layer created`.
+- [ ] `/tmp/themepack.log` after a cold boot says `settings stub mounted` only after that report; with
+      `parts/Settings.qml` removed from `Layer.qml` (or broken) it says `settings left stock (our Settings host never
+      reported ready)` and the Home tile opens LG's Settings.
+
+Bus identity (SETTINGS-PLAN.md section 1)
+- [ ] `permissions.sh` prints `compositor groups: ...` naming the settingsservice, tv.time, tv.display,
+      connectionmanager, audio, tvpower, notification and applicationManager groups it found in
+      `/usr/share/luna-service2/api-permissions.d`. Record the list.
+- [ ] After `ls-control scan-services` and a compositor restart, our Settings reads values (Picture mode shows the
+      TV's real mode) and a write sticks: change Sound out in our Settings, then
+      `luna-send -n 1 luna://com.webos.settingsservice/getSystemSettings '{"category":"sound","keys":["soundOutput"]}'`.
+- [ ] If ls-hubd refuses groups from the dev directory (writes fail with a permission error, reported as
+      `settings: <ref> not saved: ...` and a toast), switch `Store.qml`'s `appId` to `com.webos.app.quicksettings`
+      (the plan's option 2) and note which writes still fail.
+- [ ] The volume (`com.webos.audio getVolume/setVolume`) and Screen off (`com.webos.service.tvpower
+      power/turnOffScreen`) calls are the right ones on this firmware: the quick sheet's Volume row follows the
+      remote's volume keys, Left/Right change it, Screen off blanks the panel with sound on.
+
+Hook A (the gear opens our quick sheet)
+- [ ] The reports have `ok` "settings: the gear opens our quick sheet (system UI table)", not a `gap`.
+- [ ] The gear opens our quick sheet, never LG's Quick Settings, also after the TV has been on for an hour (configd
+      pushing a new `systemUIManager` would re-apply the table; check that it does not leave LG's entry).
+- [ ] The gear again closes it; holding the gear does not flicker it open and shut.
+- [ ] The picture-mode hotkey opens the sheet with the Picture mode picker; the sleep hotkey with the Sleep timer
+      picker; `luna-send -n 1 luna://com.webos.surfacemanager/showQuickSettings '{}'` opens the sheet.
+- [ ] No LG Quick Settings window is left behind (`luna-send -n 1 luna://com.webos.service.systemUIManager/getForegroundAppInfo '{}'`).
+- [ ] QuickSettingsEntry.qml shares our engine: the sheet opens (if it does not, the reports say
+      `settings: Quick Settings entry launched with no host listening`).
+
+Focus and Back (SETTINGS-PLAN.md 3.4)
+- [ ] With the sheet or Settings open, Up/Down/OK reach our rows (LG's focus chain at layer 7), and focus returns to
+      the app underneath on close (the live TV channel keys work again at once).
+- [ ] Back over live TV and over an HDMI input: one page back, then closed. Over an app that refuses Back, our menu
+      closes as LG goes Home. Record which foreground apps refuse it.
+- [ ] Whether Back arrives as `Qt.Key_Back` or `Key_Escape` (both are mapped in `kit/keys.js`).
+- [ ] The magic remote's pointer: rows follow it and a click activates (`keyFilter.cursorVisible`).

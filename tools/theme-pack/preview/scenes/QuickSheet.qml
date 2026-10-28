@@ -25,13 +25,6 @@ Item {
             l.adjusted(l.currentIndex, 1);
         } } },
         State { name: "picker"; StateChangeScript { script: { p.quickSettings(null); p.quickSettings({ "activateType": "picture-mode" }); } } },
-        State { name: "focus-all"; StateChangeScript { script: list().currentIndex = rowOf("All settings") } },
-        // A write the TV refuses: the toggle shows the new value at once, then goes back.
-        State { name: "rollback"; StateChangeScript { script: {
-            TvSettings.fail["picture.energySaving"] = true;
-            var l = list();
-            l.currentIndex = rowOf("Energy saving");
-            l.activated(l.currentIndex, l.rows[l.currentIndex]);
-        } } }
+        State { name: "focus-all"; StateChangeScript { script: list().currentIndex = rowOf("All settings") } }
     ]
 }

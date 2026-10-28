@@ -4,8 +4,11 @@ import Look 1.0
 // The kit's contact sheet, board 1 of 2: panels, headers, every row variant and the controls in every state.
 // Chips, badges and the icon set are on board 2.
 Item {
+    id: kit
     width: 1920
     height: 1080
+    property bool settingsRows: false
+    states: [State { name: "settings-rows"; PropertyChanges { target: kit; settingsRows: true } }]
 
     Screen {
         Scrim { kind: "left" }
@@ -37,7 +40,8 @@ Item {
             }
         }
 
-        // A sub-page as our Settings uses it: breadcrumb, sections, radio and check rows.
+        // A sub-page as our Settings uses it: breadcrumb, sections, radio and check rows. State settings-rows: the
+        // Settings boards' rows: categories, a picker's choice rows, an action, a busy value, a disabled row.
         Panel {
             x: 96 + Look.px("panel-w") + 40
             y: 54
@@ -48,8 +52,18 @@ Item {
                 y: lookHead.height
                 width: parent.width
                 height: parent.height - y
-                currentIndex: 3
-                model: [
+                currentIndex: kit.settingsRows ? 4 : 3
+                model: kit.settingsRows ? [
+                    { variant: "category", label: "Picture", icon: "screen", hue: 0, current: true },
+                    { variant: "category", label: "Sound", icon: "speaker", hue: 1 },
+                    { section: "Picture mode" },
+                    { variant: "choice", label: "Cinema", icon: "screen", hue: 2 },
+                    { variant: "choice", label: "Game", hint: "Lowest input lag", icon: "screen", hue: 3 },
+                    { variant: "choice", label: "Filmmaker", hint: "Current", icon: "screen", hue: 5, checked: true, current: true },
+                    { variant: "action", label: "Screen off", icon: "screenOff", hue: 5 },
+                    { variant: "value", label: "Wi-Fi", value: "Searching", busy: true, icon: "wifi", hue: 3 },
+                    { variant: "value", label: "Motion smoothing", value: "Off", hint: "Locked off in Filmmaker mode", icon: "motion", hue: 4, disabled: true }
+                ] : [
                     { section: "Style" },
                     { variant: "radio", label: "Smoke", hint: "Smoked glass, hot-pink focus", icon: "palette", hue: 0, checked: true },
                     { variant: "radio", label: "Bubble", hint: "Rounded and bright", icon: "palette", hue: 3 },

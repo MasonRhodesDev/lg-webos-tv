@@ -73,7 +73,7 @@ Every list in every menu uses one row (**ListRow**):
 |         |             |         | hint (optional)  |         |       |          |         |
 ```
 
-- Height `row-h`, or `row-h-2` with a hint line. Rows are `space-s` apart. Radius `r-row`, plate `inner`.
+- Height `row-h`, or `row-h-2` with a hint line (Smoke: both 96, as the boards draw them). Rows are `space-s` apart. Radius `r-row`, plate `inner`.
 - The icon takes the item's hue (`hue-0`..`hue-6`) and has no well; label is the `label` role, hint `caption`, value
   `value` in `ink-2`.
 - The trailing control says what OK does:
@@ -81,21 +81,31 @@ Every list in every menu uses one row (**ListRow**):
 | variant | trailing | OK / Left-Right |
 |---|---|---|
 | `nav` | chevron (a value before it, if set) | opens a page |
-| `value` | value and chevron | opens a picker page of radio rows |
+| `value` | value and chevron | opens a picker page of choice rows |
 | `toggle` | **Toggle** | flips it |
 | `radio` | **Radio** | chooses this one of several |
 | `check` | **Check** | adds or removes this one of several |
 | `slider` | **Slider** and its number | Left/Right step it |
 | `stepper` | **Stepper**: ‹ value › and a dot per option | Left/Right step it, wrapping |
+| `choice` | a tick in `current` when chosen | chooses this value and goes back (a picker page) |
+| `action` | the value only, if any | does it (Screen off, Reset) |
+| `category` | nothing; `row-h` less `space-xs` tall, no plate at rest unless current | shows that category |
 | `info` | the value only | not focusable |
 
-- Choose by meaning: a setting that is on or off is a toggle; one choice of a few, shown in place, is a stepper (Quick
-  Settings) or a radio list on its own page (Settings); several that can all be on are checks.
+- `busy` on a row puts **Busy** (a turning three-quarter ring, the icon's size, in the row's soft ink) before its value
+  while it scans or connects.
+
+- Choose by meaning: a setting that is on or off is a toggle; one choice of several is a value row whose picker page
+  lists choice rows (the Settings and Quick settings boards; the chosen one also has the `current` bar and the hint
+  "Current"); a stepper shows one in place; several that can all be on are checks.
 - A section header (**Section**, `heading` role in `ink-3`, `section-h` tall) starts each group. It is not focusable.
 - **RowList** holds rows and headers. Rows that do not wholly fit are hidden, the list always stops with a whole row at
   its top, and a chevron at its foot says more is below. Lists never clip, so focus decoration is never cut.
-- A page is a **Header** (an optional breadcrumb in the `heading` role, the `title`, an optional subtitle at the right
-  in `caption`) above a RowList, with **KeyHints** at the foot.
+- Live data: give RowList `rows` (the specs) and `model: rows.length`; a new `rows` of the same length updates the rows
+  in place, so a toggle slides and focus stays. `pointer: true` (our own menus, while LG's pointer shows) lets the
+  magic remote focus a row by hovering and activate it by a click.
+- A page is a **Header** (an optional breadcrumb in the `label` role in `ink-3` with a trailing ›, the `title`, an
+  optional subtitle at the right in `caption`) above a RowList, with **KeyHints** at the foot.
 
 ## Tile
 
@@ -121,8 +131,8 @@ One treatment, drawn by **Plate** under every row, tile and button:
   fill invert (the toggle track goes `focus-ink`, the radio dot `focus-ink`, and so on).
 - **Current** (what is in use now: the input you are watching, the open category): a `current` bar of `current-w` along
   the bottom. While focused, the fill says enough and the bar hides. Radios and checks show their own current state.
-- **Disabled**: the plate stays, ink and icons turn `ink-disabled`, controls dim. An edged plate (tiles, buttons) trades
-  its edge for a dashed one in `edge-disabled`. Our menus skip disabled rows. When
+- **Disabled**: the plate stays, ink and icons turn `ink-disabled`, controls dim, and a dashed edge in `edge-disabled`
+  runs inside it (an edged plate, a tile or button, trades its edge for it). Our menus skip disabled rows. When
   LG puts focus on one, it gets the focus ring and lift but no fill.
 - Focus is never shown by theme decoration alone. Themes add to it (below); turning themes off loses nothing.
 
@@ -180,6 +190,16 @@ buttons) move over focusable items; OK emits `activated`; Left/Right on a slider
 Back emits `back`. They never change their own model: the surface owns the data. Surfaces that mirror an LG item
 instead set `currentIndex` from LG and take no focus, and their buttons set `pointer: false` so LG's mouse areas
 under them take the clicks. Key codes are mapped in one place, `kit/keys.js`.
+
+## Our Settings and the quick sheet
+
+- **Settings** is one `full` panel (`space-xl` padding): the `display` title and the categories (`category` rows) in a
+  column three quarters of `panel-w` wide, a rule, and the open page (Header and RowList). The current category has
+  its plate and `current` bar; focus is in one column at a time. No scrim: the picture stays bright around it.
+- The **quick sheet** is a `side-left` panel: Header ("Quick settings", the input as its subtitle), its rows, and
+  KeyHints at the foot (Move, OK Change, BACK Close). A value's picker replaces the rows in the same panel, with the
+  sheet as its breadcrumb.
+- Pickers are pages of `choice` rows; confirmations are a Dialog with the safe button focused.
 
 ## Decoration contract
 

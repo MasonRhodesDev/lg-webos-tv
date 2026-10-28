@@ -86,7 +86,7 @@ FocusScope {
         pointer: view.pointer
         rows: view.rows
         model: view.rows.length
-        onCurrentIndexChanged: { var r = spec(currentIndex); view.focusLabel = r ? r.label : ""; }
+        onCurrentIndexChanged: { var r = spec(currentIndex); view.focusLabel = r && r.label ? r.label : ""; }
         onActivated: {
             if (Pages.confirmation(row, view.store)) view.confirm(row);
             else view.run(row);
