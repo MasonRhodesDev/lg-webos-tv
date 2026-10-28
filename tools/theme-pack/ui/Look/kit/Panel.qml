@@ -5,18 +5,20 @@ import Look 1.0
 // entering and leaving with the style's motion. Its children are the content, inset by `padding`.
 //   side-left, side-right  the full safe height at a side edge, panel-w wide (Quick Settings, sub-menus)
 //   rail                   a narrow column at the right edge, centred (the volume bar)
-//   ribbon                 the full safe width at the bottom (the input picker)
+//   ribbon                 the full safe width at the bottom (the input picker; usually `bare`)
 //   toast                  the top-right corner of the safe area
 //   center                 centred, dialog-w wide, as tall as its content (dialogs)
 //   full                   the whole safe area (our Settings)
 //   none                   placed by the parent
 Item {
     id: panel
-    property string target: "panel"
+    property string target: bare ? "ribbon" : "panel"
     property string placement: "none"
     property bool shown: true
     property bool strong: false
     property bool elevated: true
+    // No surface: the content sits straight on its scrim (a ribbon of tiles, which are surfaces themselves).
+    property bool bare: false
     property real padding: Look.px("space-l")
     property real radius: Look.px("r-panel")
     default property alias content: body.data
@@ -73,6 +75,7 @@ Item {
         ]
 
         Surface {
+            visible: !panel.bare
             anchors.fill: parent
             strong: panel.strong
             elevated: panel.elevated

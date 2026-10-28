@@ -31,12 +31,38 @@ ListView {
     spacing: Look.px("space-s")
     boundsBehavior: Flickable.StopAtBounds
     interactive: false
-    highlightFollowsCurrentItem: true
-    highlight: Item {}
-    highlightMoveDuration: Look.px("motion-value")
-    highlightRangeMode: ListView.ApplyRange
-    preferredHighlightBegin: Look.px("row-h")
-    preferredHighlightEnd: height - Look.px("row-h")
+    highlightFollowsCurrentItem: false
+
+    // Rows not wholly inside the list are hidden, so the list stops with a row (or header) at its top edge.
+    function snap(to, down) {
+        var kids = contentItem.children, best = down ? Infinity : -Infinity;
+        for (var i = 0; i < kids.length; i++) {
+            var y = kids[i].y;
+            if (kids[i].height <= 0) continue;
+            if (down && y >= to - 1 && y < best) best = y;
+            if (!down && y <= to + 1 && y > best) best = y;
+        }
+        return isFinite(best) ? best : to;
+    }
+    // Scroll only as far as keeps the focused row, and a row's worth beyond it, inside the list.
+    function reveal(animated) {
+        var item = currentItem;
+        if (!item) return;
+        var margin = Look.px("row-h") / 2, to = contentY;
+        if (item.y - margin < contentY) to = item.y - margin;
+        else if (item.y + item.height + margin > contentY + height) to = item.y + item.height + margin - height;
+        to = snap(to, to > contentY);
+        to = Math.max(originY, Math.min(to, originY + contentHeight - height));
+        if (to === contentY) return;
+        scroll.stop();
+        if (!animated) { contentY = to; return; }
+        scroll.to = to;
+        scroll.start();
+    }
+    NumberAnimation { id: scroll; target: list; property: "contentY"; duration: Look.px("motion-value"); easing.type: Easing.Bezier; easing.bezierCurve: Look.curve("ease-enter") }
+    onCurrentIndexChanged: reveal(true)
+    onHeightChanged: reveal(false)
+    onContentHeightChanged: reveal(false)
 
     Keys.onPressed: {
         var k = KeyMap.nav(event, Qt), r = spec(currentIndex);
@@ -47,6 +73,19 @@ ListView {
         else if (k === "back") back();
         else return;
         event.accepted = true;
+    }
+
+    // More rows below than fit: a quiet chevron at the foot says so. Parented to the list itself, so it stays put.
+    Icon {
+        parent: list
+        name: "M6 9l6 6 6-6"
+        size: Look.px("icon") * 0.8
+        color: Look.color("ink-3")
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.bottom: parent.bottom
+        anchors.bottomMargin: -height
+        opacity: list.contentY + list.height < list.originY + list.contentHeight - 2 ? 1 : 0
+        Behavior on opacity { NumberAnimation { duration: Look.px("motion-focus") } }
     }
 
     delegate: Item {

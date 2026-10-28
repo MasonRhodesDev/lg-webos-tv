@@ -9,8 +9,9 @@ Text {
     font.family: Look.font
     font.pixelSize: Look.px("type-" + role)
     font.weight: Look.weight("type-" + role)
-    font.capitalization: role === "heading" && Look.token("type-heading-case") === "uppercase" ? Font.AllUppercase : Font.MixedCase
-    font.letterSpacing: font.capitalization === Font.AllUppercase ? font.pixelSize * 0.08 : 0
+    readonly property bool upper: role === "heading" && Look.token("type-heading-case") === "uppercase"
+    font.capitalization: upper ? Font.AllUppercase : Font.MixedCase
+    font.letterSpacing: upper ? Look.px("type-" + role) * 0.08 : 0
     elide: Text.ElideRight
     maximumLineCount: wrapMode === Text.NoWrap ? 1 : 4
 }

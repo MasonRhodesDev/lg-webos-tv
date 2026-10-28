@@ -181,6 +181,14 @@ TV_HOST=<tv address> sh tools/theme-pack/webos/own-layer-tv.sh capture out.png  
 
 `apply` and `revert` take a lock on the TV, so several working copies can test in turn. `own-layer.sh` passes `QML2_IMPORT_PATH` to the compositor job only, so a plain restart is stock again. The root reports to the Look service as soon as it loads; if it doesn't within 60 s, the compositor is restarted on stock. Our layer is created separately from the root, so a broken layer leaves LG's UI running and reports its error. Read the reports with `luna-send -n 1 luna://dev.themepack.look.service/getReports '{}'` (the compositor's own QML warnings go nowhere). The compositor's QML calls the bus as `com.webos.surfacemanager.systemui`, a name in no permission group, so `service/permissions.sh` grants it the service's group.
 
+### The design language and the kit
+
+Every surface the layer draws is composed from one component kit, `ui/Look/kit/` (in the `Look` module): Screen, Panel,
+Header, RowList and ListRow, Tile and TileRibbon, Toggle, Radio, Check, Slider, Stepper, Chip, Badge, Button and
+ButtonRow, ToastCard, Dialog, Scrim, KeyHints, Icon and Label. [DESIGN.md](DESIGN.md) is the language they implement:
+surface, placement, row and tile anatomy, focus, type, spacing, motion and the decoration targets themes write to.
+`preview/scenes/Kit.qml` and `KitOverlays.qml` are its contact sheet; render them with `preview/Shot.qml`.
+
 ### Recipes the QML layer draws
 
 The compositor can't draw HTML, and has no SVG plugin. A recipe is drawn by the QML layer when it names one of:

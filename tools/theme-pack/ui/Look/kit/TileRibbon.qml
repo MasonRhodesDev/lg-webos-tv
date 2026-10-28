@@ -28,12 +28,26 @@ ListView {
     spacing: Look.px("space-m")
     interactive: false
     boundsBehavior: Flickable.StopAtBounds
-    highlight: Item {}
-    highlightFollowsCurrentItem: true
-    highlightMoveDuration: Look.px("motion-value")
-    highlightRangeMode: ListView.ApplyRange
-    preferredHighlightBegin: Look.px("tile-w")
-    preferredHighlightEnd: width - Look.px("tile-w")
+    highlightFollowsCurrentItem: false
+
+    // Scroll only as far as keeps the focused tile, and part of the next, inside the ribbon.
+    function reveal(animated) {
+        var item = currentItem;
+        if (!item) return;
+        var margin = Look.px("tile-w") / 2, to = contentX;
+        if (item.x - margin < contentX) to = item.x - margin;
+        else if (item.x + item.width + margin > contentX + width) to = item.x + item.width + margin - width;
+        to = Math.max(originX, Math.min(to, originX + contentWidth - width));
+        if (to === contentX) return;
+        scroll.stop();
+        if (!animated) { contentX = to; return; }
+        scroll.to = to;
+        scroll.start();
+    }
+    NumberAnimation { id: scroll; target: ribbon; property: "contentX"; duration: Look.px("motion-value"); easing.type: Easing.Bezier; easing.bezierCurve: Look.curve("ease-enter") }
+    onCurrentIndexChanged: reveal(true)
+    onWidthChanged: reveal(false)
+    onContentWidthChanged: reveal(false)
 
     Keys.onPressed: {
         var k = KeyMap.nav(event, Qt);

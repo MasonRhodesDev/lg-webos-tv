@@ -110,6 +110,7 @@ Item {
         Row {
             spacing: Look.px("space-m")
             Slider {
+                length: Math.round(row.width * 0.38)
                 fraction: row.fraction
                 disabled: row.disabled
                 inverted: row.inverted
@@ -128,6 +129,7 @@ Item {
     Component {
         id: stepper
         Stepper {
+            valueWidth: Math.round(row.width * 0.3)
             options: row.options
             index: row.index
             disabled: row.disabled
