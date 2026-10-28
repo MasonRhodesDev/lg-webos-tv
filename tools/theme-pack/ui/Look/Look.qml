@@ -12,6 +12,11 @@ QtObject {
     property var themes: []
     property string assets: ""
     property string styleId: ""
+    // The chosen look as the service holds it: { style, themes: [ids] }.
+    property var chosen: ({ "style": "", "themes": [] })
+    property var behaviour: ({})
+    // What can be chosen: { styles: [{id, name}], themes: [{id, name, description}] }.
+    property var available: ({ "styles": [], "themes": [] })
     property bool online: false
 
     readonly property var stock: ({
@@ -55,7 +60,24 @@ QtObject {
         themes = m.themes || [];
         assets = m.assets || "";
         styleId = m.look.style;
+        chosen = m.look;
+        behaviour = m.style.behaviour || {};
+        available = m.available || { "styles": [], "themes": [] };
+        if (m.picker) {
+            // The first answer of each subscription only records where requests stand.
+            if (pickerAt >= 0 && m.picker.at !== pickerAt) pickerRequested(m.picker.open);
+            pickerAt = m.picker.at;
+        }
     }
+
+    // Someone asked for our Look picker to open or close (the Look app's launch, or luna-send).
+    signal pickerRequested(bool open)
+    property real pickerAt: -1
+
+    // Changes go out on their own bus object; their result comes back through the subscription.
+    function setLook(change) { command.call(service, "/setLook", JSON.stringify(change)); }
+    function closePicker() { command.call(service, "/closePicker", "{}"); }
+    property var command: Service { appId: "com.webos.surfacemanager.systemui" }
 
     function report(kind, text) {
         bus.call(service, "/report", JSON.stringify({ "from": "ui", "kind": kind, "text": text }));
@@ -81,7 +103,10 @@ QtObject {
                 var m = JSON.parse(payload);
                 if (m.serviceName !== "dev.themepack.look.service") return;
                 look.online = m.connected;
-                if (m.connected) look.bus.call(look.service, "/getLook", JSON.stringify({ "subscribe": true }));
+                if (m.connected) {
+                    look.pickerAt = -1;
+                    look.bus.call(look.service, "/getLook", JSON.stringify({ "subscribe": true }));
+                }
             } catch (e) {
                 console.warn("Look: unreadable bus status: " + e);
             }

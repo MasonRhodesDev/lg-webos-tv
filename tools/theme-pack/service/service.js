@@ -13,6 +13,9 @@ var subscribers = {};
 var lastLoadMs = null;
 // What the TV's renderers reported (loaded, errors), newest last. They cannot write files, so this is their log.
 var reports = [];
+// Whether our Look picker is open in the compositor's UI layer. `at` changes with every request, so the layer acts on
+// requests rather than on state: a compositor restart must not reopen a picker nobody asked for.
+var picker = { open: false, at: 0 };
 
 // Stay running after the first call: a cold start drops the call that woke the service.
 service.activityManager.create('keepAlive', function () {});
@@ -43,6 +46,7 @@ function payload() {
     look: look,
     subscribers: Object.keys(subscribers).length,
     lastLoadMs: lastLoadMs,
+    picker: picker,
     // Theme assets are files next to the packs; renderers resolve a recipe's `asset` against this.
     assets: 'file://' + path.join(packsDir, 'assets') + '/',
     style: styles[look.style],
@@ -80,10 +84,24 @@ function setLook(message) {
     look.themes = p.themes;
   }
   fs.writeFileSync(lookFile, JSON.stringify(look));
+  message.respond(notify());
+}
+
+function notify() {
   var out = payload();
   Object.keys(subscribers).forEach(function (k) { subscribers[k].respond(out); });
-  message.respond(out);
+  return out;
 }
+
+// The Look app calls openPicker when it is launched; the layer calls closePicker when the picker closes.
+service.register('openPicker', function (message) {
+  picker = { open: true, at: Date.now() };
+  message.respond(notify());
+});
+service.register('closePicker', function (message) {
+  picker = { open: false, at: Date.now() };
+  message.respond(notify());
+});
 
 service.register('report', function (message) {
   var p = message.payload || {};

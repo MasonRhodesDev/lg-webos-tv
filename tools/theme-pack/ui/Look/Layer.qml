@@ -11,7 +11,8 @@ Item {
     z: 10008 // LG's volume layer; the screen saver (10010) stays above
 
     // Each file is one part. A part is an Item with `property Item lg` and `function claims(item)`; it may set
-    // `searchDepth` (how deep under the root its LG item sits, default 2).
+    // `searchDepth` (how deep under the root its LG item sits, default 2). A part of our own with no LG counterpart
+    // (the Look picker) leaves out `claims`: nothing is searched for or hidden.
     readonly property var parts: ["parts/VolumeBar.qml"]
 
     function find(item, part, depth) {
@@ -29,6 +30,7 @@ Item {
             if (c.status === Component.Error) { Look.report("error", parts[i] + ": " + c.errorString()); continue; }
             var part = c.createObject(layer);
             if (!part) { Look.report("error", parts[i] + ": could not be created"); continue; }
+            if (part.claims === undefined) { Look.report("ok", parts[i] + ": own part, no LG counterpart"); continue; }
             var lg = find(host, part, part.searchDepth !== undefined ? part.searchDepth : 2);
             if (!lg) { part.destroy(); Look.report("gap", parts[i] + ": LG item not found, left to LG"); continue; }
             lg.opacity = 0;
