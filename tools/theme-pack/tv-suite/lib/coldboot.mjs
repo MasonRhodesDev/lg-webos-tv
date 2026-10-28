@@ -3,7 +3,7 @@
 // the telemetry state after the hook, and Hook A. Reports the boot's timings (seconds since power-on). Running it
 // again reboots again: it changes nothing else.
 import path from 'node:path';
-import { runScenarios } from './run.mjs';
+import { runScenarios, baseline, finish, restoreVerified } from './run.mjs';
 import { SCENARIOS } from './scenarios.mjs';
 
 const HOOK_END = /^(settings stub mounted|settings already mounted|settings left stock .*)$/;
@@ -14,7 +14,10 @@ export async function coldboot(ctx, { upTimeout = 600, hookTimeout = 300 } = {})
   const out = { timings: {}, checks: [] };
   const before = await tv.clock();
   if (!before) throw new Error('the TV does not answer ssh before the reboot');
-  const fg0 = await ctx.foreground().catch(() => '');
+  // The baseline before the reboot (the input in front included), journalled: an interrupt anywhere from here on
+  // is restored to it, and the end restores to it, read back.
+  const owned = await baseline(ctx);
+  const fg0 = ctx.journal.baseline.foreground;
   out.foreground = { before: fg0 };
   ctx.say('rebooting the TV (up ' + Math.round(before.up) + ' s, ' + (fg0 || 'nothing') + ' in front)');
   await tv.disconnect().catch(() => {});
@@ -60,6 +63,11 @@ export async function coldboot(ctx, { upTimeout = 600, hookTimeout = 300 } = {})
   ctx.check('mount lists the bind over LG\'s Settings', m.stdout.includes(' ' + SETTINGS_APP + ' '));
   const running = ((await tv.luna('luna://com.webos.applicationManager/running', {})).running || []).map((a) => a.id);
   ctx.check('no stock Settings is resident after boot', !running.includes('com.palm.app.settings'), running.join(', '));
+  // The boot comes up on LG's default input: back to the baseline's first (launching the input that was in front,
+  // restoring, not switching), so the redirect runs where the household was.
+  out.foreground.afterBoot = await ctx.foreground().catch(() => '');
+  const early = await restoreVerified(ctx, ctx.journal.baseline);
+  if (early.acted.length) ctx.say('  restored after the boot: ' + early.acted.join(', '));
   // Its captures go under coldboot/, so a later `run` into the same directory keeps them.
   const outDir = ctx.out;
   ctx.out = path.join(outDir, 'coldboot');
@@ -78,15 +86,11 @@ export async function coldboot(ctx, { upTimeout = 600, hookTimeout = 300 } = {})
   ctx.check('getTelemetry answers after the hook', ['active', 'inactive', 'unknown'].includes(tel.kit), tel.kit);
   ctx.check('Hook A: the gear opens our quick sheet', reports.some((x) => x.kind === 'ok' && x.text === 'settings: the gear opens our quick sheet (system UI table)'),
     (reports.find((x) => /Hook A|Quick Settings/.test(x.text)) || {}).text || 'no Hook A report');
-  // The boot comes up on LG's default input; the one that was in front is launched again (restoring, not switching).
-  let fg = await ctx.foreground().catch(() => '');
-  out.foreground.afterBoot = fg;
-  if (fg0 && fg !== fg0) {
-    await tv.luna('luna://com.webos.applicationManager/launch', { id: fg0 }).catch(() => null);
-    for (let i = 0; i < 10 && fg !== fg0; i++) { await ctx.sleep(1000); fg = await ctx.foreground().catch(() => ''); }
-    out.foreground.restored = fg === fg0;
-  }
-  ctx.check('the input is back on ' + (fg0 || 'what was in front'), !fg0 || fg === fg0, fg !== out.foreground.afterBoot ? 'relaunched ' + fg0 + ' (the boot came up on ' + out.foreground.afterBoot + ')' : fg);
+  const back = await finish(ctx, owned);
+  const fg = await ctx.foreground().catch(() => '');
+  out.foreground.restored = fg === fg0;
+  ctx.check('the TV is back to the baseline from before the reboot, read back', !back.left.length, back.left.join('; '));
+  ctx.check('the input is back on ' + (fg0 || 'what was in front'), fg === fg0, out.foreground.afterBoot !== fg0 ? 'the boot came up on ' + out.foreground.afterBoot + '; restored by launching ' + fg0 : fg);
   out.ok = out.checks.every((x) => x.ok);
   return out;
 }

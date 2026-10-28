@@ -6,6 +6,7 @@
 //   node tv-suite.mjs coldboot [OUT_DIR]          reboot, then the checks that count only after a boot
 //   node tv-suite.mjs manual [OUT_DIR] [--item ID]... [--no-later]     | manual --print
 //   node tv-suite.mjs run [OUT_DIR] [--scenario ID]...                 | run --list
+//   node tv-suite.mjs baseline                    read-only preflight: every baseline value readable, probes fresh, keys
 //   node tv-suite.mjs rollback                    put back what deploy's backup holds | rollback --print
 //   node tv-suite.mjs report OUT_DIR [--boards CANVAS_DIR] [--preview RENDER_DIR]
 // Without --live every command runs against the fake TV (fake/), whatever TV_HOST says. With --live it talks to
@@ -18,7 +19,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import readline from 'node:readline';
 import { makeTv } from './lib/tv.mjs';
 import { deploy } from './lib/deploy.mjs';
-import { makeCtx, runScenarios, closeAll } from './lib/run.mjs';
+import { makeCtx, runScenarios, closeAll, snapshot } from './lib/run.mjs';
 import { SCENARIOS } from './lib/scenarios.mjs';
 import { writeReport } from './lib/report.mjs';
 import { coldboot } from './lib/coldboot.mjs';
@@ -104,7 +105,7 @@ export async function main(argv, say = console.log) {
     say(await writeReport(o.pos[0], { boards: o.boards, preview: o.preview, say }));
     return 0;
   }
-  if (!['deploy', 'coldboot', 'manual', 'run', 'rollback'].includes(o.cmd)) throw new Error('usage: tv-suite.mjs deploy | coldboot | manual | run | rollback | report [--live]');
+  if (!['deploy', 'coldboot', 'manual', 'run', 'rollback', 'baseline'].includes(o.cmd)) throw new Error('usage: tv-suite.mjs deploy | coldboot | manual | run | rollback | report [--live]');
   if (o.live && o.dry) throw new Error('--live and --dry-run together');
   if (!o.live) { o.dry = true; if (process.env.TV_HOST && !o.fakeState) say('no --live: a dry run against the fake TV, not ' + process.env.TV_HOST); }
   if (o.dry) await fake(o);
@@ -126,6 +127,23 @@ export async function main(argv, say = console.log) {
   // An interrupted command's journal first: nothing new starts until the TV is verified back.
   await settle(ctx);
 
+  if (o.cmd === 'baseline') {
+    // A read-only preflight: every value the baseline needs, readable or not (the PIN only as readable), the probes'
+    // age and the key socket. Nothing is changed and no journal is opened.
+    const b = await snapshot(ctx);
+    let bad = 0;
+    for (const [k, v] of Object.entries(b.values)) {
+      const u = v && v.unreadable;
+      if (u) bad++;
+      say((u ? 'UNREADABLE ' : 'ok         ') + k + ': ' + (u ? v.unreadable : JSON.stringify(v)));
+    }
+    say((b.pin === undefined ? 'UNREADABLE ' : 'ok         ') + 'PIN (lock.systemPin; its value is never shown)');
+    const st = await ctx.state();
+    say((st.fresh ? 'ok         ' : 'STALE      ') + 'probes: ' + (st.fresh ? 'fresh' : st.stale) + '; system UI in front: ' + (st.systemUi || 'none'));
+    const k = await ctx.tv.ensureKeys().then(() => '', (e) => e.message);
+    say((k ? 'MISSING    ' : 'ok         ') + 'key socket' + (k ? ': ' + k : ''));
+    return bad || !st.fresh || k ? 1 : 0;
+  }
   if (o.cmd === 'deploy') {
     const r = await deploy(ctx, { from: o.from, only: o.only, checkOnly: o.check });
     fs.writeFileSync(path.join(out, 'deploy.json'), JSON.stringify(r, null, 1));
@@ -163,10 +181,13 @@ export async function main(argv, say = console.log) {
   rl.on('line', (l) => { if (waiting) { const w = waiting; waiting = null; w(l); } else lines.push(l); });
   rl.on('close', () => { closed = true; if (waiting) { const w = waiting; waiting = null; w('s'); } });
   const answer = (q) => { process.stdout.write(q); if (lines.length) return Promise.resolve(lines.shift()); if (closed) return Promise.resolve('s'); return new Promise((r) => { waiting = r; }); };
-  let r;
-  try { r = await manual(ctx, { answer, only: o.items, includeLater: !o.noLater }); }
-  finally { rl.close(); }
-  fs.writeFileSync(path.join(out, 'manual.json'), JSON.stringify({ items: r, end: r.end, notes: ctx.notes }, null, 1));
+  const r = [];
+  try { await manual(ctx, { answer, only: o.items, includeLater: !o.noLater, results: r }); }
+  finally {
+    rl.close();
+    // Written however the pass ends (a STOP keeps the verdicts so far).
+    fs.writeFileSync(path.join(out, 'manual.json'), JSON.stringify({ items: r, end: r.end, notes: ctx.notes }, null, 1));
+  }
   say('\n' + r.map((x) => x.verdict.toUpperCase().padEnd(5) + x.id + (x.note ? ': ' + x.note : '')).join('\n'));
   say('recorded: ' + path.join(out, 'manual.json'));
   return r.some((x) => x.verdict === 'fail') || (r.end || []).some((c) => !c.ok) ? 1 : 0;

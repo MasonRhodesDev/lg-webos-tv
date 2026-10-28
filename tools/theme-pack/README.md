@@ -279,6 +279,7 @@ Every command is a dry run against the fake TV unless it is given `--live` (then
 ```sh
 export TV_HOST=<tv address>
 node tools/theme-pack/tv-suite/tv-suite.mjs deploy OUT_DIR      # Look package, our layer, boot hook and stub; checked step by step
+node tools/theme-pack/tv-suite/tv-suite.mjs baseline            # read-only preflight: every value the baseline needs is readable, probes fresh, key socket up
 node tools/theme-pack/tv-suite/tv-suite.mjs coldboot OUT_DIR    # reboot, wait for ssh and the boot hook, then the after-boot checks
 node tools/theme-pack/tv-suite/tv-suite.mjs manual OUT_DIR      # the checks that need a person, in one pass (--print to list them)
 node tools/theme-pack/tv-suite/tv-suite.mjs run OUT_DIR         # every scenario (--scenario ID to pick, --list to list them)

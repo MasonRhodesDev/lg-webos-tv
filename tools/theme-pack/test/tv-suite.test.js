@@ -494,7 +494,28 @@ test('closeAll closes LG\'s Quick Settings with closeByAppId, and coldboot puts 
   const { f, run, state } = fakeFile();
   const c = run('coldboot', tmp('cb'));
   assert.strictEqual(c.status, 0, c.stdout);
-  assert.match(c.stdout, /ok {3}the input is back on com\.webos\.app\.hdmi2: relaunched com\.webos\.app\.hdmi2 \(the boot came up on com\.webos\.app\.livetv\)/);
+  assert.match(c.stdout, /ok {3}the input is back on com\.webos\.app\.hdmi2: the boot came up on com\.webos\.app\.livetv; restored by launching com\.webos\.app\.hdmi2/);
+  assert.match(c.stdout, /ok {3}the TV is back to the baseline from before the reboot, read back/);
   assert.strictEqual(state().fg, 'com.webos.app.hdmi2');
   void f;
+});
+
+test('baseline is a read-only preflight that names every unreadable value and never shows the PIN', () => {
+  const { f, run, state } = fakeFile((s) => ({ settings: Object.assign(s.settings, { systemPin: '4826' }), faults: { unreadable: ['quickStartMode'] } }));
+  const before = JSON.stringify(state().settings);
+  const r = run('baseline');
+  assert.strictEqual(r.status, 1);
+  assert.match(r.stdout, /UNREADABLE quickStartMode/);
+  assert.match(r.stdout, /ok {9}PIN \(lock\.systemPin; its value is never shown\)/);
+  assert.ok(!r.stdout.includes('4826'));
+  assert.strictEqual(JSON.stringify(state().settings), before);
+  assert.deepStrictEqual(fs.readdirSync(path.dirname(f)).filter((x) => x !== 'tv.json'), [], 'no journal');
+});
+
+test('an interrupt during the cold boot\'s wait restores the input from the pre-reboot journal', async () => {
+  const { f, state } = fakeFile({ faults: { slow: 10, slowBoot: true } });
+  const r = await interrupted(f, ['coldboot', tmp('cbi')], (s) => s.boots === 1 && s.down > 0, 'SIGINT');
+  assert.ok(r.sent);
+  assert.strictEqual(r.code, 130, r.out);
+  assert.strictEqual(state().fg, 'com.webos.app.hdmi2', r.out);
 });

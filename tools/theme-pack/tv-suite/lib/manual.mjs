@@ -196,8 +196,7 @@ async function summary(ctx) {
 }
 
 // Runs the pass. `answer(question)` returns the person's line ("p", "f note", "s"...). `only` picks item ids.
-export async function manual(ctx, { answer, only, includeLater = true, watchEvery } = {}) {
-  const results = [];
+export async function manual(ctx, { answer, only, includeLater = true, watchEvery, results = [] } = {}) {
   ctx.tv.resetKeys();
   await ctx.tv.ensureKeys();
   const owned = await baseline(ctx);
