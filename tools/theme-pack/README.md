@@ -76,6 +76,8 @@ into `OUT_DIR`. Putting them on the canvas is done by hand. It needs what the ha
 node --test tools/theme-pack/test/*.test.js
 ```
 
+`test/settings-stub.test.js` builds the Look package with `tv/build-ipk.sh`, so the tests need `tar` and `gzip`.
+
 The packs are checked as data (`test/assets.test.js`, `test/kit.test.js`): every style defines every token, recipes
 name only known targets, tokens and assets, the kit decorates exactly the contract's targets with the states each
 lists, and the assets match their art.

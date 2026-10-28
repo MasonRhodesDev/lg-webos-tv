@@ -39,7 +39,8 @@ The Look app (Home's Look icon)
       Settings at its Look page, with nothing of the app on screen (no splash, no frame) and the picture underneath
       unchanged; the app has left `applicationManager/running` within 1 s.
 - [ ] The app's bus calls reach the Look service as `dev.themepack.look` (its own package), with no permission error
-      in `/var/log/messages`.
+      in `/var/log/messages`. If the bridge is refused, the stub's `"trustLevel": "trusted"` is the first thing to add
+      to `tv/appinfo.json`.
 
 Every deep link lands on the right page
 - [ ] For every key of `settings/catalog.json` `lgTargets.map`:
