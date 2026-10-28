@@ -19,6 +19,8 @@ Boot mount
       version `1.0.0`, vendor `theme-pack`, no `usePrerendering`. If SAM still shows the stock description, check that
       a launch loads the stub through the `index.<locale>.html` links the hook creates (menu language set to a
       non-English language too), and note whether SAM ever prerenders it.
+- [ ] Home's Settings tile still shows a Settings icon, not the Look app's (the stub ships `tv/icon.png`; if the tile
+      reads it from the mounted folder, the fix is a stub icon of its own or the hook copying the TV's stock icon in).
 - [ ] No stock Settings instance is resident after boot (`applicationManager/running` has no
       `com.palm.app.settings` before the first launch).
 
