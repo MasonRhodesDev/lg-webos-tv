@@ -185,15 +185,13 @@ WAM is already starting the app, and never sees the params. Callers that do this
 | Other LG apps (tvhotkey, customer support, channel apps) | various |
 
 No in-process hook exists for these. Hiding or killing LG's surface when it appears would flash LG's app and lose the
-target, so we don't. The honest fallback is the **launch stub**: an app of our own with the id
-`com.palm.app.settings` (`appinfo.json` with `defaultWindowType: overlay`, `noSplashOnLaunch`, a tiny `index.html`)
-whose only job is to read `PalmSystem.launchParams`, call `luna://com.webos.service.systemUIManager/launch
-{"appId": "dev.themepack.settings", "params": <the same params>}` (a public method, `SystemUIManager.qml`
-`publicMethods`), and close. It is bind-mounted over the stock app directory by the boot hook, exactly the mechanism
-`webos/60-themepack` already uses for the patched Settings, and contains no LG code. It catches every SAM launch
-with its target. It is still a mount over an LG directory, so it is the owner's call; without it, the launcher tile
-and the deep links above keep opening LG's Settings. Our Settings accepts LG's target names (the `lgTargets` table),
-so the stub forwards them unchanged.
+target, so we don't. The answer is the **launch stub** (built: `webos/settings-stub/`, README "The Settings stub"):
+an app of our own with the id `com.palm.app.settings` (transparent overlay window, `noSplashOnLaunch`, an empty page)
+that reads `PalmSystem.launchParams`, maps LG's `target` through `lgTargets` to our page id, calls the Look service's
+`openSettings {target}` (our layer hears it as `Look.settingsRequested(target)`), and closes. The boot hook
+bind-mounts it over the stock app directory, the mechanism the retired patched Settings used, and it contains no LG
+code. It catches every SAM launch with its target. Without it, the launcher tile and the deep links above would keep
+opening LG's Settings.
 
 ## 3. The shell
 
@@ -349,7 +347,6 @@ picture-mode list switches to the HDR set); an error rollback toast.
 - Back delivery (3.4): which foreground apps accept Back, and whether the delivered key arrives as
   `Qt.Key_Back`/`Key_Escape` in QML (LG's QS listens for `Key_Escape` releases, `QuickSettings.qml:101`).
 - Kit gaps: text field with the system keyboard; busy indicator.
-- The owner decides on the launch stub (section 2) and whether our quick sheet replaces LG's Quick Settings (hook A as
-  planned) or sits next to it.
+- The owner decided (2026-10-28): our quick sheet replaces LG's Quick Settings (hook A), and the launch stub is in.
 - A few catalog rows are marked `unknown` (exact params for picture reset, picture test, sound test, app locks, PIN
   change); they are tier 3 or go through LG's own prompt.

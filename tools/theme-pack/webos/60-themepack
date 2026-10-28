@@ -10,9 +10,9 @@ echo "=== $(date)"
 
 ROOT=/media/developer/themepack
 APP=/usr/palm/applications/com.palm.app.settings
+STUB=$ROOT/settings-stub
 PKG=dev.themepack.look
 SVC=$PKG.service
-DEV=/var/luna-service2-dev
 
 # 1. The bus resumes from the boot snapshot without the Look service's permissions.
 # Its methods are public, and the compositor's QML calls as com.webos.surfacemanager.systemui, which belongs to no
@@ -26,32 +26,35 @@ fi
 
 # 2. Our UI layer in the compositor. A client takes its bus groups when it connects, so the restart also picks up
 # step 1.
+layer=0
 if [ -f "$ROOT/layer/own-layer.sh" ]; then
-  sh "$ROOT/layer/own-layer.sh" apply && echo "UI layer started (see /tmp/own-layer.log)"
+  sh "$ROOT/layer/own-layer.sh" apply && layer=1 && echo "UI layer started (see /tmp/own-layer.log)"
+  [ $layer = 1 ] || echo "UI layer did not load (see /tmp/own-layer.log)"
 else
   echo "compositor left stock (no layer installed)"
 fi
 
-# 3. Patched Settings, only over the exact stock build it was made from.
+# 3. The Settings stub over LG's Settings app, so the Home screen's Settings tile and LG's deep links open our
+# Settings. Only once our layer is running and the Look service is installed: the stub hands every launch to them,
+# so without them Settings would open nothing, and LG's app stays.
 if mount | grep -q " $APP "; then
   echo "settings already mounted"
-elif [ -f "$ROOT/settings/main.js" ] && [ -f "$ROOT/settings/.stock-main.md5" ] &&
-     [ "$(md5sum $APP/main.js | cut -c1-32)" = "$(cut -c1-32 $ROOT/settings/.stock-main.md5)" ]; then
-  mount --bind "$ROOT/settings" "$APP" && echo "settings mounted"
+elif ! grep -q '"vendor": "theme-pack"' "$STUB/appinfo.json" 2>/dev/null; then
+  echo "settings left stock (no stub installed)"
+elif [ $layer != 1 ] || [ ! -d /media/developer/apps/usr/palm/services/$SVC ]; then
+  echo "settings left stock (the stub needs our layer and the Look service)"
 else
-  echo "settings left stock (patch missing, or firmware differs from the patch)"
-fi
-
-# 4. Warm Settings up out of sight once the system has settled, so the first open is instant.
-# Skipped when Settings is already resident: a launch would then bring it on screen.
-warm() {
-  sleep 30
+  # SAM may hold the stock app's description from before the mount, whose localised entries name index.<locale>.html;
+  # every such name serves the stub.
+  for f in "$APP"/index*.html; do
+    [ -f "$f" ] || continue
+    n=$(basename "$f")
+    [ -e "$STUB/$n" ] || ln -s index.html "$STUB/$n"
+  done
+  # A prerendered stock instance would keep answering launches. It is hidden, so closing it shows nothing.
   if luna-send -n 1 -w 10000 luna://com.webos.applicationManager/running '{}' | grep -q '"com.palm.app.settings"'; then
-    echo "settings already resident"
-    return
+    luna-send -n 1 -w 5000 luna://com.webos.applicationManager/closeByAppId '{"id":"com.palm.app.settings"}' >/dev/null &&
+      echo "resident stock settings closed"
   fi
-  luna-send -n 1 luna://com.webos.applicationManager/launch '{"id":"com.palm.app.settings","params":{"themepackWarm":true}}' >/dev/null && echo "settings warmed"
-}
-if mount | grep -q " $APP "; then
-  warm &
+  mount --bind "$STUB" "$APP" && echo "settings stub mounted"
 fi

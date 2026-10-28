@@ -1,0 +1,17 @@
+{
+	"id": "com.palm.app.settings",
+	"version": "1.0.0",
+	"vendor": "theme-pack",
+	"type": "web",
+	"main": "index.html",
+	"title": "Settings",
+	"icon": "icon.png",
+	"transparent": true,
+	"defaultWindowType": "overlay",
+	"visible": false,
+	"lockable": false,
+	"noSplashOnLaunch": true,
+	"disableBackHistoryAPI": true,
+	"supportQuickStart": false,
+	"trustLevel": "trusted"
+}

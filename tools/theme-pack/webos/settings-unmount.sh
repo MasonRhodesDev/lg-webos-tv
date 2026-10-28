@@ -1,6 +1,6 @@
 #!/bin/sh
 # Runs on the TV (piped through `ssh sh -s`): close Settings, then remove every mount over the stock app.
-# The warm-up leaves Settings running hidden, and a running app keeps the mount busy, so it is closed first.
+# A running app keeps the mount busy, so it is closed first.
 # Exits non-zero if the mount is still busy after 10 s, rather than retrying forever.
 export PATH=/usr/sbin:/usr/bin:/sbin:/bin:$PATH
 app=/usr/palm/applications/com.palm.app.settings

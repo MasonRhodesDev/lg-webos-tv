@@ -1,7 +1,7 @@
 #!/bin/sh
 # Runs on the TV. Starts the compositor with our UI layer (ui/ next to this script) first on its QML import path,
 # so our YSM module wraps LG's and no LG file is edited or mounted over.
-#   own-layer.sh apply    restart the compositor with the layer; back on stock if the layer's root never reports
+#   own-layer.sh apply    restart the compositor with the layer; back on stock (and exit 1) if the layer's root never reports
 #   own-layer.sh revert   restart the compositor on stock
 # The restart briefly blanks the on-screen UI.
 export PATH=/usr/sbin:/usr/bin:/sbin:/bin:$PATH
@@ -28,13 +28,14 @@ reported_since() {
 }
 reopen() { [ -n "$fg" ] && sleep 3 && luna-send -n 1 -w 10000 luna://com.webos.applicationManager/launch "{\"id\":\"$fg\"}" >/dev/null && echo "reopened $fg"; }
 
+rc=0
 case "$1" in
   apply)
     t0=$(date -u +%Y-%m-%dT%H:%M:%S)
     compositor QML2_IMPORT_PATH=$root/ui:$q
     i=0; ok=0
     while [ $i -lt 60 ]; do sleep 1; i=$((i + 1)); reported_since "$t0" && { ok=1; break; }; done
-    if [ $ok = 1 ]; then echo "layer loaded after ${i}s"; else echo "layer root never reported; back to stock"; compositor; fi
+    if [ $ok = 1 ]; then echo "layer loaded after ${i}s"; else echo "layer root never reported; back to stock"; compositor; rc=1; fi
     ;;
   revert)
     compositor; echo "stock"
@@ -45,3 +46,4 @@ case "$1" in
 esac
 reopen
 echo done
+exit $rc

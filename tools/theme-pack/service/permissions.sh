@@ -2,8 +2,9 @@
 # Runs on the TV as root, from install-tv.sh and the boot hook. Safe to run again. Takes effect after
 # `ls-control scan-services`, and for a client that is already connected, once it reconnects.
 # A sideloaded service is callable only by its own package. Its methods are made public, which is how Homebrew
-# Channel exposes its own service, so the stock Settings app can reach them. The compositor's QML calls as
-# com.webos.surfacemanager.systemui, a name in no group at all, so it is granted the service's own group.
+# Channel exposes its own service, so the Settings stub (it calls as com.palm.app.settings) can reach them. The
+# compositor's QML calls as com.webos.surfacemanager.systemui, a name in no group at all, so it is granted the
+# service's own group.
 set -e
 SVC=dev.themepack.look.service
 PKG=dev.themepack.look

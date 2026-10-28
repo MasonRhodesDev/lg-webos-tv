@@ -140,27 +140,29 @@ Two packaging details matter on webOS 4.x. The `.ipk` must be a plain `ar` archi
 
 In the app the UI draws over a stand-in gradient, not the live HDMI picture: a full-screen web app replaces the input while it runs.
 
-## Look in the stock Settings app
+## The Settings stub
 
-`webos/settings-look.mjs` adds a **Look** category to the TV's own Settings app (`com.palm.app.settings`, webOS 4.5), next to Picture and Sound. Its panel uses the app's own radio and switch rows: one radio per installed style, one switch per theme. It runs on your own copy of the app, so no LG files enter this repo.
+Our own Settings replaces LG's (see [SETTINGS-PLAN.md](SETTINGS-PLAN.md)). The compositor catches the remote's
+settings keys, but some routes go straight to LG's Settings app (`com.palm.app.settings`) through the app manager: the
+Home screen's Settings tile, and deep links from LG's apps (`{"target": "network"}`, `"Bluetooth"`, `"Language"`, ...).
+The **Settings stub** catches those. It is a tiny web app of ours with LG's app id, which the boot hook bind-mounts
+over LG's app folder. On every launch it reads the launch params, maps LG's `target` to our page id through
+`settings/catalog.json`'s `lgTargets` map (no target, or one we don't know, opens the top of our Settings), calls
+the Look service's `openSettings {"target": <page id>}`, and closes once that is answered. The Look service then tells
+our layer (`Look.settingsRequested(target)`), which opens our Settings.
+
+- It draws nothing: a transparent window and an empty, transparent page, no splash and no prerendering.
+- A cold start of the Look service drops the call that woke it, so an unanswered call is sent once more after 1 s;
+  after 3 s the stub closes regardless.
+- It contains no LG code. `node tools/theme-pack/webos/settings-stub.mjs OUT_DIR` builds it (`webos/settings-stub/`
+  plus `targets.js` from the catalog); `install-boot.sh` builds and installs it (see "Every boot").
+
+Ask for our Settings by hand, the way the stub does:
 
 ```sh
-# copy the stock app off the TV (or out of a backup), then patch it
-ssh root@"$TV_HOST" 'tar -C /usr/palm/applications -cf - com.palm.app.settings' | tar -C /tmp/stock -xf -
-node tools/theme-pack/webos/settings-look.mjs --app /tmp/stock/com.palm.app.settings --out /tmp/settings-look
-TV_HOST=<tv address> sh tools/theme-pack/webos/settings-look-tv.sh apply /tmp/settings-look
-TV_HOST=<tv address> sh tools/theme-pack/webos/settings-look-tv.sh revert
+luna-send -n 1 luna://dev.themepack.look.service/openSettings '{"target":"PictureMode"}'
+luna-send -n 1 luna://dev.themepack.look.service/closeSettings '{}'
 ```
-
-How it works:
-
-- `main.js` gets four anchored edits, each of which must match exactly once: the Look panel component, an entry in the category-to-panel map, the category order, and the nav button. A different firmware fails loudly instead of patching the wrong place.
-- The app normally runs from a V8 snapshot of the stock `main.js` (`snapshot_blob.bin`), which would ignore the edit. Each `index*.html` is changed to always load `main.js`.
-- `apply` copies the patched app to RAM and bind-mounts it over the stock directory, then relaunches Settings. Nothing persists: `revert` or a reboot restores the stock app.
-
-- The choice goes to the Look service (`dev.themepack.look.service`, installed with the Look package), which keeps it and tells every subscriber. Focus colours in Settings are CSS variables whose defaults are LG's, so Settings stays stock when the service is missing.
-
-Current limits: the Look button reuses the Picture icon; with eight categories the last one (Accessibility) sits below the bottom edge.
 
 ## Our UI layer in the compositor
 
@@ -204,11 +206,11 @@ The ring box is the outset box, as in CSS. The QML Ring also reads a recipe's pl
 
 ## Every boot
 
-The read-only system and the boot snapshot undo mounts and bus permissions at each power-on. `webos/60-themepack` is a Homebrew Channel boot hook that puts them back: bus permissions and a rescan, our UI layer in the compositor, the patched Settings (only over the exact stock build it was made from), then a hidden warm-up launch of Settings so its first open is instant. It logs to `/tmp/themepack.log`.
+The read-only system and the boot snapshot undo mounts and bus permissions at each power-on. `webos/60-themepack` is a Homebrew Channel boot hook that puts them back: bus permissions and a rescan, our UI layer in the compositor, then the Settings stub over LG's Settings app, only when the layer loaded and the Look service is installed (otherwise LG's Settings stays). It logs to `/tmp/themepack.log`.
 
 ```sh
-TV_HOST=<tv address> sh tools/theme-pack/webos/install-boot.sh install /tmp/settings-look
-TV_HOST=<tv address> sh tools/theme-pack/webos/install-boot.sh remove
+TV_HOST=<tv address> sh tools/theme-pack/webos/install-boot.sh install   # build the stub, install it and the hook, run the hook
+TV_HOST=<tv address> sh tools/theme-pack/webos/install-boot.sh remove    # remove both; LG's Settings is back at once
 ```
 
 The layer step runs once `own-layer-tv.sh apply` has put the layer on the TV.
