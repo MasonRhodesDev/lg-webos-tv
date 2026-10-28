@@ -1,12 +1,15 @@
 const test = require('node:test');
 const assert = require('node:assert');
+const fs = require('node:fs');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 
 // The QML layer's tests run in the offscreen preview harness, on a Qt 5 `qml` tool (QML_BIN, default qml-qt5).
 const dir = path.join(__dirname, '..');
 const QML = process.env.QML_BIN || 'qml-qt5';
-const haveQml = !spawnSync(QML, ['--help'], { stdio: 'ignore' }).error;
+// Looked up on PATH rather than run: `qml --help` with no display aborts and leaves a core file.
+const haveQml = QML.indexOf('/') >= 0 ? fs.existsSync(QML) : (process.env.PATH || '').split(path.delimiter)
+  .some((d) => { try { fs.accessSync(path.join(d, QML), fs.constants.X_OK); return true; } catch (e) { return false; } });
 
 function runScene(file) {
   return spawnSync(QML, [path.join(dir, 'preview/tests', file)], {
