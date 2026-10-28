@@ -113,12 +113,10 @@ FocusScope {
                 text: { var rev = menu.store.revision; return menu.store.state("networkStatus").label; }
             }
         }
-        Rectangle {
+        Divider {
             id: rule
+            vertical: true
             x: side.width + Look.px("space-xl")
-            width: Math.round(Look.px("edge-w") + 0.5)
-            height: parent.height
-            color: Look.color("inner")
         }
         PageView {
             id: page
@@ -128,6 +126,7 @@ FocusScope {
             headerInset: Look.px("space-s")
             store: menu.store
             pointer: menu.pointer
+            active: menu.open
             entry: menu.topEntry
             crumb: menu.stack.length > 1 ? Pages.title(menu.stack[menu.stack.length - 2]) : ""
             sub: { var rev = menu.store.revision; return menu.topEntry ? menu.topEntry.sub || Pages.subtitle(Pages.expanded(menu.topEntry).sub, menu.store) : ""; }

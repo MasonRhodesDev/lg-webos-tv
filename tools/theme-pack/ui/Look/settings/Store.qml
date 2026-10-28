@@ -113,7 +113,10 @@ QtObject {
             var vol = service();
             vol.response.connect(function (method, payload) {
                 var m = parse(payload);
-                if (m && m.returnValue !== false && m.volume !== undefined) { store.values.volume = m.volume; store.changed(); }
+                if (m && m.returnValue !== false && m.volume !== undefined && !store.pending.volume && !store.queued.volume) {
+                    store.values.volume = m.volume;
+                    store.changed();
+                }
             });
             vol.call("luna://com.webos.audio", "/getVolume", JSON.stringify({ "subscribe": true }));
             ch.services = [vol];
@@ -125,7 +128,11 @@ QtObject {
     function onSettings(category, payload) {
         var m = parse(payload);
         if (!m || m.returnValue === false || !m.settings) return;
-        for (var k in m.settings) values[category + "." + k] = m.settings[k];
+        for (var k in m.settings) {
+            var key = category + "." + k;
+            if (pending[key] || queued[key]) continue;
+            values[key] = m.settings[k];
+        }
         changed();
     }
     function onDesc(category, payload) {
@@ -256,36 +263,80 @@ QtObject {
         send(ref, value, previous);
     }
 
-    function send(ref, value, previous) {
-        var it = item(ref), s = service(), key = keyOf(it);
-        s.response.connect(function (method, payload) {
-            var m = store.parse(payload);
-            if (!m || m.returnValue === false) {
-                if (store.values[key] === value) { store.values[key] = previous; store.changed(); }
-                store.failed(ref, m && m.errorText ? m.errorText : "not saved");
-            } else if (it.api.service === "com.webos.service.tv.time") {
-                var ch = store.channels.sleep;
-                if (ch) { store.drop(ch.services[0]); ch.services = [store.readSleep()]; }
-            }
-            s.destroy();
+    // A call that expects one answer: answered(message) when it comes, unanswered() if none comes within
+    // writeTimeout (a missing bus group drops calls silently). Its Service is destroyed either way.
+    property int writeTimeout: 5000
+    property var inflight: []
+    function request(uri, method, params, answered, unanswered) {
+        var s = service(), e = { "s": s, "at": new Date().getTime() + writeTimeout, "unanswered": unanswered, "done": false };
+        inflight.push(e);
+        s.response.connect(function (m, payload) {
+            if (e.done) return;
+            e.done = true;
+            store.retire(e);
+            if (answered) answered(store.parse(payload));
         });
+        s.call(uri, method, params);
+        if (!watchdog.running) watchdog.start();
+    }
+    function retire(e) {
+        var i = inflight.indexOf(e);
+        if (i >= 0) inflight.splice(i, 1);
+        e.s.destroy();
+    }
+    property var watchdog: Timer {
+        interval: 250
+        repeat: true
+        onTriggered: {
+            var now = new Date().getTime(), list = store.inflight.slice();
+            for (var i = 0; i < list.length; i++) {
+                if (list[i].done || now < list[i].at) continue;
+                list[i].done = true;
+                store.retire(list[i]);
+                if (list[i].unanswered) list[i].unanswered();
+            }
+            if (!store.inflight.length) stop();
+        }
+    }
+
+    // Writes in flight by storage key. While one is pending, the subscription's echoes of that key are ignored, so a
+    // slider being moved doesn't jump back to an older value.
+    property var pending: ({})
+
+    function send(ref, value, previous) {
+        var it = item(ref), key = keyOf(it), uri = "", method = "", params = null;
         if (isSettings(it)) {
             var settingsObj = {};
             settingsObj[it.api.keys[0]] = value;
-            var p = { "category": it.api.category, "settings": settingsObj };
+            params = { "category": it.api.category, "settings": settingsObj };
             // LG writes these per app, as its own Settings does.
-            if (it.id === "truMotionMode" || it.id === "arcPerApp") p.current_app = true;
-            s.call(settings, "/setSystemSettings", JSON.stringify(p));
-            if (it.id === "pictureMode")
-                service().call("luna://com.webos.service.tv.display", "/setPSMChangedByUser", JSON.stringify({ "pictureMode": value }));
+            if (it.id === "truMotionMode" || it.id === "arcPerApp") params.current_app = true;
+            uri = settings; method = "/setSystemSettings";
         } else if (it.api.service === "com.webos.service.tv.time") {
-            s.call("luna://com.webos.service.tv.time", "/setSleepTimeInfo", JSON.stringify({ "sleepTimeMinute": value === "off" ? 0 : Number(value) }));
+            uri = "luna://com.webos.service.tv.time"; method = "/setSleepTimeInfo";
+            params = { "sleepTimeMinute": value === "off" ? 0 : Number(value) };
         } else if (it.api.service === "com.webos.audio") {
-            s.call("luna://com.webos.audio", "/setVolume", JSON.stringify({ "volume": value }));
+            uri = "luna://com.webos.audio"; method = "/setVolume"; params = { "volume": value };
         } else {
-            s.destroy();
             console.warn("settings store: no writer for " + ref);
+            return;
         }
+        pending[key] = (pending[key] || 0) + 1;
+        function settle() { if (--store.pending[key] <= 0) delete store.pending[key]; }
+        function rollback(text) {
+            if (store.values[key] === value) { store.values[key] = previous; store.changed(); }
+            store.failed(ref, text);
+        }
+        request(uri, method, JSON.stringify(params), function (m) {
+            settle();
+            if (!m || m.returnValue === false) rollback(m && m.errorText ? m.errorText : "not saved");
+            else if (it.api.service === "com.webos.service.tv.time") {
+                var ch = store.channels.sleep;
+                if (ch) { store.drop(ch.services[0]); ch.services = [store.readSleep()]; }
+            }
+        }, function () { settle(); rollback("the TV did not answer"); });
+        if (it.id === "pictureMode")
+            request("luna://com.webos.service.tv.display", "/setPSMChangedByUser", JSON.stringify({ "pictureMode": value }), null, null);
     }
 
     function act(ref) {
@@ -293,13 +344,9 @@ QtObject {
         if (!it || !it.api) return;
         if (it.api.systemui) { systemUiRequested(it.api.systemui); return; }
         if (!it.api.service || !it.api.method) { console.warn("settings store: no action for " + ref); return; }
-        var s = service();
-        s.response.connect(function (method, payload) {
-            var m = store.parse(payload);
+        request("luna://" + it.api.service, "/" + it.api.method, JSON.stringify(it.api.params || {}), function (m) {
             if (!m || m.returnValue === false) store.failed(ref, m && m.errorText ? m.errorText : "did not run");
-            s.destroy();
-        });
-        s.call("luna://" + it.api.service, "/" + it.api.method, JSON.stringify(it.api.params || {}));
+        }, function () { store.failed(ref, "the TV did not answer"); });
     }
 
     // Our own Look's values come from the Look service, through Look.

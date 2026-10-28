@@ -102,15 +102,19 @@ FocusScope {
         store.systemUiRequested.connect(part.launchSystemUi);
         store.failed.connect(part.writeFailed);
         if (host && host.keyFilter && host.keyFilter.backReleased) host.keyFilter.backReleased.connect(part.closeAll);
+        SettingsBus.ready = true;
         if (host) {
             var c = Qt.createComponent(Qt.resolvedUrl("../settings/SystemUiHook.qml"));
             if (c.status === Component.Ready) hook = c.createObject(part, { "host": host });
+            else Look.report("error", "settings: " + c.errorString());
         }
-        SettingsBus.ready = true;
-        Look.report("ready", "settings: host ready");
+        // Ready means the host and Hook A are both live; the boot hook mounts the Settings stub only then.
+        if (hook && hook.applied) Look.report("ready", "settings: host ready");
+        else Look.report("gap", "settings: host up, but Hook A is not applied; not reporting ready");
     }
     Component.onDestruction: {
         SettingsBus.ready = false;
+        if (hook) hook.restore();
         Look.settingsRequested.disconnect(part.settings);
         SettingsBus.quickSettingsRequested.disconnect(part.quickSettings);
     }

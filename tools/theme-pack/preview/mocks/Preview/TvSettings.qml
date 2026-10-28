@@ -36,6 +36,8 @@ QtObject {
     })
     // Keys ("category.key", "sleepTimer", "volume") whose next write fails, to show the rollback.
     property var fail: ({})
+    // Keys whose writes are never answered (a call the bus drops), to show the timeout rollback.
+    property var silent: ({})
     // Every call made, for tests: [{ uri, method, params }].
     property var calls: []
     property var subs: []
@@ -91,6 +93,7 @@ QtObject {
             } else if (method === "/getSystemSettingDesc") {
                 answer(svc, method, descOf(p.category, p.keys));
             } else if (method === "/setSystemSettings") {
+                for (key in p.settings) if (silent[p.category + "." + key]) return true;
                 for (key in p.settings) {
                     if (fail[p.category + "." + key]) { delete fail[p.category + "." + key]; answer(svc, method, { "returnValue": false, "errorText": "Not allowed now" }); return true; }
                 }
@@ -115,6 +118,7 @@ QtObject {
             answer(svc, method, network);
         } else if (service === "com.webos.audio") {
             if (method === "/setVolume") {
+                if (silent.volume) return true;
                 if (fail.volume) { delete fail.volume; answer(svc, method, { "returnValue": false, "errorText": "Not allowed now" }); return true; }
                 volume = p.volume;
                 answer(svc, method, { "returnValue": true });

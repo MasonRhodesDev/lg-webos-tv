@@ -104,7 +104,7 @@ Prints one PASS/FAIL line per check over the commits `base..HEAD` and exits non-
 
 ## Preview harness
 
-`preview/` renders the compositor layer's parts off the TV. A scene in `preview/scenes/` mocks the LG item a part replaces, as the part sees it, and may declare QML `states` (a row focused, a picker open, a toast of each kind). `preview/Shot.qml` draws one scene in one state over a stand-in picture at 1920×1080, with the Look service answered from a payload like the service's own, and fails if a part doesn't `claims()` its mock.
+`preview/` renders the compositor layer's parts off the TV. A scene in `preview/scenes/` mocks the LG item a part replaces, as the part sees it, and may declare QML `states` (a row focused, a picker open, a toast of each kind). `preview/Shot.qml` draws one scene in one state over a stand-in picture at 1920×1080, with the Look service answered from a payload like the service's own, and fails if a part doesn't `claims()` its mock. Every scene renders its base state as well as each state it declares (a scene leaves the base out only with `property bool baseShot: false`; `preview/states.mjs`).
 
 ```sh
 node tools/theme-pack/preview/render.mjs [OUT_DIR] [--scene NAME]... [--jobs N]
@@ -183,7 +183,9 @@ LG's focus chain at layer 7 while open, and closes on Back or when LG takes Back
 Once live it reports `ready` "settings: host ready"; the boot hook mounts the Settings stub only after that report.
 
 - `ui/Look/settings/Store.qml` (`SettingsStore`) is the data store: every read, subscription and write. Writes are
-  optimistic and rolled back, with a toast, when the TV refuses them; slider writes are paced to one per 100 ms. Its
+  optimistic and rolled back, with a toast, when the TV refuses them or does not answer within 5 s; slider writes are
+  paced to one per 100 ms, and a key's subscription echoes are ignored while its write is pending. Pages subscribe
+  only while shown. Its
   bus identity is one property (`appId`); `service/permissions.sh` grants that name the groups LG's services put our
   methods in, read from the TV's own permission files.
 - `ui/Look/settings/catalog.js` is generated from `settings/*.json`: run `node tools/theme-pack/settings/build-catalog.mjs`
@@ -197,7 +199,9 @@ Once live it reports `ready` "settings: host ready"; the boot hook mounts the Se
   `QuickSheet.qml` the quick sheet.
 - **Hook A** (`SystemUiHook.qml`): the layer gives LG's system UI manager a copy of its table whose Quick Settings
   entry loads `QuickSettingsEntry.qml`, which hands each launch (the gear, the picture-mode and sleep hotkeys,
-  `showQuickSettings`) to our part and exits at once. Unverified on the TV; see TV-CHECKS.md. Hook B (our own key
+  `showQuickSettings`) to our part and exits at once. If no host is listening, the entry restores LG's table and hands
+  that launch to LG's own Quick Settings; the part restores LG's table when it goes. `ready` "settings: host ready"
+  means the host and the hook are both live. Unverified on the TV; see TV-CHECKS.md. Hook B (our own key
   policy for the Option and accessibility keys) is not built: reloading LG's key filters cancels its timers and
   re-runs every policy's init, which is not clean enough to do blind.
 - The preview mocks LG's settings services in `preview/mocks/Preview/TvSettings.qml` (a US TV on HDMI 2 in Filmmaker

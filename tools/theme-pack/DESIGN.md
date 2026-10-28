@@ -28,7 +28,7 @@ shadow under it). Panels, the volume bar, key caps, toasts and dialogs are all m
   dialogs included, on `surface`; a dialog's `dim` settles the picture instead.
 - Inside a panel, rows sit on `inner`: a lighter plate on the panel, never a second panel.
 - Tiles float straight on the picture, so their plate is `surface`, edged.
-- Dividers are `divider`.
+- Dividers are **Divider**: `divider`, the edge width rounded up to a whole pixel, horizontal or `vertical`.
 - The text shadow of the HTML renderer (`behaviour.textShadow`) has no cheap equivalent in the compositor, so the kit
   draws none. Its surfaces are dense enough to read on.
 

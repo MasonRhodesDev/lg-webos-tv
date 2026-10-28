@@ -20,7 +20,7 @@ Item {
             id: manager
             objectName: "systemUIManager"
             property var config: ({ "appinfo": [
-                { "id": "com.webos.app.quicksettings", "defaultWindowType": "overlay", "main": "file:///usr/lib/qt5/qml/QuickSettings/QuickSettings.qml" },
+                { "id": "com.webos.app.quicksettings", "defaultWindowType": "overlay", "main": Qt.resolvedUrl("parts/FakeLgQuickSettings.qml") },
                 { "id": "com.webos.app.quickinputpicker", "defaultWindowType": "overlay", "main": "file:///usr/lib/qt5/qml/InputPicker/InputPicker.qml" }
             ] })
             property var launched: []
@@ -38,6 +38,11 @@ Item {
     function openSettings(target, at) {
         Fixture.load(JSON.stringify({ "returnValue": true, "look": { "style": "smoke", "themes": [] }, "style": { "id": "smoke", "tokens": {} },
                                       "themes": [], "settings": { "open": true, "target": target, "at": at } }));
+    }
+
+    function reported(kind, text) {
+        for (var i = 0; i < Fixture.reports.length; i++) if (Fixture.reports[i].kind === kind && Fixture.reports[i].text.indexOf(text) >= 0) return true;
+        return false;
     }
 
     TestCase {
@@ -60,8 +65,11 @@ Item {
             verify(/settings\/QuickSettingsEntry\.qml$/.test(qs.main), "the Quick Settings entry loads ours: " + qs.main);
             verify(/InputPicker\.qml$/.test(manager.config.appinfo[1].main), "other entries untouched");
             // configd answers again: the copy is made again from its value.
-            lgRoot.systemSettings.systemUIManager = { "appinfo": [{ "id": "com.webos.app.quicksettings", "defaultWindowType": "overlay", "main": "x" }] };
+            lgRoot.systemSettings.systemUIManager = { "appinfo": [{ "id": "com.webos.app.quicksettings", "defaultWindowType": "overlay",
+                                                                   "main": String(Qt.resolvedUrl("parts/FakeLgQuickSettings.qml")) }] };
             verify(/QuickSettingsEntry\.qml$/.test(manager.config.appinfo[0].main), "re-applied after configd's change");
+            verify(/FakeLgQuickSettings\.qml$/.test(SettingsBus.lgQuickSettings), "LG's own entry is remembered");
+            verify(reported("ready", "settings: host ready"), "ready is reported once the hook is live");
         }
 
         function test_2_settings_target_and_keys() {
@@ -175,6 +183,9 @@ Item {
             verify(part.menu.open);
             lgRoot.keyFilter.backReleased();
             verify(!part.menu.open && !part.quick.open, "LG's backReleased (it goes Home) closes ours");
+            var open = 0;
+            for (var i = 0; i < TvSettings.subs.length; i++) if (!TvSettings.subs[i].cancelled) open++;
+            compare(open, 0, "closed menus hold no subscriptions");
         }
 
         function test_7_confirm_and_lg_targets() {
@@ -197,6 +208,44 @@ Item {
             compare(part.menu.stack[0].id, "General");
             openSettings("nonsense", 5);
             compare(topId(), "Picture", "unknown targets land on Picture, as LG's do");
+        }
+
+        function test_8_unanswered_write_rolls_back() {
+            part.store.writeTimeout = 300;
+            SettingsBus.quickSettingsRequested(null);
+            for (var i = 0; i < 4; i++) keyClick(Qt.Key_Down);
+            compare(focused(), "Energy saving");
+            var before = rows().rows[rows().currentIndex].on, live = part.store.inflight.length;
+            TvSettings.silent["picture.energySaving"] = true;
+            keyClick(Qt.Key_Return);
+            compare(rows().rows[rows().currentIndex].on, !before, "the new value shows at once");
+            compare(part.store.inflight.length, live + 1);
+            wait(700);
+            compare(rows().rows[rows().currentIndex].on, before, "no answer: rolled back");
+            compare(part.store.inflight.length, live, "and its bus object is gone");
+            verify(reported("warning", "the TV did not answer"), "and it is reported");
+            delete TvSettings.silent["picture.energySaving"];
+            keyClick(Qt.Key_Escape);
+            verify(!part.quick.open);
+        }
+
+        function test_9_no_host_hands_the_gear_to_lg() {
+            part.destroy();
+            wait(50);
+            verify(!SettingsBus.ready, "the host is gone");
+            verify(/FakeLgQuickSettings\.qml$/.test(manager.config.appinfo[0].main), "LG's table is restored when the host goes");
+            var container = Qt.createComponent(Qt.resolvedUrl("parts/FakeSystemUiContainer.qml")).createObject(root);
+            Qt.createComponent(Qt.resolvedUrl("../../ui/Look/settings/QuickSettingsEntry.qml")).createObject(container);
+            container.lifeCycleStatusChanged({ "event": "launch", "params": { "activateType": "sleep" } });
+            var lg = null;
+            for (var i = 0; i < container.children.length; i++) if (container.children[i].objectName === "fakeLgQuickSettings") lg = container.children[i];
+            verify(lg !== null, "with no host, the launch loads LG's own Quick Settings");
+            compare(lg.events.length, 1);
+            compare(lg.events[0].params.activateType, "sleep", "and hands it this launch");
+            compare(container.exits, 0, "our window does not close it");
+            container.lifeCycleStatusChanged({ "event": "close" });
+            compare(lg.events.length, 2, "later events go to LG's window");
+            verify(reported("error", "no host listening"), "the fallback is reported");
         }
     }
 }

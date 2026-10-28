@@ -26,32 +26,51 @@ QtObject {
     // LG's own table: configd's value once it has answered, else the manager's built-in default.
     function source() {
         var s = host.systemSettings, v = s && s.systemUIManager;
-        return v && v.appinfo ? v : manager.config;
+        return v && v.appinfo ? v : original;
     }
 
     function apply() {
         var lg = source();
-        if (!lg || !lg.appinfo) { Look.report("gap", "settings: system UI table unreadable; the gear opens LG's Quick Settings"); return; }
+        if (!lg || !lg.appinfo) { Look.report("error", "settings: system UI table unreadable; the gear opens LG's Quick Settings"); return; }
         var out = {}, list = [], found = false;
         for (var k in lg) out[k] = lg[k];
         for (var i = 0; i < lg.appinfo.length; i++) {
             var e = lg.appinfo[i], copy = {};
             for (var f in e) copy[f] = e[f];
-            if (e.id === quickSettings) { copy.main = String(entry); found = true; }
+            if (e.id === quickSettings) {
+                if (String(e.main) !== String(entry)) SettingsBus.lgQuickSettings = String(e.main);
+                copy.main = String(entry);
+                found = true;
+            }
             list.push(copy);
         }
-        if (!found) { Look.report("gap", "settings: no Quick Settings entry in the system UI table"); return; }
+        if (!found) { Look.report("error", "settings: no Quick Settings entry in the system UI table"); return; }
         out.appinfo = list;
         manager.config = out;
+        SettingsBus.hook = hook;
         if (!applied) Look.report("ok", "settings: the gear opens our quick sheet (system UI table)");
         applied = true;
     }
 
+    // Gives LG back its own table (configd's value, or the one it had): the host is going, or a launch found no host.
+    function restore() {
+        if (!applied) return;
+        applied = false;
+        if (host.systemSettings && host.systemSettings.systemUIManagerChanged !== undefined)
+            host.systemSettings.systemUIManagerChanged.disconnect(hook.apply);
+        manager.config = source();
+        if (SettingsBus.hook === hook) SettingsBus.hook = null;
+        Look.report("warning", "settings: LG's Quick Settings restored in the system UI table");
+    }
+    property var original: null
+
     Component.onCompleted: {
         manager = findManager();
-        if (!manager) { Look.report("gap", "settings: systemUIManager not found; the gear opens LG's Quick Settings"); return; }
+        if (!manager) { Look.report("error", "settings: systemUIManager not found; the gear opens LG's Quick Settings"); return; }
+        original = manager.config;
         apply();
-        if (host.systemSettings && host.systemSettings.systemUIManagerChanged !== undefined)
+        if (applied && host.systemSettings && host.systemSettings.systemUIManagerChanged !== undefined)
             host.systemSettings.systemUIManagerChanged.connect(hook.apply);
     }
+    Component.onDestruction: restore()
 }

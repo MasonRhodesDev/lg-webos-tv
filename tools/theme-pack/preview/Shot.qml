@@ -12,6 +12,7 @@ import Preview 1.0
 //   - `parts: [{ part: "Toast.qml", lg: item }, ...]`: several parts; `lg` may be left out for a part of our own.
 //   - neither: the scene draws itself (a whole menu of our own); it is laid over the picture.
 // A scene may declare QML `states` (what LG's item is doing: a row focused, a picker open); STATE applies one by name.
+// The base state is rendered too, unless the scene sets `property bool baseShot: false` (preview/states.mjs).
 // A scene may set `frame` (a rect) to the part of the shot that matters, which the contact sheet shows.
 // A part with `claims` must claim its `lg`, so a mock can't drift from what the part looks for on the TV.
 Window {
@@ -46,7 +47,7 @@ Window {
         if (args[2] === "--states") {
             var f = scene.frame, names = [];
             for (var k = 0; k < list.length; k++) names.push(list[k].part);
-            console.log("SHOT-INFO " + JSON.stringify({ "states": stateNames(scene), "parts": names,
+            console.log("SHOT-INFO " + JSON.stringify({ "states": stateNames(scene), "base": scene.baseShot !== false, "parts": names,
                 "frame": f ? { "x": f.x, "y": f.y, "width": f.width, "height": f.height } : null }));
             Qt.quit();
             return;

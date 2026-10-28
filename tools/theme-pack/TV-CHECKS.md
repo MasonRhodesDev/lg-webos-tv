@@ -56,7 +56,8 @@ Setup: our layer applied (`own-layer-tv.sh apply`), the Look package installed, 
 bus rescanned. Reports: `luna-send -n 1 luna://dev.themepack.look.service/getReports '{}'`.
 
 Host and boot order
-- [ ] The reports have `ready` "settings: host ready" within a few seconds of `layer created`.
+- [ ] The reports have `ready` "settings: host ready" within a few seconds of `layer created`. It means the host and
+      Hook A are both live; a host whose hook failed reports `gap` "settings: host up, but Hook A is not applied".
 - [ ] `/tmp/themepack.log` after a cold boot says `settings stub mounted` only after that report; with
       `parts/Settings.qml` removed from `Layer.qml` (or broken) it says `settings left stock (our Settings host never
       reported ready)` and the Home tile opens LG's Settings.
@@ -83,8 +84,13 @@ Hook A (the gear opens our quick sheet)
 - [ ] The picture-mode hotkey opens the sheet with the Picture mode picker; the sleep hotkey with the Sleep timer
       picker; `luna-send -n 1 luna://com.webos.surfacemanager/showQuickSettings '{}'` opens the sheet.
 - [ ] No LG Quick Settings window is left behind (`luna-send -n 1 luna://com.webos.service.systemUIManager/getForegroundAppInfo '{}'`).
-- [ ] QuickSettingsEntry.qml shares our engine: the sheet opens (if it does not, the reports say
-      `settings: Quick Settings entry launched with no host listening`).
+- [ ] QuickSettingsEntry.qml shares our engine: the sheet opens. If it does not, the reports say
+      `settings: Quick Settings launched with no host listening; handed to LG's Quick Settings` and LG's Quick Settings
+      opens instead (the fallback): check that it works fully (rows, pickers, Back, All Settings).
+- [ ] With our part removed from `Layer.qml` after Hook A applied (or the layer reloaded), the gear opens LG's Quick
+      Settings (the hook restores LG's table; report `LG's Quick Settings restored in the system UI table`).
+- [ ] A write the TV never answers (e.g. before `permissions.sh` ran) rolls back after 5 s with a toast; the
+      reports say `settings: <ref> not saved: the TV did not answer`.
 
 Focus and Back (SETTINGS-PLAN.md 3.4)
 - [ ] With the sheet or Settings open, Up/Down/OK reach our rows (LG's focus chain at layer 7), and focus returns to
@@ -93,3 +99,9 @@ Focus and Back (SETTINGS-PLAN.md 3.4)
       closes as LG goes Home. Record which foreground apps refuse it.
 - [ ] Whether Back arrives as `Qt.Key_Back` or `Key_Escape` (both are mapped in `kit/keys.js`).
 - [ ] The magic remote's pointer: rows follow it and a click activates (`keyFilter.cursorVisible`).
+
+Known gaps against the Settings boards (for the category-pages wave)
+- General, Connection, Accessibility and Support lack some of the boards' rows (Home dashboard, Screen saver, Reset,
+  Wi-Fi/Bluetooth values, Greyscale, Invert colours, Audio description, Text size, Software update, Sound and Signal
+  test, Privacy and terms); some hints and subtitles differ (General's version line, the quick sheet's "4K · 120 Hz").
+- Look is a row on General; the boards have no Look category.

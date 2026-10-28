@@ -26,11 +26,9 @@ Item {
                     { variant: "value", label: "Picture mode", value: "Filmmaker", icon: "screen", hue: 0 },
                     { variant: "stepper", label: "Sound mode", icon: "eq", hue: 1, options: ["Standard", "Cinema", "Clear voice", "Music"], index: 1 },
                     { variant: "toggle", label: "Energy saving", icon: "leaf", hue: 2, on: true },
-                    { variant: "toggle", label: "Game optimiser", icon: "gamepad", hue: 3, on: false },
                     { variant: "slider", label: "Volume", icon: "speaker", hue: 5, fraction: 0.21, valueText: 21 },
                     { variant: "nav", label: "Sleep timer", value: "Off", icon: "clock", hue: 4 },
-                    { variant: "nav", label: "Network", hint: "Not connected", icon: "wifi", hue: 6, disabled: true },
-                    { variant: "nav", label: "All settings", icon: "sliders", hue: 6 }
+                    { variant: "nav", label: "Network", hint: "Not connected", icon: "wifi", hue: 6, disabled: true }
                 ]
             }
             KeyHints {
@@ -52,7 +50,7 @@ Item {
                 y: lookHead.height
                 width: parent.width
                 height: parent.height - y
-                currentIndex: kit.settingsRows ? 4 : 3
+                currentIndex: kit.settingsRows ? 4 : 2
                 model: kit.settingsRows ? [
                     { variant: "category", label: "Picture", icon: "screen", hue: 0, current: true },
                     { variant: "category", label: "Sound", icon: "speaker", hue: 1 },
@@ -67,7 +65,6 @@ Item {
                     { section: "Style" },
                     { variant: "radio", label: "Smoke", hint: "Smoked glass, hot-pink focus", icon: "palette", hue: 0, checked: true },
                     { variant: "radio", label: "Bubble", hint: "Rounded and bright", icon: "palette", hue: 3 },
-                    { variant: "radio", label: "Classic", hint: "Like the TV came", icon: "palette", hue: 5 },
                     { section: "Themes" },
                     { variant: "check", label: "Glow", icon: "sparkle", hue: 4, checked: true },
                     { variant: "check", label: "Halloween", icon: "sparkle", hue: 1 },
@@ -106,6 +103,7 @@ Item {
             Slider { length: 460; fraction: 0.62 }
             Stepper { options: ["Off", "10 min", "30 min", "1 hour"]; index: 2; valueWidth: 200 }
 
+            Divider {}
             Label { role: "heading"; text: "Buttons"; color: Look.color("ink-3") }
             Row {
                 spacing: Look.px("space-m")

@@ -24,27 +24,37 @@ FocusScope {
     signal acted(string ref)
     signal back()
 
+    // Subscribed only while shown: a closed sheet or Settings holds nothing open on the bus.
+    property bool active: true
     property var watched: []
-    onEntryChanged: {
+    function rewatch() {
         if (store) store.unwatch(watched);
-        watched = entry && store ? Pages.refs(entry) : [];
+        watched = active && entry && store ? Pages.refs(entry) : [];
         if (store) store.watch(watched);
+    }
+    onActiveChanged: { rewatch(); if (active) { landed = false; landIndex = -1; land(); } }
+    onEntryChanged: {
+        rewatch();
         landed = false;
+        landIndex = -1;
         land();
     }
     Component.onDestruction: if (store) store.unwatch(watched)
 
     // Lands once per entry, when its rows are there; then focus stays on the same row through live updates.
     property bool landed: false
+    property int landIndex: -1
     property string focusLabel
     function land() {
         if (!entry || !rows.length) return;
-        list.currentIndex = entry.index !== undefined ? entry.index : Pages.landing(entry, rows);
+        list.currentIndex = landIndex = entry.index !== undefined ? entry.index : Pages.landing(entry, rows);
         list.reveal(false);
-        landed = true;
+        // A picker lands again once the current value is known (the store's first answer may come later).
+        landed = entry.id.indexOf("pick:") !== 0 || rows[list.currentIndex].checked === true;
     }
     onRowsChanged: {
-        if (!landed) { land(); return; }
+        // Not landed yet: land, unless the user has already moved.
+        if (!landed) { if (landIndex < 0 || list.currentIndex === landIndex) land(); else landed = true; return; }
         if (list.currentIndex < rows.length && rows[list.currentIndex].label === focusLabel) return;
         for (var i = 0; i < rows.length; i++) if (rows[i].label === focusLabel) { list.currentIndex = i; return; }
         list.currentIndex = Pages.landing(entry, rows);

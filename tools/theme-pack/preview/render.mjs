@@ -13,6 +13,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { shotStates } from './states.mjs';
 
 const require = createRequire(import.meta.url);
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -130,7 +131,7 @@ for (const s of Object.keys(info)) {
 const themeSets = [[]].concat(themes.map((t) => [t]));
 const shots = [];
 for (const s of Object.keys(info)) {
-  const states = info[s].states.length ? info[s].states : [''];
+  const states = shotStates(info[s]);
   for (const st of states) for (const style of styles) for (const set of themeSets) {
     const theme = set.length ? set[0].id : 'none';
     shots.push({ scene: s, state: st, style: style.id, theme, file: [s, st || 'base', style.id, theme].join('-') + '.png',
@@ -174,7 +175,7 @@ function thumb(shot) {
 let body = '';
 for (const s of Object.keys(info)) {
   body += '<h2>' + esc(s) + '</h2>';
-  const states = info[s].states.length ? info[s].states : [''];
+  const states = shotStates(info[s]);
   for (const st of states) {
     body += '<h3>' + esc(st || 'base state') + '</h3><div class="row">' +
       shots.filter((x) => x.scene === s && x.state === st).map(thumb).join('') + '</div>';

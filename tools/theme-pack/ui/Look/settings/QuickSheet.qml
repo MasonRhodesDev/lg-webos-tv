@@ -59,6 +59,7 @@ FocusScope {
             headerInset: Look.px("space-s")
             store: sheet.store
             pointer: sheet.pointer
+            active: sheet.open
             entry: sheet.topEntry
             crumb: sheet.stack.length > 1 ? Pages.title(sheet.stack[sheet.stack.length - 2]) : ""
             sub: { var rev = sheet.store.revision; return Pages.subtitle(Menu.quick.sub, sheet.store); }
