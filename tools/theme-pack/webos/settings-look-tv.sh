@@ -5,6 +5,7 @@
 # The copy lives in /tmp and the mount is not recreated at boot, so a reboot also reverts.
 set -eu
 host=${TV_HOST:?set TV_HOST to the TV address}
+here=$(cd "$(dirname "$0")" && pwd)
 app=/usr/palm/applications/com.palm.app.settings
 stage=/tmp/themepack/com.palm.app.settings
 relaunch='luna-send -n 1 luna://com.webos.applicationManager/closeByAppId "{\"id\":\"com.palm.app.settings\"}" >/dev/null; sleep 1;
@@ -19,7 +20,8 @@ case "${1:-}" in
     ssh -tt "root@$host" "mount | grep -q ' $app ' || mount --bind $stage $app; $relaunch"
     ;;
   revert)
-    ssh -tt "root@$host" "while mount | grep -q ' $app '; do umount $app; done; rm -rf /tmp/themepack/com.palm.app.settings; $relaunch"
+    ssh "root@$host" sh -s < "$here/settings-unmount.sh"
+    ssh -tt "root@$host" "rm -rf $stage; $relaunch"
     ;;
   *)
     echo "usage: TV_HOST=... settings-look-tv.sh apply PATCHED_APP_DIR | revert" >&2

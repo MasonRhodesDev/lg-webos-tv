@@ -5,7 +5,8 @@
   var URI = 'luna://dev.themepack.look.service/';
   var VARS = { focus: '--tp-focus', 'focus-ink': '--tp-focus-ink' };
   var listeners = [];
-  // A warm-up launch at boot loads the app out of sight and closes it into keep-alive, so the first real open is instant.
+  // A warm-up launch at boot loads the app out of sight and leaves it hidden but running, so the first real open is
+  // instant. The page stays blank until it is hidden, so nothing shows; closing would end the app, so it is hidden.
   var warm = false;
   try { warm = !!JSON.parse((window.PalmSystem && window.PalmSystem.launchParams) || '{}').themepackWarm; } catch (e) { warm = false; }
   if (warm) document.documentElement.style.visibility = 'hidden';
@@ -19,31 +20,47 @@
     });
   }
 
-  function call(method, params, onReply) {
+  // Bridges are kept referenced: a collected bridge ends its subscription.
+  function call(uri, params, onReply) {
     var bridge = new window.PalmServiceBridge();
     bridge.onservicecallback = function (text) {
       var msg;
       try { msg = JSON.parse(text); } catch (e) { return; }
       onReply(msg, bridge);
     };
-    bridge.call(URI + method, JSON.stringify(params || {}));
+    bridge.call(uri, JSON.stringify(params || {}));
     return bridge;
   }
 
-  // A cold service drops the call that starts it, so retry until the first reply arrives.
-  function subscribe(attempt) {
-    var answered = false;
-    var bridge = call('getLook', { subscribe: true }, function (msg) {
-      answered = true;
-      if (!msg.returnValue) return;
-      latest = msg;
-      apply(msg);
-      listeners.forEach(function (fn) { fn(msg); });
-    });
-    setTimeout(function () {
-      if (!answered && attempt < 5) { try { bridge.cancel(); } catch (e) { /* already closed */ } subscribe(attempt + 1); }
-    }, 3000);
-    window.__themepackBridge = bridge;
+  function receive(msg) {
+    if (!msg.returnValue || !msg.style) return;
+    latest = msg;
+    apply(msg);
+    listeners.forEach(function (fn) { fn(msg); });
+  }
+
+  // A subscription ends when the service restarts, so subscribe again each time it appears on the bus. While it is
+  // away, a plain call every 5 s starts it (the service starts on demand).
+  var online = false, sub = null, wakeTimer = null;
+  function wake() {
+    wakeTimer = null;
+    if (online) return;
+    call(URI + 'getLook', {}, receive);
+    wakeTimer = setTimeout(wake, 5000);
+  }
+  function onStatus(msg) {
+    if (msg.serviceName !== 'dev.themepack.look.service') return;
+    online = !!msg.connected;
+    if (online) {
+      if (sub) { try { sub.cancel(); } catch (e) { /* already closed */ } }
+      sub = call(URI + 'getLook', { subscribe: true }, receive);
+    } else if (!wakeTimer) {
+      wake();
+    }
+  }
+  if (window.PalmServiceBridge) {
+    window.__themepackStatus = call('luna://com.palm.bus/signal/registerServerStatus',
+      { serviceName: 'dev.themepack.look.service', subscribe: true }, onStatus);
   }
 
   window.__themepack = {
@@ -54,7 +71,7 @@
       return function () { listeners = listeners.filter(function (f) { return f !== fn; }); };
     },
     setLook: function (look, done) {
-      call('setLook', look, function (msg) { if (done) done(msg); });
+      call(URI + 'setLook', look, function (msg) { if (done) done(msg); });
     }
   };
 
@@ -63,19 +80,17 @@
     var root = document.getElementById('root');
     if (root && root._reactRootContainer) {
       var ms = Math.round(Date.now() - window.performance.timing.navigationStart);
-      call('getLook', { loadMs: ms }, function () {});
-      if (warm) setTimeout(function () { document.documentElement.style.visibility = ''; window.close(); }, 300);
+      call(URI + 'getLook', { loadMs: ms }, function () {});
+      if (warm) setTimeout(function () { document.documentElement.style.visibility = ''; window.PalmSystem.hide(); }, 300);
       return;
     }
     setTimeout(reportLoad, 50);
   }
 
-  // The patched app cannot use its V8 snapshot, so a cold open takes seconds. Ask WAM to keep it resident: closing
-  // then hides it and the next open is instant. Without the call, the app simply closes as before.
+  // Ask WAM to keep the hidden app loaded.
   try {
     if (window.PalmSystem && typeof window.PalmSystem.keepAlive === 'function') window.PalmSystem.keepAlive(true);
-  } catch (e) { /* not supported: normal close */ }
+  } catch (e) { /* not supported: the warm-up is lost, the app still works */ }
 
-  if (window.PalmServiceBridge) subscribe(0);
   if (window.PalmServiceBridge) reportLoad();
 })();

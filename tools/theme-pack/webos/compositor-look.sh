@@ -6,7 +6,8 @@
 export PATH=/usr/sbin:/usr/bin:/sbin:/bin:$PATH
 root=$(cd "$(dirname "$0")" && pwd)
 q=/usr/lib/qt5/qml
-exec >>/tmp/compositor-look.log 2>&1
+# luna-send reads stdin when it is open, which stalls it when this runs over ssh; detach it.
+exec </dev/null >>/tmp/compositor-look.log 2>&1
 echo "=== $(date) $1"
 
 fg=$(luna-send -n 1 -w 5000 luna://com.webos.applicationManager/getForegroundAppInfo '{}' | sed -n 's/.*"appId":"\([^"]*\)".*/\1/p')

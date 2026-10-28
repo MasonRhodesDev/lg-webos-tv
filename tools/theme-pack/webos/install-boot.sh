@@ -14,7 +14,7 @@ case "${1:-}" in
   install)
     src=${2:?usage: install-boot.sh install PATCHED_SETTINGS_DIR}
     sh -n "$here/60-themepack" || { echo "60-themepack has a syntax error; not installing" >&2; exit 1; }
-    ssh "root@$host" "while mount | grep -q ' $app '; do umount $app; done"
+    ssh "root@$host" sh -s < "$here/settings-unmount.sh"
     stock=$(ssh "root@$host" "md5sum $app/main.js" | cut -c1-32)
     built=$(cut -c1-32 "$src/.stock-main.md5")
     if [ "$stock" != "$built" ]; then
@@ -27,7 +27,9 @@ case "${1:-}" in
     ssh "root@$host" "chmod 755 $hook && rm -rf /tmp/themepack && $hook; tail -8 /tmp/themepack.log"
     ;;
   remove)
-    ssh "root@$host" "rm -f $hook; while mount | grep -q ' $app '; do umount $app; done; rm -rf $root/settings; echo removed"
+    ssh "root@$host" "rm -f $hook"
+    ssh "root@$host" sh -s < "$here/settings-unmount.sh"
+    ssh "root@$host" "rm -rf $root/settings; echo removed"
     ;;
   *)
     echo "usage: TV_HOST=... install-boot.sh install PATCHED_SETTINGS_DIR | remove" >&2
