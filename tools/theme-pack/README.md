@@ -162,10 +162,14 @@ TV_HOST=<tv address> sh tools/theme-pack/webos/own-layer-tv.sh capture out.png  
 
 The compositor can't draw HTML, and has no SVG plugin. A recipe is drawn by the QML layer when it names one of:
 
-- `asset`: a PNG in the theme's asset pack, `packs/assets/<theme id>/`, scaled into the ring box.
+- `asset`: a PNG in the theme's asset pack, `packs/assets/<theme id>/`, fitted into the ring box at its own aspect.
 - `fill` (a colour, or a token name such as `focus`), with optional `radius` and `blur` in px: a soft glow.
 
-`opacity` applies to both. Recipes with only `html`/`style` are drawn by the HTML renderer alone. `node tools/theme-pack/render-assets.mjs` renders each `asset` from its recipe's inline SVG (needs `rsvg-convert`); the PNGs are committed, so building doesn't need it.
+`opacity` applies to both. Recipes with only `html`/`style` are drawn by the HTML renderer alone.
+
+The ring box is the outset box, as in CSS. The QML Ring also reads a recipe's placement from its `style`, so there is one source for both renderers (`ui/Look/place.js`): `width`/`height` in px size the ring, and `left:auto`/`top:auto` put it against the right/bottom edge (`right:auto`/`bottom:auto` against the left/top). Without a size it fills the box. Edges only take `auto`, since the outset sets them; the tests reject anything else.
+
+`node tools/theme-pack/render-assets.mjs` renders each `asset` from its recipe's html (needs `rsvg-convert`); the PNGs are committed, so building doesn't need it. The html must be one `<svg>`, or a field of `<svg>`s placed with `left`/`top` (sized from the style, or the 1920×1080 screen for a `screen` target). It renders at the CSS size ×2, at the svg's own aspect (`width="100%"`: 128 px on the longer side), and a screen-wide box at ×1. The ring's style `opacity` is baked in. It lists the recipes it can't draw: html with a `<div>` or a CSS background (Halloween's moon and bats, for now).
 
 ## Every boot
 
