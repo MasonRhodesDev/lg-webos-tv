@@ -400,7 +400,7 @@ export const SCENARIOS = [
       const b = (await ctx.settings()).menu;
       ctx.check('a second launch to the same page leaves it open there', b.open && same(b.stack, a.stack), b.stack.join('/'));
       await backOut(ctx, 'menu');
-      await ctx.tv.sh("luna-send -n 1 -w 5000 " + SAM + "/launch '{\"id\":\"com.palm.app.settings\",\"params\":{\"target\":\"network\"}}' </dev/null >/dev/null & sleep 0.1; " +
+      await ctx.tv.sh("luna-send -n 1 -w 5000 " + SAM + "/launch '{\"id\":\"com.palm.app.settings\",\"params\":{\"target\":\"network\"}}' </dev/null >/dev/null & { sleep 0.1 2>/dev/null || usleep 100000; }; " +
         "luna-send -n 1 -w 5000 " + SAM + "/launch '{\"id\":\"com.palm.app.settings\",\"params\":{\"target\":\"Language\"}}' </dev/null >/dev/null; wait");
       const want = landing(stubTarget('Language'));
       const c = await own(ctx, 'menu', (w) => w.open && same(w.stack, want.stack), 'the second target').catch((e) => null);

@@ -185,6 +185,8 @@ test('dry run: the suite catches BACK arriving as Backspace, a lingering stub, a
   assert.strictEqual(unmounted.run('redirect').status, 'skip');
   assert.deepStrictEqual(unmounted.state.events, [], "LG's Settings is never launched without the stub");
 
+  await assert.rejects(dryRun({ faults: { noProbe: true } }, ['toast']), /publishes no probe.*deploy this branch first/);
+
   const muted = await dryRun({ volume: { volume: 12, muted: true, barUntil: 0, muteUntil: 0 } }, ['volume']);
   assert.strictEqual(muted.run('volume').status, 'skip');
 });

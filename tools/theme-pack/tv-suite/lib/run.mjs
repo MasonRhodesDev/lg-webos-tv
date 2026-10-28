@@ -150,6 +150,10 @@ async function restore(ctx, before, after) {
 }
 
 export async function runScenarios(ctx, scenarios) {
+  // Every wait and the key guard read the parts' probes; without them nothing could be checked or pressed safely.
+  let probes = {};
+  try { probes = await ctx.tv.probes(); } catch (e) { throw new Error('the Look service does not answer getProbe (' + e.message + '): deploy this branch first'); }
+  if (!probes.Settings) throw new Error('the layer on the TV publishes no probe for our Settings: deploy this branch first (tv-suite.mjs deploy)');
   const runs = [];
   const start = await snapshot(ctx);
   ctx.note('start', start);

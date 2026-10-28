@@ -104,6 +104,13 @@ Window {
             // LG's onLoadedCallback then reparents it to the root; the claim is the same object and holds.
             host.notificationView.parent = host;
             check(part("Toast").lg === toast, "toast view reparented to host: still claimed");
+            // The layer publishes each part's probe to the Look service (setProbe), batched, for the TV suite.
+            var probe = null;
+            for (var i = 0; i < Fixture.commands.length; i++) {
+                var c = Fixture.commands[i];
+                if (c.method === "/setProbe" && /Toast\.qml$/.test(c.params.from)) probe = c.params.state;
+            }
+            check(probe !== null && probe.shown === false && probe.message === "", "toast: its probe reached the Look service");
             console.log("late claims: all passed");
             Qt.quit();
         }
