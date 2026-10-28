@@ -1,7 +1,8 @@
 // Renders every preview scene in every style, with no theme and with each theme alone, in each state the scene
-// declares, and writes the PNGs and a contact sheet (index.html) into an output directory.
+// declares, and writes the PNGs, a contact sheet (index.html) and the list of shots (index.json) into an output
+// directory. `--look smoke+winter` (repeatable) renders only those looks: a style and any themes, inner to outer.
 //
-//   node preview/render.mjs [OUT_DIR] [--scene NAME]... [--jobs N]
+//   node preview/render.mjs [OUT_DIR] [--scene NAME]... [--look STYLE[+THEME...]]... [--jobs N]
 //
 // OUT_DIR defaults to a new directory under the OS temp dir. Needs Qt 5's `qml` with QtQuick and QtGraphicalEffects
 // (QML_BIN, default `qml-qt5` or `qml` on PATH), Xvfb, and Mesa's software OpenGL: Qt's software backend draws no
@@ -23,10 +24,11 @@ const packsDir = path.join(root, 'packs');
 const argv = process.argv.slice(2);
 let hangLimitMs = 300000;
 let outDir = null, jobs = Math.max(1, Math.floor(os.cpus().length / 2));
-const only = [];
+const only = [], looks = [];
 for (let i = 0; i < argv.length; i++) {
   if (argv[i] === '--scene') only.push(argv[++i].replace(/\.qml$/, ''));
   else if (argv[i] === '--hang-limit') hangLimitMs = Math.max(1, Number(argv[++i]) || 1) * 1000;
+  else if (argv[i] === '--look') looks.push(argv[++i]);
   else if (argv[i] === '--jobs') jobs = Math.max(1, Number(argv[++i]) || 1);
   else if (argv[i].startsWith('--')) { console.error('unknown option ' + argv[i]); process.exit(2); }
   else outDir = path.resolve(argv[i]);
@@ -149,12 +151,19 @@ for (const s of Object.keys(info)) {
   if (missing.length) { waiting[s] = missing; delete info[s]; }
 }
 
-const themeSets = [[]].concat(themes.map((t) => [t]));
+function byId(list, id, kind) {
+  const p = list.find((x) => x.id === id);
+  if (!p) { console.error('no ' + kind + ' ' + id); process.exit(2); }
+  return p;
+}
+const matrix = looks.length
+  ? looks.map((l) => { const [s, ...ts] = l.split('+'); return { style: byId(styles, s, 'style'), set: ts.map((t) => byId(themes, t, 'theme')) }; })
+  : styles.flatMap((style) => [[]].concat(themes.map((t) => [t])).map((set) => ({ style, set })));
 const shots = [];
 for (const s of Object.keys(info)) {
   const states = shotStates(info[s]);
-  for (const st of states) for (const style of styles) for (const set of themeSets) {
-    const theme = set.length ? set[0].id : 'none';
+  for (const st of states) for (const { style, set } of matrix) {
+    const theme = set.length ? set.map((t) => t.id).join('+') : 'none';
     shots.push({ scene: s, state: st, style: style.id, theme, file: [s, st || 'base', style.id, theme].join('-') + '.png',
                  payload: JSON.stringify(payload(style, set)) });
   }
@@ -211,7 +220,10 @@ fs.writeFileSync(path.join(outDir, 'index.html'), '<!doctype html><meta charset=
   'font-weight:500;color:#aaa}.row{display:flex;flex-wrap:wrap;gap:10px}.shot{color:inherit;text-decoration:none}' +
   '.frame{position:relative;overflow:hidden;background:#000;border:1px solid #333}.frame img{position:absolute}' +
   '.shot span{display:block;margin-top:3px;font-size:12px}.miss{color:#f66;padding:8px}.bad{color:#f66}.wait{color:#aaa}pre{white-space:pre-wrap}</style>' +
-  '<h1>Preview matrix</h1><p>' + shots.length + ' shots: scene × state × style × theme (none, then each alone).</p>' + body);
+  '<h1>Preview matrix</h1><p>' + shots.length + ' shots: scene × state × ' +
+  (looks.length ? 'look (' + esc(looks.join(', ')) + ')' : 'style × theme (none, then each alone)') + '.</p>' + body);
+fs.writeFileSync(path.join(outDir, 'index.json'), JSON.stringify(shots.map((x) => ({ scene: x.scene, state: x.state || '', style: x.style,
+  themes: x.theme === 'none' ? [] : x.theme.split('+'), file: x.file, failed: !!x.failed })), null, 1) + '\n');
 
 console.log(path.join(outDir, 'index.html') + ': ' + shots.length + ' shots in ' + Math.round((Date.now() - started) / 1000) + ' s');
 for (const s in waiting) console.error(s + ': not rendered, waits for ' + waiting[s].map((p) => 'ui/Look/parts/' + p).join(', '));
