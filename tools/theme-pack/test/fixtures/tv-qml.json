@@ -1,0 +1,1126 @@
+{
+ "qt": "5.6.2",
+ "root": "/usr/lib/qt5/qml",
+ "modules": {
+  "CoverUI": {
+   "versions": {
+    "1": 0
+   },
+   "source": "qmldir"
+  },
+  "Eos.Controls": {
+   "versions": {
+    "0": 1
+   },
+   "source": "qmldir"
+  },
+  "Eos.ImageFormats": {
+   "versions": null,
+   "source": "unknown"
+  },
+  "Eos.Items": {
+   "versions": {
+    "0": 1
+   },
+   "source": "qmldir"
+  },
+  "Eos.Style": {
+   "versions": {
+    "0": 1
+   },
+   "source": "qmldir"
+  },
+  "Eos.SurfaceGroup": {
+   "versions": null,
+   "source": "unknown"
+  },
+  "Eos.Window": {
+   "versions": null,
+   "source": "unknown"
+  },
+  "Eros.Asset": {
+   "versions": {
+    "0": 1
+   },
+   "source": "qmldir"
+  },
+  "Eros.Control.View": {
+   "versions": {
+    "0": 1
+   },
+   "source": "qmldir"
+  },
+  "Eros.Control": {
+   "versions": {
+    "0": 1
+   },
+   "source": "qmldir"
+  },
+  "Eros.Helper": {
+   "versions": {
+    "0": 1
+   },
+   "source": "qmldir"
+  },
+  "Eros.Private": {
+   "versions": null,
+   "source": "unknown"
+  },
+  "FpsCounter": {
+   "versions": null,
+   "source": "unknown"
+  },
+  "InputPicker": {
+   "versions": {
+    "1": 0
+   },
+   "source": "qmldir"
+  },
+  "PerformanceLog": {
+   "versions": null,
+   "source": "unknown"
+  },
+  "PmLog": {
+   "versions": null,
+   "source": "unknown"
+  },
+  "PmTrace": {
+   "versions": null,
+   "source": "unknown"
+  },
+  "Qt.labs.folderlistmodel": {
+   "versions": {
+    "2": 1
+   },
+   "source": "qt-5.6"
+  },
+  "Qt.labs.settings": {
+   "versions": {
+    "1": 0
+   },
+   "source": "qt-5.6"
+  },
+  "QtGraphicalEffects.private": {
+   "versions": null,
+   "source": "unknown"
+  },
+  "QtGraphicalEffects": {
+   "versions": {
+    "1": 0
+   },
+   "source": "qt-5.6"
+  },
+  "QtMultimedia": {
+   "versions": {
+    "5": 6
+   },
+   "source": "qt-5.6"
+  },
+  "QtQml.Models": {
+   "versions": {
+    "2": 2
+   },
+   "source": "qt-5.6"
+  },
+  "QtQml.StateMachine": {
+   "versions": {
+    "1": 0
+   },
+   "source": "qt-5.6"
+  },
+  "QtQml": {
+   "versions": {
+    "2": 2
+   },
+   "source": "qt-5.6"
+  },
+  "QtQuick": {
+   "versions": {
+    "2": 6
+   },
+   "source": "qt-5.6"
+  },
+  "QtQuick.Controls.Private": {
+   "versions": null,
+   "source": "unknown"
+  },
+  "QtQuick.Controls.Styles.Flat": {
+   "versions": null,
+   "source": "unknown"
+  },
+  "QtQuick.Controls.Styles": {
+   "versions": {
+    "1": 4
+   },
+   "source": "qt-5.6"
+  },
+  "QtQuick.Controls": {
+   "versions": {
+    "1": 5
+   },
+   "source": "qt-5.6"
+  },
+  "QtQuick.Dialogs.Private": {
+   "versions": null,
+   "source": "unknown"
+  },
+  "QtQuick.Dialogs": {
+   "versions": {
+    "1": 2
+   },
+   "source": "qt-5.6"
+  },
+  "QtQuick.Extras": {
+   "versions": {
+    "1": 4
+   },
+   "source": "qt-5.6"
+  },
+  "QtQuick.Layouts": {
+   "versions": {
+    "1": 3
+   },
+   "source": "qt-5.6"
+  },
+  "QtQuick.LocalStorage": {
+   "versions": {
+    "2": 0
+   },
+   "source": "qt-5.6"
+  },
+  "QtQuick.Particles": {
+   "versions": {
+    "2": 0
+   },
+   "source": "qt-5.6"
+  },
+  "QtQuick.Window": {
+   "versions": {
+    "2": 2
+   },
+   "source": "qt-5.6"
+  },
+  "QtQuick.XmlListModel": {
+   "versions": {
+    "2": 0
+   },
+   "source": "qt-5.6"
+  },
+  "QtSensors": {
+   "versions": {
+    "5": 2
+   },
+   "source": "qt-5.6"
+  },
+  "QtTest": {
+   "versions": {
+    "1": 1
+   },
+   "source": "qt-5.6"
+  },
+  "QuickSettings": {
+   "versions": {
+    "1": 0
+   },
+   "source": "qmldir"
+  },
+  "RdxLog": {
+   "versions": null,
+   "source": "unknown"
+  },
+  "RemoteUserList": {
+   "versions": null,
+   "source": "unknown"
+  },
+  "ScreenRemote": {
+   "versions": null,
+   "source": "unknown"
+  },
+  "ShellCommand": {
+   "versions": null,
+   "source": "unknown"
+  },
+  "StarfishComponents": {
+   "versions": null,
+   "source": "unknown"
+  },
+  "SystemUI.Notification.NLocaleService": {
+   "versions": {
+    "1": 0
+   },
+   "source": "qmldir"
+  },
+  "SystemUIAssets": {
+   "versions": {
+    "1": 0
+   },
+   "source": "qmldir"
+  },
+  "TextFile": {
+   "versions": null,
+   "source": "unknown"
+  },
+  "Tips": {
+   "versions": {
+    "1": 0
+   },
+   "source": "qmldir"
+  },
+  "Voice": {
+   "versions": null,
+   "source": "unknown"
+  },
+  "WebOS.DeveloperTools": {
+   "versions": {
+    "1": 0
+   },
+   "source": "qmldir"
+  },
+  "WebOS.Global": {
+   "versions": {
+    "1": 0
+   },
+   "source": "qmldir"
+  },
+  "WebOSServices": {
+   "versions": null,
+   "source": "unknown"
+  },
+  "YSM.Common": {
+   "versions": {
+    "0": 1
+   },
+   "source": "qmldir"
+  },
+  "YSM.SystemUI": {
+   "versions": {
+    "1": 0
+   },
+   "source": "qmldir"
+  },
+  "YSM": {
+   "versions": {
+    "1": 0
+   },
+   "source": "qmldir"
+  },
+  "iLib": {
+   "versions": null,
+   "source": "unknown"
+  },
+  "WebOSCoreCompositor": {
+   "versions": {
+    "1": 0
+   },
+   "source": "compositor"
+  }
+ },
+ "dirs": {
+  "/usr/lib/qt5/qml/CoverUI": [
+   "AnimatedBlock.qml",
+   "AppServiceSetter.qml",
+   "AppServices.qml",
+   "ConfigurationServiceChecker.qml",
+   "ConfigurationServices.qml",
+   "ConfigurationSetter.qml",
+   "CoverUI.qml",
+   "EnvironmentSetter.qml",
+   "FontManager.qml",
+   "InterfaceLayer.qml",
+   "LaunchDataController.qml",
+   "OnScreenLog.qml",
+   "ServiceReadyChecker.qml",
+   "ServicesToCheck.qml",
+   "ServicesToCheckBNO.qml",
+   "StartUpUI.qml",
+   "StringSheet.qml",
+   "SystemProperties.qml",
+   "SystemServices.qml",
+   "SystemServicesBNO.qml",
+   "UserLogger.qml"
+  ],
+  "/usr/lib/qt5/qml/Eos/Controls": [
+   "BodyText.qml",
+   "Button.qml",
+   "ButtonPopup.qml",
+   "CaptionDecorator.qml",
+   "CheckBox.qml",
+   "CheckBoxIcon.qml",
+   "CheckableItem.qml",
+   "ComboBox.qml",
+   "ComboBoxIcon.qml",
+   "ContextualPopup.qml",
+   "DefaultSpinner.qml",
+   "DefaultTooltip.qml",
+   "ElideShader.qml",
+   "ExclusiveGroup.js",
+   "ExclusiveGroup.qml",
+   "GroupBox.qml",
+   "GroupHeader.qml",
+   "Header.qml",
+   "List.qml",
+   "ListItem.qml",
+   "Menu.qml",
+   "MenuItem.qml",
+   "Page.qml",
+   "PageStack.qml",
+   "PageStackDelegate.qml",
+   "PageStackTransition.qml",
+   "Picker.qml",
+   "ProgressBar.qml",
+   "RadioButton.qml",
+   "RadioButtonIcon.qml",
+   "ScrollDecorator.qml",
+   "Slider.qml",
+   "Spinner.qml",
+   "TextField.qml",
+   "TextScroller.qml",
+   "ToggleItem.qml",
+   "ToggleItemIcon.qml",
+   "Tooltip.qml"
+  ],
+  "/usr/lib/qt5/qml/Eos/Controls/SkullCloseButton": [
+   "FocusedToHoveredAnimation.qml",
+   "HoveredToClickedAnimation.qml",
+   "SkullCloseButton.qml",
+   "SkullExplosionAnimation.qml"
+  ],
+  "/usr/lib/qt5/qml/Eos/Items": [
+   "EditableDelegate.qml",
+   "EditableListView.qml",
+   "EditableListViewHotspot.qml",
+   "Parallelogram.qml",
+   "Ribbon.qml",
+   "RibbonDelegateMouseArea.qml",
+   "RibbonEditor.qml",
+   "RoundedRectangle.qml",
+   "SmoothClipItem.qml",
+   "Wiper.qml",
+   "WiperStack.qml"
+  ],
+  "/usr/lib/qt5/qml/Eos/Style/moonstone": [
+   "MoonStoneBodyTextStyle.qml",
+   "MoonStoneButtonStyle.qml",
+   "MoonStoneCaptionDecoratorStyle.qml",
+   "MoonStoneCheckBoxStyle.qml",
+   "MoonStoneComboBoxStyle.qml",
+   "MoonStoneDefaultTooltipStyle.qml",
+   "MoonStoneGroupBoxStyle.qml",
+   "MoonStoneGroupHeaderStyle.qml",
+   "MoonStoneHeaderStyle.qml",
+   "MoonStoneIconButtonStyle.qml",
+   "MoonStoneListItemStyle.qml",
+   "MoonStoneMenuItemStyle.qml",
+   "MoonStoneRadioButtonStyle.qml",
+   "MoonStoneScrollDecoratorStyle.qml",
+   "MoonStoneSliderStyle.qml",
+   "MoonStoneSmallButtonStyle.qml",
+   "MoonStoneToggleItemStyle.qml"
+  ],
+  "/usr/lib/qt5/qml/Eros/Asset": [
+   "BaseMessageBox.qml",
+   "ExtendableButtonLayout.qml",
+   "LunaUtils.js",
+   "LunaUtilsTestcase.js",
+   "MediaPlayProgressBar.qml",
+   "MessageBox.qml",
+   "Utils.js"
+  ],
+  "/usr/lib/qt5/qml/Eros/Control": [
+   "AbstractButton.qml",
+   "ApplicationWindow.qml",
+   "Button.qml",
+   "ButtonGroup.qml",
+   "CheckBox.qml",
+   "Container.qml",
+   "Control.qml",
+   "ExpandablePicker.qml",
+   "FocusableControl.qml",
+   "FontTheme.qml",
+   "GridContainer.qml",
+   "GridList.qml",
+   "GridListItem.qml",
+   "GroupBox.qml",
+   "IconButton.qml",
+   "InputBox.qml",
+   "Label.qml",
+   "List.qml",
+   "ListContainer.qml",
+   "ListItem.qml",
+   "Panel.qml",
+   "Picture.qml",
+   "Popup.qml",
+   "ProgressBar.qml",
+   "RadioButton.qml",
+   "ScrollBar.qml",
+   "ScrollPane.qml",
+   "Slider.qml",
+   "ToggledButton.qml",
+   "Utils.js",
+   "Window.qml"
+  ],
+  "/usr/lib/qt5/qml/Eros/Control/View": [
+   "AbstractButtonView.qml",
+   "ContainerView.qml",
+   "ControlLoader.qml",
+   "ControlMouseArea.qml",
+   "ControlTooltip.qml",
+   "ControlView.qml",
+   "ControlViewLoader.qml",
+   "DefaultAbstractButtonView.qml",
+   "DefaultButtonView.qml",
+   "DefaultCheckBoxView.qml",
+   "DefaultContainerView.qml",
+   "DefaultControlTooltip.qml",
+   "DefaultControlView.qml",
+   "DefaultExpandablePickerView.qml",
+   "DefaultFocusableControlView.qml",
+   "DefaultGridContainerView.qml",
+   "DefaultGridListView.qml",
+   "DefaultGroupBoxView.qml",
+   "DefaultInputBoxView.qml",
+   "DefaultLabelView.qml",
+   "DefaultListContainerView.qml",
+   "DefaultListView.qml",
+   "DefaultPanelView.qml",
+   "DefaultPopupView.qml",
+   "DefaultProgressBarView.qml",
+   "DefaultRadioButtonView.qml",
+   "DefaultScrollBarView.qml",
+   "DefaultScrollPaneView.qml",
+   "DefaultSliderTooltip.qml",
+   "DefaultSliderView.qml",
+   "DefaultToggledButtonView.qml",
+   "DefaultWindowView.qml",
+   "FocusableControlView.qml",
+   "FormattedTimeText.qml",
+   "Margins.qml",
+   "MoonStoneSliderView.qml",
+   "TooltipBalloon.qml",
+   "Util.js",
+   "WindowView.qml"
+  ],
+  "/usr/lib/qt5/qml/Eros/Helper": [
+   "Column.qml",
+   "Row.qml"
+  ],
+  "/usr/lib/qt5/qml/InputPicker": [
+   "DebugComponent.qml",
+   "FontManager.qml",
+   "Globals.js",
+   "InputPicker.qml",
+   "InputPickerUtils.js",
+   "LanguageStyle.qml",
+   "PropertySheet.qml",
+   "Strings.qml",
+   "Style.qml"
+  ],
+  "/usr/lib/qt5/qml/InputPicker/Model": [
+   "InputItemListModel.qml"
+  ],
+  "/usr/lib/qt5/qml/InputPicker/Service": [
+   "ASMService.qml",
+   "AppServices.qml",
+   "EIMService.qml",
+   "EjectService.qml",
+   "ForegroundAppService.qml",
+   "IEPGService.qml",
+   "InputPickerService.qml",
+   "LaunchService.qml",
+   "MRCUService.qml",
+   "NotiManagerService.qml",
+   "SystemService.qml",
+   "TTSService.qml",
+   "UTPService.qml",
+   "VoiceControlService.qml"
+  ],
+  "/usr/lib/qt5/qml/InputPicker/View/Components": [
+   "Beziergon.qml",
+   "CustomRibbon.qml",
+   "Parallelogram.qml",
+   "ScrollText.qml",
+   "ScrollTextBox.qml",
+   "Selectable.qml",
+   "TitleBar.qml",
+   "ToolTip.qml"
+  ],
+  "/usr/lib/qt5/qml/InputPicker/View": [
+   "InputPickerListItem.qml",
+   "InputPickerListItemDefaultTile.qml",
+   "InputPickerListItemTile.qml",
+   "InputPickerMainView.qml",
+   "LocalKeyGuidance.qml"
+  ],
+  "/usr/lib/qt5/qml/KeyFilters": [
+   "appLaunch.js",
+   "easytv.js",
+   "systemUi.js"
+  ],
+  "/usr/lib/qt5/qml/QtGraphicalEffects": [
+   "Blend.qml",
+   "BrightnessContrast.qml",
+   "ColorOverlay.qml",
+   "Colorize.qml",
+   "ConicalGradient.qml",
+   "Desaturate.qml",
+   "DirectionalBlur.qml",
+   "Displace.qml",
+   "DropShadow.qml",
+   "FastBlur.qml",
+   "GammaAdjust.qml",
+   "GaussianBlur.qml",
+   "Glow.qml",
+   "HueSaturation.qml",
+   "InnerShadow.qml",
+   "LevelAdjust.qml",
+   "LinearGradient.qml",
+   "MaskedBlur.qml",
+   "OpacityMask.qml",
+   "RadialBlur.qml",
+   "RadialGradient.qml",
+   "RectangularGlow.qml",
+   "RecursiveBlur.qml",
+   "ThresholdMask.qml",
+   "ZoomBlur.qml"
+  ],
+  "/usr/lib/qt5/qml/QtGraphicalEffects/private": [
+   "DropShadowBase.qml",
+   "FastGlow.qml",
+   "FastInnerShadow.qml",
+   "FastMaskedBlur.qml",
+   "GaussianDirectionalBlur.qml",
+   "GaussianGlow.qml",
+   "GaussianInnerShadow.qml",
+   "GaussianMaskedBlur.qml"
+  ],
+  "/usr/lib/qt5/qml/QtMultimedia": [
+   "Video.qml"
+  ],
+  "/usr/lib/qt5/qml/QtQuick/Controls": [
+   "ApplicationWindow.qml",
+   "BusyIndicator.qml",
+   "Button.qml",
+   "Calendar.qml",
+   "CheckBox.qml",
+   "ComboBox.qml",
+   "GroupBox.qml",
+   "Label.qml",
+   "Menu.qml",
+   "MenuBar.qml",
+   "ProgressBar.qml",
+   "RadioButton.qml",
+   "ScrollView.qml",
+   "Slider.qml",
+   "SpinBox.qml",
+   "SplitView.qml",
+   "StackView.qml",
+   "StackViewDelegate.qml",
+   "StackViewTransition.qml",
+   "StatusBar.qml",
+   "Switch.qml",
+   "Tab.qml",
+   "TabView.qml",
+   "TableView.qml",
+   "TableViewColumn.qml",
+   "TextArea.qml",
+   "TextField.qml",
+   "ToolBar.qml",
+   "ToolButton.qml",
+   "TreeView.qml"
+  ],
+  "/usr/lib/qt5/qml/QtQuick/Controls/Private": [
+   "AbstractCheckable.qml",
+   "BasicButton.qml",
+   "BasicTableView.qml",
+   "CalendarHeaderModel.qml",
+   "CalendarUtils.js",
+   "ColumnMenuContent.qml",
+   "ContentItem.qml",
+   "Control.qml",
+   "EditMenu.qml",
+   "EditMenu_base.qml",
+   "EditMenu_ios.qml",
+   "FastGlow.qml",
+   "FocusFrame.qml",
+   "HoverButton.qml",
+   "MenuContentItem.qml",
+   "MenuContentScroller.qml",
+   "MenuItemSubControls.qml",
+   "ModalPopupBehavior.qml",
+   "ScrollBar.qml",
+   "ScrollViewHelper.qml",
+   "SourceProxy.qml",
+   "StackView.js",
+   "StackViewSlideDelegate.qml",
+   "Style.qml",
+   "SystemPaletteSingleton.qml",
+   "TabBar.qml",
+   "TableViewItemDelegateLoader.qml",
+   "TableViewSelection.qml",
+   "TextHandle.qml",
+   "TextInputWithHandles.qml",
+   "TextSingleton.qml",
+   "ToolMenuButton.qml",
+   "TreeViewItemDelegateLoader.qml",
+   "style.js"
+  ],
+  "/usr/lib/qt5/qml/QtQuick/Controls/Styles/Base": [
+   "ApplicationWindowStyle.qml",
+   "BasicTableViewStyle.qml",
+   "BusyIndicatorStyle.qml",
+   "ButtonStyle.qml",
+   "CalendarStyle.qml",
+   "CheckBoxStyle.qml",
+   "CircularButtonStyle.qml",
+   "CircularGaugeStyle.qml",
+   "CircularTickmarkLabelStyle.qml",
+   "ComboBoxStyle.qml",
+   "CommonStyleHelper.qml",
+   "DelayButtonStyle.qml",
+   "DialStyle.qml",
+   "FocusFrameStyle.qml",
+   "GaugeStyle.qml",
+   "GroupBoxStyle.qml",
+   "HandleStyle.qml",
+   "HandleStyleHelper.qml",
+   "MenuBarStyle.qml",
+   "MenuStyle.qml",
+   "PieMenuStyle.qml",
+   "ProgressBarStyle.qml",
+   "RadioButtonStyle.qml",
+   "ScrollViewStyle.qml",
+   "SliderStyle.qml",
+   "SpinBoxStyle.qml",
+   "StatusBarStyle.qml",
+   "StatusIndicatorStyle.qml",
+   "SwitchStyle.qml",
+   "TabViewStyle.qml",
+   "TableViewStyle.qml",
+   "TextAreaStyle.qml",
+   "TextFieldStyle.qml",
+   "ToggleButtonStyle.qml",
+   "ToolBarStyle.qml",
+   "ToolButtonStyle.qml",
+   "TreeViewStyle.qml",
+   "TumblerStyle.qml"
+  ],
+  "/usr/lib/qt5/qml/QtTest": [
+   "SignalSpy.qml",
+   "TestCase.qml",
+   "testlogger.js"
+  ],
+  "/usr/lib/qt5/qml/QuickSettings": [
+   "Globals.js",
+   "QuickSettings.qml"
+  ],
+  "/usr/lib/qt5/qml/QuickSettings/Service": [
+   "NetworkService.qml",
+   "QuickSettingsCommon.qml",
+   "QuickSettingsService.qml",
+   "TTSService.qml",
+   "VoiceControlService.qml"
+  ],
+  "/usr/lib/qt5/qml/QuickSettings/ServiceModel": [
+   "AspectRatioModel.qml",
+   "ParentalServiceModel.qml",
+   "PictureSettingModel.qml",
+   "SettingsServiceModel.qml",
+   "SoundModeModel.qml",
+   "SoundOutServiceModel.qml",
+   "SurroundModel.qml",
+   "TimerServiceModel.qml"
+  ],
+  "/usr/lib/qt5/qml/QuickSettings/Utils": [
+   "Debug.qml",
+   "FontManager.qml",
+   "LanguageStyle.qml",
+   "QuickSettingsButtonStyle.qml",
+   "StringTable.qml",
+   "Style.qml",
+   "Utils.qml"
+  ],
+  "/usr/lib/qt5/qml/QuickSettings/View": [
+   "DefaultLabelView.qml",
+   "DotIndicator.qml",
+   "Label.qml",
+   "LocalKeyGuidance.qml",
+   "QuickButton.qml",
+   "QuickSettingsArrowButton.qml",
+   "QuickSettingsButton.qml",
+   "QuickSettingsContextualPopup.qml",
+   "QuickSettingsDotPicker.qml",
+   "QuickSettingsPopUpButton.qml"
+  ],
+  "/usr/lib/qt5/qml/RemoteUserList": [
+   "OpacityMaskImage.qml",
+   "PinPopup.qml",
+   "RemoteUserList.qml",
+   "RemoteUserListDelegate.qml",
+   "RemoteUserListLogger.qml",
+   "RemoteUserListModel.qml",
+   "RemoteUserListStyle.qml",
+   "RemoteUserListTooltip.qml",
+   "RemoteUserListTooltipRTL.qml",
+   "Shadow.qml",
+   "imageutils.js"
+  ],
+  "/usr/lib/qt5/qml/ScreenRemote/AppInitializer": [
+   "DbDataServices.qml",
+   "GlobalStyle.qml",
+   "ServerDataServices.qml",
+   "StringSheet.qml",
+   "SystemProperties.qml",
+   "SystemServices.qml"
+  ],
+  "/usr/lib/qt5/qml/ScreenRemote/Components": [
+   "ImageButton.qml",
+   "ScrollBar.qml",
+   "ScrollText.qml",
+   "Selectable.qml",
+   "ToolTipPopup.qml",
+   "VerticalListEndIndicator.qml"
+  ],
+  "/usr/lib/qt5/qml/ScreenRemote/Containers": [
+   "ListItem.qml",
+   "MainView.qml",
+   "TabItem.qml"
+  ],
+  "/usr/lib/qt5/qml/ScreenRemote/Controllers/AppBlockInterfaces": [
+   "AppBlockController.qml",
+   "AppServices.qml",
+   "Interfaces.qml"
+  ],
+  "/usr/lib/qt5/qml/ScreenRemote/Controllers": [
+   "AppInitializer.qml",
+   "AppLifeCycleController.qml",
+   "AppServiceSetter.qml",
+   "DbDataServiceSetter.qml",
+   "EnvironmentSetter.qml",
+   "InterfaceInitializer.qml",
+   "InterfaceLayer.qml",
+   "ServerDataServiceSetter.qml",
+   "UIController.qml",
+   "WindowStateController.qml"
+  ],
+  "/usr/lib/qt5/qml/ScreenRemote/Controllers/AppInterfaces": [
+   "AppController.qml",
+   "AppServices.qml",
+   "Interfaces.qml"
+  ],
+  "/usr/lib/qt5/qml/ScreenRemote/Controllers/AudioGuidanceInterfaces": [
+   "AppServices.qml",
+   "AudioGuidanceController.qml",
+   "Interfaces.qml"
+  ],
+  "/usr/lib/qt5/qml/ScreenRemote/Controllers/CaptureInterfaces": [
+   "AppServices.qml",
+   "CaptureController.qml",
+   "Interfaces.qml"
+  ],
+  "/usr/lib/qt5/qml/ScreenRemote/Controllers/ModelInterfaces": [
+   "AppServices.qml",
+   "Interfaces.qml",
+   "ModelController.qml"
+  ],
+  "/usr/lib/qt5/qml/ScreenRemote/Controllers/VoiceControlInterfaces": [
+   "AppServices.qml",
+   "Interfaces.qml",
+   "VoiceController.qml"
+  ],
+  "/usr/lib/qt5/qml/ScreenRemote/Debug": [
+   "OnScreenLog.qml",
+   "UserLogger.qml"
+  ],
+  "/usr/lib/qt5/qml/ScreenRemote": [
+   "KeyCodeModel.qml",
+   "KeyTable.qml",
+   "ScreenRemote.qml",
+   "ScreenRemoteAppBase.qml",
+   "ScreenRemoteMain.qml",
+   "TimeManager.qml",
+   "Utils.js"
+  ],
+  "/usr/lib/qt5/qml/ScreenRemote/Utilities": [
+   "ExceptionsPopup.qml",
+   "FontManager.qml",
+   "LanguageStyle.qml",
+   "TimeManager.qml",
+   "Utils.js"
+  ],
+  "/usr/lib/qt5/qml/StarfishComponents": [
+   "Beziergon.qml",
+   "Diamond.qml",
+   "Parallelogram.qml",
+   "ShadowText.qml",
+   "Splash.qml",
+   "Wiper.qml",
+   "WiperStack.qml"
+  ],
+  "/usr/lib/qt5/qml/SystemUI/Notification": [
+   "AdvancedAlertCard.qml",
+   "AdvancedAlertDelegate.qml",
+   "AdvancedAlertView.qml",
+   "Alert.qml",
+   "AlertView.qml",
+   "ArrowLockInput.qml",
+   "Button.qml",
+   "ElideShader.qml",
+   "FocusableView.qml",
+   "MarqueeText.qml",
+   "Notification.qml",
+   "NotificationModel.qml",
+   "NotificationStack.qml",
+   "NotificationStyle.qml",
+   "NotificationView.qml",
+   "PincodePrompt.qml",
+   "PincodePromptArrowpad.qml",
+   "PincodePromptBackButton.qml",
+   "PincodePromptBaseButton.qml",
+   "PincodePromptButton.qml",
+   "PincodePromptNumButton.qml",
+   "PincodePromptPasswordButton.qml",
+   "PincodePromptView.qml",
+   "Popup.qml",
+   "Services.qml",
+   "SystemUIView.qml",
+   "TextScroller.qml",
+   "Toast.qml",
+   "ToastView.qml",
+   "Tooltip.qml",
+   "Utils.js"
+  ],
+  "/usr/lib/qt5/qml/SystemUI/Notification/NLocaleService": [
+   "NLocaleService.qml"
+  ],
+  "/usr/lib/qt5/qml/SystemUIAssets": [
+   "StyleYSM.qml",
+   "StyleYSMBlueGray.qml",
+   "StyleYSMPartialView.qml"
+  ],
+  "/usr/lib/qt5/qml/Tips": [
+   "PreconditionChecker.qml",
+   "TipsProxy.qml"
+  ],
+  "/usr/lib/qt5/qml/Voice": [
+   "ButtonFlex.qml",
+   "ButtonFlexLarge.qml",
+   "ButtonFlexSmall.qml",
+   "CpSelectionPopup.qml",
+   "DetailUtil.qml",
+   "DetailView.qml",
+   "Divider.qml",
+   "DvrService.qml",
+   "FocusableItem.qml",
+   "IepgService.qml",
+   "MarqueeText.qml",
+   "MoreButton.qml",
+   "QuitButton.qml",
+   "ReservationService.qml",
+   "ScrollBar.qml",
+   "ScrollEffect.qml",
+   "StringSet.qml",
+   "Style.qml",
+   "TimeUtil.qml"
+  ],
+  "/usr/lib/qt5/qml/WebOS/DeveloperTools": [
+   "DebugConsole.qml",
+   "MemoryView.qml",
+   "ResourceView.qml"
+  ],
+  "/usr/lib/qt5/qml/WebOS/Global": [
+   "WebOSMouseArea.qml",
+   "WebOSMouseAreaInternal.qml"
+  ],
+  "/usr/lib/qt5/qml/WebOSServices": [
+   "AlertModel.js",
+   "AlertModel.qml",
+   "ApplicationListModel.js",
+   "ApplicationListModel.qml",
+   "DB8.qml",
+   "InputAlertModel.js",
+   "InputAlertModel.qml",
+   "LaunchPointsModel.qml",
+   "PackagesListModel.js",
+   "PackagesListModel.qml",
+   "PincodePromptModel.js",
+   "PincodePromptModel.qml",
+   "RunningModel.js",
+   "RunningModel.qml",
+   "ToastModel.js",
+   "ToastModel.qml"
+  ],
+  "/usr/lib/qt5/qml/YSM": [
+   "AccessControlPolicy.qml",
+   "BootPopup.qml",
+   "DebugFocus.qml",
+   "DevConsole.qml",
+   "FocusableView.qml",
+   "FocusedWindowInfoMgr.qml",
+   "ForegroundAppInfoMgr.qml",
+   "HomeUIStateMgr.qml",
+   "ImageSplash.qml",
+   "KeyFilterTimer.qml",
+   "MagicNumber.qml",
+   "OverlayPlayVideoStateMgr.qml",
+   "RecentsDb.qml",
+   "Spinner.qml",
+   "StarfishKeyFilter.qml",
+   "StarfishTTSkeyTable.qml",
+   "Style.qml",
+   "SystemSettings.qml",
+   "Volume.qml",
+   "VolumeMute.qml",
+   "WebOSImage.qml",
+   "YSM.qml",
+   "YSMLaunchPointsModel.qml",
+   "compositor.js",
+   "desktop.qml",
+   "imageutils.js",
+   "launchermanager.js",
+   "punchThrough.js"
+  ],
+  "/usr/lib/qt5/qml/YSM/Common": [
+   "BubbleTranslate.qml",
+   "Bulge.qml",
+   "EditTile.qml",
+   "ElevatorText.qml",
+   "ElideShader.qml",
+   "ElidingText.qml",
+   "FocusHandler.js",
+   "NavButton.qml",
+   "PopinAnimation.qml",
+   "PopupAnimation.qml",
+   "ProgressBar.qml",
+   "RibbonEditorInfo.qml",
+   "RibbonScrollHotSpot.qml",
+   "Settings.qml",
+   "StretchTransform.qml",
+   "SubTitleText.qml",
+   "SuperRibbonTile.qml",
+   "TextScroller.qml",
+   "VerticalElideShader.qml",
+   "VerticalTextScroller.qml"
+  ],
+  "/usr/lib/qt5/qml/YSM/Cover": [
+   "CoverService.qml",
+   "CoverUI.qml",
+   "CoverViewContainer.qml"
+  ],
+  "/usr/lib/qt5/qml/YSM/FingerPrint": [
+   "FingerPrintService.qml",
+   "FingerPrintUI.qml",
+   "FingerPrintViewContainer.qml"
+  ],
+  "/usr/lib/qt5/qml/YSM/Floating": [
+   "FloatingSurface.qml",
+   "FloatingSurfaceView.qml"
+  ],
+  "/usr/lib/qt5/qml/YSM/HCAP": [
+   "HCAPSurface.qml",
+   "HCAPSurfaceView.qml"
+  ],
+  "/usr/lib/qt5/qml/YSM/Home": [
+   "HomeSurface.qml",
+   "HomeView.qml"
+  ],
+  "/usr/lib/qt5/qml/YSM/Nudge": [
+   "AppNudge.qml",
+   "ChannelNudge.qml",
+   "LivePickCharacter.qml",
+   "LivePickNudge.qml",
+   "LivePickProductNudge.qml",
+   "LivePickService.qml",
+   "Nudge.qml",
+   "NudgeAiLogo.qml",
+   "NudgeBackground.qml",
+   "NudgeLocaleService.qml",
+   "NudgeModel.qml",
+   "NudgePoints.qml",
+   "NudgeRibbon.qml",
+   "NudgeServiceModel.qml",
+   "NudgeSttService.qml",
+   "NudgeStyle.qml",
+   "NudgeSystemUI.qml",
+   "NudgeTtsService.qml",
+   "NudgeView.qml",
+   "ProgramNudge.qml",
+   "TextNudge.qml",
+   "utils.js"
+  ],
+  "/usr/lib/qt5/qml/YSM/Overlays": [
+   "ActiveFocusHighlighter.qml",
+   "DebugOverlay.qml",
+   "DebugWindow.qml",
+   "FocusConsole.qml",
+   "FpsGraphOverlay.qml",
+   "LogConsole.qml",
+   "OpacityMaskImage.qml",
+   "ResourceOverlay.qml",
+   "SurfaceDebugger.qml",
+   "TouchOverlay.qml"
+  ],
+  "/usr/lib/qt5/qml/YSM/PopUps": [
+   "EffectSurfaceView.qml",
+   "Keyboard.qml",
+   "KeyboardPanel.qml",
+   "OverlaySurfaceGroupView.qml",
+   "PopupPlane.qml",
+   "PopupSurface.qml",
+   "ResizeableSurface.qml",
+   "ResizeableSurfaceView.qml",
+   "SplittedSurface.qml",
+   "SplittedSurfaceView.qml",
+   "UrgentAlertSurfaceView.qml",
+   "WindowedSurface.qml",
+   "WindowedSurfaceView.qml",
+   "popuphandler.js"
+  ],
+  "/usr/lib/qt5/qml/YSM/PopUps/Overlay": [
+   "OverlaySurface.qml",
+   "OverlayView.qml"
+  ],
+  "/usr/lib/qt5/qml/YSM/Recent": [
+   "RecentService.qml",
+   "RecentServiceMgr.qml"
+  ],
+  "/usr/lib/qt5/qml/YSM/RemoteUserList": [
+   "RemoteUserList.qml"
+  ],
+  "/usr/lib/qt5/qml/YSM/ScreenCover": [
+   "ScreenCoverView.qml"
+  ],
+  "/usr/lib/qt5/qml/YSM/ScreenRemote": [
+   "ScreenRemoteView.qml"
+  ],
+  "/usr/lib/qt5/qml/YSM/ScreenSaver": [
+   "ScreenSaverSurface.qml",
+   "ScreenSaverView.qml"
+  ],
+  "/usr/lib/qt5/qml/YSM/SystemUI": [
+   "StarfishFocusableView.qml",
+   "StarfishSurfaceContainer.qml",
+   "StarfishSystemUIContainer.qml",
+   "StarfishSystemUIWindow.qml",
+   "StarfishViewContainer.qml",
+   "StarfishViewModel.qml",
+   "SystemUIComponent.qml",
+   "SystemUIComponentContainer.qml",
+   "SystemUIManager.qml",
+   "SystemUIModel.qml",
+   "SystemUIOutProcView.qml",
+   "SystemUIOutProcViewPlaceHolder.qml",
+   "SystemUIView.qml",
+   "SystemUIViewContainer.qml",
+   "SystemUIViewStateTransition.qml",
+   "SystemUIViewStateTransitionContainer.qml",
+   "SystemUIViewStateTransitionManager.qml",
+   "SystemUIWindowModel.qml"
+  ],
+  "/usr/lib/qt5/qml/YSM/VoiceAgent": [
+   "VoiceAgentView.qml"
+  ],
+  "/usr/lib/qt5/qml/iLib": [
+   "ILib.qml"
+  ]
+ }
+}
