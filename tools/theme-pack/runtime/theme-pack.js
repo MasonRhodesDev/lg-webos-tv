@@ -11,7 +11,19 @@
     'attention', 'attention-ink', 'critical', 'critical-ink',
     'track', 'knob',
     'hue-0', 'hue-1', 'hue-2', 'hue-3', 'hue-4', 'hue-5', 'hue-6',
-    'r-tile', 'r-panel', 'r-row', 'r-key'
+    'r-tile', 'r-panel', 'r-row', 'r-key',
+    // The design language (DESIGN.md): colour roles, sizes, type, elevation and motion the component kit reads.
+    'surface-strong', 'divider', 'current-ink', 'r-control',
+    'safe-x', 'safe-y', 'space-xs', 'space-s', 'space-m', 'space-l', 'space-xl', 'space-xxl',
+    'edge-w', 'focus-w', 'focus-scale', 'current-w',
+    'panel-w', 'dialog-w', 'toast-w', 'row-h', 'row-h-2', 'row-pad', 'section-h', 'icon', 'well',
+    'track-h', 'thumb', 'toggle-w', 'toggle-h', 'knob-size', 'button-h', 'tile-w', 'tile-h', 'tile-pad',
+    'elev-panel', 'elev-focus',
+    'type-display', 'type-display-weight', 'type-title', 'type-title-weight', 'type-tile', 'type-tile-weight',
+    'type-label', 'type-label-weight', 'type-value', 'type-value-weight', 'type-body', 'type-body-weight',
+    'type-caption', 'type-caption-weight', 'type-heading', 'type-heading-weight', 'type-heading-case',
+    'type-key', 'type-key-weight', 'type-numeral', 'type-numeral-weight',
+    'motion-focus', 'motion-value', 'motion-enter', 'motion-exit', 'ease-focus', 'ease-enter', 'ease-exit', 'enter-shift'
   ];
 
   var registry = { style: {}, theme: {} };

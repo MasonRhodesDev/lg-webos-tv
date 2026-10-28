@@ -25,10 +25,32 @@ QtObject {
     property var available: ({ "styles": [], "themes": [] })
     property bool online: false
 
+    // Every token, so the kit is whole before the service answers: LG-like dark grey and magenta, Smoke's metrics.
     readonly property var stock: ({
-        "surface": "rgba(18,18,18,0.92)", "surface-edge": "rgba(255,255,255,0.12)", "ink": "#f5f5f5",
-        "ink-disabled": "rgba(255,255,255,0.45)", "track": "rgba(110,110,110,0.35)", "focus": "#cf0652",
-        "focus-ink": "#ffffff", "knob": "#f5f5f5", "r-panel": "0px"
+        "surface": "rgba(18,18,18,0.92)", "surface-edge": "rgba(255,255,255,0.12)", "inner": "rgba(255,255,255,0.07)",
+        "dim": "rgba(0,0,0,0.55)", "scrim": "rgba(0,0,0,0.35)", "ink": "#f5f5f5", "ink-2": "rgba(255,255,255,0.86)",
+        "ink-3": "rgba(255,255,255,0.66)", "ink-disabled": "rgba(255,255,255,0.40)", "shadow": "0 2px 8px rgba(0,0,0,0.5)",
+        "focus": "#cf0652", "focus-ink": "#ffffff", "focus-edge": "#ffffff", "current": "#cf0652",
+        "attention": "#cf0652", "attention-ink": "#ffffff", "critical": "#e04848", "critical-ink": "#ffffff",
+        "track": "rgba(110,110,110,0.35)", "knob": "#ffffff",
+        "hue-0": "#f5f5f5", "hue-1": "#f5f5f5", "hue-2": "#f5f5f5", "hue-3": "#f5f5f5", "hue-4": "#f5f5f5",
+        "hue-5": "#f5f5f5", "hue-6": "#f5f5f5",
+        "r-tile": "12px", "r-panel": "12px", "r-row": "8px", "r-key": "8px",
+        "surface-strong": "rgba(18,18,18,0.96)", "divider": "rgba(255,255,255,0.10)", "current-ink": "#ffffff", "r-control": "999px",
+        "safe-x": "96px", "safe-y": "54px", "space-xs": "8px", "space-s": "12px", "space-m": "20px", "space-l": "28px",
+        "space-xl": "40px", "space-xxl": "56px", "edge-w": "1px", "focus-w": "3px", "focus-scale": "1", "current-w": "6px",
+        "panel-w": "640px", "dialog-w": "800px", "toast-w": "760px", "row-h": "88px", "row-h-2": "104px", "row-pad": "28px",
+        "section-h": "60px", "icon": "34px", "well": "56px", "track-h": "10px", "thumb": "30px", "toggle-w": "72px",
+        "toggle-h": "40px", "knob-size": "32px", "button-h": "80px", "tile-w": "260px", "tile-h": "190px", "tile-pad": "24px",
+        "elev-panel": "0 20px 50px rgba(0,0,0,0.5)", "elev-focus": "0 10px 26px rgba(0,0,0,0.45)",
+        "type-display": "64px", "type-display-weight": "700", "type-title": "40px", "type-title-weight": "700",
+        "type-tile": "30px", "type-tile-weight": "700", "type-label": "26px", "type-label-weight": "600",
+        "type-value": "24px", "type-value-weight": "400", "type-body": "28px", "type-body-weight": "400",
+        "type-caption": "20px", "type-caption-weight": "400", "type-heading": "19px", "type-heading-weight": "600",
+        "type-heading-case": "uppercase", "type-key": "18px", "type-key-weight": "600", "type-numeral": "40px",
+        "type-numeral-weight": "600", "motion-focus": "120ms", "motion-value": "200ms", "motion-enter": "300ms",
+        "motion-exit": "200ms", "ease-focus": "cubic-bezier(0.2,0,0,1)", "ease-enter": "cubic-bezier(0.05,0.7,0.1,1)",
+        "ease-exit": "cubic-bezier(0.3,0,0.8,0.15)", "enter-shift": "40px"
     })
 
     function token(name) { return tokens[name] !== undefined ? tokens[name] : stock[name]; }
@@ -42,6 +64,26 @@ QtObject {
     }
     function color(name) { return colorOf(token(name)); }
     function px(name) { return parseFloat(token(name)) || 0; }
+    // A type role's weight token ("400".."800") as Qt's weight; styles only name weights their font files carry.
+    function weight(role) {
+        var w = parseFloat(token(role + "-weight")) || 400;
+        return w >= 800 ? Font.ExtraBold : w >= 700 ? Font.Bold : w >= 600 ? Font.DemiBold : w >= 500 ? Font.Medium : Font.Normal;
+    }
+    // A CSS box-shadow token ("x y blur [spread] colour") as { x, y, blur, color }.
+    function shadow(name) {
+        var m = /^\s*(-?[\d.]+)(?:px)?\s+(-?[\d.]+)(?:px)?\s+([\d.]+)(?:px)?(?:\s+-?[\d.]+(?:px)?)?\s+(.+)$/.exec(token(name) || "");
+        return m ? { "x": Number(m[1]), "y": Number(m[2]), "blur": Number(m[3]), "color": colorOf(m[4]) }
+                 : { "x": 0, "y": 0, "blur": 0, "color": "transparent" };
+    }
+    // A CSS cubic-bezier() token as an easing.bezierCurve (Easing.Bezier).
+    function curve(name) {
+        var m = /cubic-bezier\(\s*([-\d.]+)\s*,\s*([-\d.]+)\s*,\s*([-\d.]+)\s*,\s*([-\d.]+)\s*\)/.exec(token(name) || "");
+        return m ? [Number(m[1]), Number(m[2]), Number(m[3]), Number(m[4]), 1, 1] : [0.25, 0.1, 0.25, 1, 1, 1];
+    }
+    function hue(i) { return color("hue-" + ((i || 0) % 7)); }
+    // What a focused item fills with: the focus colour, or under a style whose behaviour says so, the item's hue.
+    function focusFill(hueIndex) { return behaviour.focusFill === "hue" && hueIndex >= 0 ? hue(hueIndex) : color("focus"); }
+
     // A recipe's fill is a colour or a token name.
     function fill(value) { return /^(#|rgb)/.test(value) ? colorOf(value) : color(value); }
 

@@ -1,0 +1,36 @@
+.pragma library
+// The icon set: SVG path data on a 24x24 grid, drawn as 2 px round strokes. The HTML renderer's ICONS
+// (runtime/theme-pack.js) are the same paths; a test keeps the two in step.
+var ICONS = {
+    port: 'M3 8h18v5l-3 3H6l-3-3z',
+    flask: 'M9 3h6M10 3v6L5 18a2 2 0 0 0 1.8 3h10.4A2 2 0 0 0 19 18l-5-9V3M7.5 14h9',
+    usb: 'M6 2h12v9H6zM9 11v4h6v-4M12 15v7',
+    sliders: 'M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M14 4v4M8 10v4M16 16v4',
+    screen: 'M3 5h18v12H3zM8 21h8M12 17v4',
+    speaker: 'M11 5L6 9H2v6h4l5 4zM15.5 8.5a5 5 0 0 1 0 7',
+    moon: 'M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z',
+    leaf: 'M5 21c0-9 6-15 16-16-1 10-7 16-16 16zM5 21l8-8',
+    power: 'M12 2v10M5.6 6.6a9 9 0 1 0 12.8 0',
+    palette: 'M12 3a9 9 0 1 0 0 18c1 0 1.5-.8 1.5-1.5 0-1-.8-1.4-.8-2.3 0-.8.7-1.5 1.5-1.5H17a4 4 0 0 0 4-4c0-4.7-4-8.7-9-8.7zM7.5 11h.01M10 7.5h.01M14 7.5h.01',
+    sparkle: 'M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8zM19 16l.9 2.1L22 19l-2.1.9L19 22l-.9-2.1L16 19l2.1-.9z',
+    usbWarn: 'M6 2h12v9H6zM9 11v4h6v-4M12 15v7',
+    wifi: 'M5 12.5a10 10 0 0 1 14 0M8.5 16a5 5 0 0 1 7 0M2 9a15 15 0 0 1 20 0M12 19.5h.01',
+    grid: 'M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z',
+    help: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.7M12 17h.01',
+    person: 'M12 3.5h.01M5 8l7 1.5L19 8M12 9.5V14l-3 6M12 14l3 6',
+    drill: 'M9 6l6 6-6 6',
+    check: 'M5 12l5 5 9-10',
+    back: 'M15 6l-6 6 6 6',
+    close: 'M6 6l12 12M18 6L6 18',
+    plus: 'M12 5v14M5 12h14',
+    minus: 'M5 12h14',
+    home: 'M3 11l9-8 9 8M5 9.5V21h14V9.5M10 21v-6h4v6',
+    bell: 'M6 16v-5a6 6 0 0 1 12 0v5l2 2H4zM10 21h4',
+    info: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 11v6M12 7.5h.01',
+    warning: 'M12 3l10 18H2zM12 10v5M12 18h.01',
+    mute: 'M11 5L6 9H2v6h4l5 4zM16 9l6 6M22 9l-6 6',
+    clock: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 7v5l3 2',
+    aspect: 'M3 6h18v12H3zM7 10V9h2M17 14v1h-2',
+    eq: 'M6 4v16M12 4v16M18 4v16M3 15h6M9 8h6M15 13h6',
+    gamepad: 'M7 8h10a5 5 0 0 1 4.6 7l-.8 2a2.5 2.5 0 0 1-4.3.5L15 16H9l-1.5 1.5a2.5 2.5 0 0 1-4.3-.5l-.8-2A5 5 0 0 1 7 8zM8 11v3M6.5 12.5h3M15.5 12h.01M17.5 13.5h.01'
+};

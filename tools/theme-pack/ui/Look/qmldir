@@ -2,3 +2,27 @@ module Look
 singleton Look 1.0 Look.qml
 Decor 1.0 Decor.qml
 Ring 1.0 Ring.qml
+Label 1.0 kit/Label.qml
+Icon 1.0 kit/Icon.qml
+Surface 1.0 kit/Surface.qml
+Panel 1.0 kit/Panel.qml
+Header 1.0 kit/Header.qml
+Plate 1.0 kit/Plate.qml
+ListRow 1.0 kit/ListRow.qml
+Section 1.0 kit/Section.qml
+RowList 1.0 kit/RowList.qml
+Tile 1.0 kit/Tile.qml
+TileRibbon 1.0 kit/TileRibbon.qml
+Toggle 1.0 kit/Toggle.qml
+Radio 1.0 kit/Radio.qml
+Check 1.0 kit/Check.qml
+Slider 1.0 kit/Slider.qml
+Stepper 1.0 kit/Stepper.qml
+Chip 1.0 kit/Chip.qml
+Badge 1.0 kit/Badge.qml
+Button 1.0 kit/Button.qml
+ButtonRow 1.0 kit/ButtonRow.qml
+ToastCard 1.0 kit/ToastCard.qml
+Dialog 1.0 kit/Dialog.qml
+Scrim 1.0 kit/Scrim.qml
+KeyHints 1.0 kit/KeyHints.qml
