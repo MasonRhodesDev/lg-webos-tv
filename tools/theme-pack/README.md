@@ -113,3 +113,23 @@ luna-send -n 1 luna://com.webos.applicationManager/launch '{"id":"dev.themepack.
 Two packaging details matter on webOS 4.x. The `.ipk` must be a plain `ar` archive: GNU `ar` writes member names with a trailing slash, which the installer rejects ("Failed to extract package"), so `build-ipk.sh` writes the archive itself. The fonts must be static per-weight files: Chromium 53 predates variable fonts and would draw everything at one weight, so `fetch-fonts.sh` asks Google Fonts as that browser.
 
 In the app the UI draws over a stand-in gradient, not the live HDMI picture: a full-screen web app replaces the input while it runs.
+
+## Look in the stock Settings app
+
+`webos/settings-look.mjs` adds a **Look** category to the TV's own Settings app (`com.palm.app.settings`, webOS 4.5), next to Picture and Sound. Its panel uses the app's own radio and switch rows: one radio per installed style, one switch per theme. It runs on your own copy of the app, so no LG files enter this repo.
+
+```sh
+# copy the stock app off the TV (or out of a backup), then patch it
+ssh root@"$TV_HOST" 'tar -C /usr/palm/applications -cf - com.palm.app.settings' | tar -C /tmp/stock -xf -
+node tools/theme-pack/webos/settings-look.mjs --app /tmp/stock/com.palm.app.settings --out /tmp/settings-look
+TV_HOST=<tv address> sh tools/theme-pack/webos/settings-look-tv.sh apply /tmp/settings-look
+TV_HOST=<tv address> sh tools/theme-pack/webos/settings-look-tv.sh revert
+```
+
+How it works:
+
+- `main.js` gets four anchored edits, each of which must match exactly once: the Look panel component, an entry in the category-to-panel map, the category order, and the nav button. A different firmware fails loudly instead of patching the wrong place.
+- The app normally runs from a V8 snapshot of the stock `main.js` (`snapshot_blob.bin`), which would ignore the edit. Each `index*.html` is changed to always load `main.js`.
+- `apply` copies the patched app to RAM and bind-mounts it over the stock directory, then relaunches Settings. Nothing persists: `revert` or a reboot restores the stock app.
+
+Current limits: the choice is saved in the Settings app's own storage, so nothing else reads it yet; the Look button reuses the Picture icon; with eight categories the last one (Accessibility) sits below the bottom edge.
