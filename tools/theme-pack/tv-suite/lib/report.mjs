@@ -48,7 +48,11 @@ export async function writeReport(out, { boards, preview, say = () => {} } = {})
   for (const it of (man && man.items) || []) for (const id of it.covers || []) (status[id] = status[id] || []).push('manual ' + it.id + ' ' + it.verdict);
   if (boot) for (const id of ['stub-mounted', 'stub-resident', 'hook-order', 'telemetry']) (status[id] = status[id] || []).push('coldboot ' + (boot.ok ? 'pass' : 'fail'));
 
-  const sec = results.runs.map((r) => {
+  // The cold boot's redirect run and the manual pass's captures show like any run.
+  const runs = results.runs.slice();
+  if (boot && boot.redirect) runs.unshift(Object.assign({}, boot.redirect, { id: 'coldboot-redirect', title: 'redirect, first after the cold boot' }));
+  for (const it of (man && man.items) || []) if (it.captures && it.captures.length) runs.push({ id: 'manual-' + it.id, title: 'manual pass: ' + it.id, status: it.verdict, reason: it.note, keys: it.keys || [], checks: it.checks, captures: it.captures });
+  const sec = runs.map((r) => {
     const checks = r.checks.map((c) => '<li class="' + (c.ok ? 'ok' : 'bad') + '">' + (c.ok ? 'ok' : 'FAIL') + ' ' + esc(c.name) + (c.detail ? ' <small>' + esc(c.detail) + '</small>' : '') + '</li>').join('');
     const caps = r.captures.map((c) => {
       const b = beside(c);
@@ -71,7 +75,7 @@ export async function writeReport(out, { boards, preview, say = () => {} } = {})
   const manSec = man ? '<h2>Manual pass</h2><table><tr><th>Item</th><th>Verdict</th><th>Note</th><th>The suite saw</th><th>Its checks</th></tr>' + man.items.map((it) =>
     '<tr><td>' + esc(it.id) + '</td><td>' + esc(it.verdict) + '</td><td>' + esc(it.note) + '</td><td><small>' + it.saw.map((x) => esc(x.t + ' s ' + x.what)).join('<br>') +
     '</small></td><td><ul>' + it.checks.map(li).join('') + '</ul></td></tr>').join('') + '</table>' : '';
-  const nav = results.runs.map((r) => '<a class="' + r.status + '" href="#' + esc(r.id) + '">' + esc(r.id) + '</a>').join(' ');
+  const nav = runs.map((r) => '<a class="' + r.status + '" href="#' + esc(r.id) + '">' + esc(r.id) + '</a>').join(' ');
 
   const html = '<!doctype html><html><head><meta charset="utf-8"><title>TV suite run</title><style>' +
     ':root{--bg:#101014;--ink:#eee;--dim:#999;--ok:#7c6;--bad:#f67;--skip:#cb5}body{background:var(--bg);color:var(--ink);font:14px system-ui,sans-serif;margin:16px}' +

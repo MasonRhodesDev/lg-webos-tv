@@ -51,7 +51,7 @@ export const CHECKLIST = [
   { group: '2. Remote buttons and the pointer', items: [
     { id: 'gear-held', covers: ['gear-closes'],
       press: 'Hold the gear button for two seconds, then let go.',
-      look: 'The quick sheet opens once and stays open.', pass: 'No flicker open and shut.',
+      look: 'The quick sheet opens once and stays open. (The suite samples about twice a second, so a shorter flicker is yours to see.)', pass: 'No flicker open and shut.',
       check: (saw) => saw.filter((l) => /sheet quick/.test(l.what) && !/sheet quick/.test(l.was)).length === 1 },
     { id: 'hotkeys', covers: ['hotkeys'],
       press: "If your remote (or its on-screen remote) has the picture-mode and sleep hotkeys, press each, and BACK out of what opens.",

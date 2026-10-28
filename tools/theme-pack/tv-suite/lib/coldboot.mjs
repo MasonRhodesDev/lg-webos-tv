@@ -2,6 +2,7 @@
 // Settings: the stub mounted by the hook, no stock Settings resident, the redirect scenario, the host-ready report,
 // the telemetry state after the hook, and Hook A. Reports the boot's timings (seconds since power-on). Running it
 // again reboots again: it changes nothing else.
+import path from 'node:path';
 import { runScenarios } from './run.mjs';
 import { SCENARIOS } from './scenarios.mjs';
 
@@ -55,7 +56,11 @@ export async function coldboot(ctx, { upTimeout = 600, hookTimeout = 300 } = {})
   ctx.check('mount lists the bind over LG\'s Settings', m.stdout.includes(' ' + SETTINGS_APP + ' '));
   const running = ((await tv.luna('luna://com.webos.applicationManager/running', {})).running || []).map((a) => a.id);
   ctx.check('no stock Settings is resident after boot', !running.includes('com.palm.app.settings'), running.join(', '));
-  const r = await runScenarios(ctx, SCENARIOS.filter((s) => s.id === 'redirect'));
+  // Its captures go under coldboot/, so a later `run` into the same directory keeps them.
+  const outDir = ctx.out;
+  ctx.out = path.join(outDir, 'coldboot');
+  const r = await runScenarios(ctx, SCENARIOS.filter((s) => s.id === 'redirect')).finally(() => { ctx.out = outDir; });
+  for (const c of r.runs[0].captures) c.file = path.join('coldboot', c.file);
   out.redirect = r.runs[0];
   ctx.scenario = { id: 'coldboot' };
   ctx.current = { checks: out.checks, captures: [], keys: [] };

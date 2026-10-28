@@ -269,6 +269,13 @@ test('dry run: coldboot reboots, waits for ssh and the hook, then checks in orde
     assert.deepStrictEqual(names.slice(0, 4), ['the hook mounted the stub', "mount lists the bind over LG's Settings", 'no stock Settings is resident after boot', 'redirect, first after the boot']);
     assert.ok(b.checks.every((c) => c.ok), JSON.stringify(b.checks));
     assert.strictEqual(JSON.parse(fs.readFileSync(f, 'utf8')).boots, i);
+    if (i === 2) {
+      assert.strictEqual(go('run', out, '--scenario', 'redirect').status, 0);
+      const pngs = (d) => fs.existsSync(path.join(out, d)) ? fs.readdirSync(path.join(out, d)).filter((x) => x.endsWith('.png')) : [];
+      assert.ok(pngs('coldboot/redirect').length > 0 && pngs('redirect').length > 0, 'the boot\'s frames and the run\'s are both kept');
+      assert.strictEqual(go('report', out).status, 0);
+      assert.match(fs.readFileSync(path.join(out, 'index.html'), 'utf8'), /coldboot\/redirect\/01-/);
+    }
   }
   const s = JSON.parse(fs.readFileSync(f, 'utf8'));
   assert.deepStrictEqual(s.unknown, []);
@@ -293,6 +300,8 @@ test('dry run: the manual pass prints its checklist, breaks the layer on purpose
   assert.ok(by('layer-broken').checks.some((c) => c.ok && /hook leaves LG's Settings/.test(c.name)));
   assert.ok(by('part-removed').checks.some((c) => c.ok && /opens LG's Quick Settings/.test(c.name)));
   assert.strictEqual(by('part-removed').note, 'looks fine');
+  assert.strictEqual(by('exit').verdict, 'fail', 'a pass the suite did not see (nobody pressed EXIT on the fake) is a fail');
+  assert.ok(by('exit').checks.some((c) => !c.ok && /what the suite saw agrees/.test(c.name)));
   assert.strictEqual(by('stub-removed').verdict, 'fail');
   assert.strictEqual(by('stub-removed').note, 'the tile opened nothing');
   assert.strictEqual(r.status, 1, 'a failed verdict fails the pass');
