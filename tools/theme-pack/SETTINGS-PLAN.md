@@ -331,7 +331,7 @@ fixtures go where `preview/render.mjs` scenes can load them (main has it now). F
 | `.../setSystemSettings`, `.../resetSystemSettings` | update the fixture, `{returnValue: true}`; a scene can force `{returnValue: false, errorText}` to show the rollback |
 | `.../batch {operations}` | each operation answered as above, in `results` |
 | `com.webos.service.tv.time/getSleepTimeInfo`, `setSleepTimeInfo` | `{sleepTimeMinute, sleepTimeSecond}` |
-| `com.webos.service.connectionmanager/getstatus` | online over Wi-Fi with an SSID and addresses from the documentation ranges (RFC 5737), or offline / cable variants |
+| `com.webos.service.connectionmanager/getstatus` | the boards' TV by default: on a cable with the internet blocked, addresses from the documentation ranges (RFC 5737); scenes switch to online or Wi-Fi variants |
 | `com.webos.service.wifi/findnetworks` | five networks with signal levels 1-4, open and secured, one connected, one saved |
 | `com.webos.service.btaudiosrc/getPairedDevices`, `getConnectedDevice` | two paired devices, one connected |
 | `com.palm.systemservice/getPreferences {keys: [useNetworkTime, timeZone]}` | `{useNetworkTime: true, timeZone: "America/New_York"}` |
