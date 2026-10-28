@@ -10,20 +10,27 @@ import "keys.js" as KeyMap
 // Up/Down move over focusable rows, OK is activated(), Left/Right step a slider or stepper row (adjusted()), and
 // Back is back(). Focus scrolls into view; rows not wholly inside the list fade out, so the list needs no clip and
 // focus decoration is never cut.
+//
+// Live data: set `rows` (the specs) and `model: rows.length` instead. A new `rows` of the same length then updates
+// the rows in place (a toggle slides, focus stays) rather than making them again.
+// `pointer: true` (our own menus) lets the magic remote's pointer focus a row by hovering and activate it by a click.
 ListView {
     id: list
     property bool focusShown: true
+    property var rows: null
+    property bool pointer: false
     signal activated(int index, var row)
     signal adjusted(int index, int delta)
     signal back()
 
-    function spec(i) { return model && i >= 0 && i < model.length ? model[i] : null; }
+    readonly property int length: rows ? rows.length : model && model.length !== undefined ? model.length : 0
+    function spec(i) { return i >= 0 && i < length ? (rows ? rows[i] : model[i]) : null; }
     function focusable(i) {
         var r = spec(i);
         return !!r && r.section === undefined && r.variant !== "info" && !r.disabled;
     }
     function move(d) {
-        for (var i = currentIndex + d; i >= 0 && i < model.length; i += d)
+        for (var i = currentIndex + d; i >= 0 && i < length; i += d)
             if (focusable(i)) { currentIndex = i; return true; }
         return false;
     }
@@ -90,7 +97,7 @@ ListView {
 
     delegate: Item {
         id: slot
-        readonly property var r: modelData
+        readonly property var r: list.rows ? (list.rows[index] || {}) : modelData
         readonly property int at: index
         readonly property bool header: r.section !== undefined
         width: list.width
@@ -118,7 +125,15 @@ ListView {
             index: slot.r.index || 0
             current: !!slot.r.current
             disabled: !!slot.r.disabled
+            busy: !!slot.r.busy
             focused: list.focusShown && slot.at === list.currentIndex && !slot.header
+        }
+        MouseArea {
+            anchors.fill: parent
+            enabled: list.pointer && list.focusable(slot.at)
+            hoverEnabled: enabled
+            onEntered: list.currentIndex = slot.at
+            onClicked: { list.currentIndex = slot.at; list.activated(slot.at, slot.r); }
         }
     }
 }

@@ -14,8 +14,8 @@ Item {
     Label {
         id: crumbLabel
         visible: !!header.crumb
-        role: "heading"
-        text: header.crumb + "  ›"
+        role: "label"
+        text: header.crumb + " ›"
         color: Look.color("ink-3")
         width: parent.width
     }

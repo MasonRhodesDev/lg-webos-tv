@@ -27,3 +27,6 @@ Dialog 1.0 kit/Dialog.qml
 Scrim 1.0 kit/Scrim.qml
 KeyHints 1.0 kit/KeyHints.qml
 Screen 1.0 kit/Screen.qml
+Busy 1.0 kit/Busy.qml
+SettingsStore 1.0 settings/Store.qml
+singleton SettingsBus 1.0 settings/Bus.qml

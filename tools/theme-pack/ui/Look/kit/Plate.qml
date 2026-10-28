@@ -114,6 +114,54 @@ Item {
             color: Look.color("current")
         }
     }
+    // Disabled: a dashed edge (the boards' disabled state). Canvas has no setLineDash on Qt 5.6, so the dashes are
+    // walked along the rounded outline.
+    Canvas {
+        id: dashes
+        anchors.fill: parent
+        visible: plate.disabled && !plate.focused
+        renderTarget: Canvas.Image
+        antialiasing: true
+        onVisibleChanged: if (visible) requestPaint()
+        onWidthChanged: requestPaint()
+        onHeightChanged: requestPaint()
+        onPaint: {
+            var ctx = getContext("2d"), w = Math.max(2, Look.px("edge-w")), dash = 3 * w, gap = 2 * w;
+            var r = Math.min(plate.radius, width / 2, height / 2), inset = w / 2;
+            var x0 = inset, y0 = inset, x1 = width - inset, y1 = height - inset, rr = Math.max(0, r - inset);
+            var straightW = x1 - x0 - 2 * rr, straightH = y1 - y0 - 2 * rr, arc = Math.PI * rr / 2;
+            // The outline as eight pieces, clockwise from the top left: [length, point(at)].
+            var parts = [
+                [straightW, function (d) { return [x0 + rr + d, y0]; }],
+                [arc, function (d) { var a = -Math.PI / 2 + d / rr; return [x1 - rr + rr * Math.cos(a), y0 + rr + rr * Math.sin(a)]; }],
+                [straightH, function (d) { return [x1, y0 + rr + d]; }],
+                [arc, function (d) { var a = d / rr; return [x1 - rr + rr * Math.cos(a), y1 - rr + rr * Math.sin(a)]; }],
+                [straightW, function (d) { return [x1 - rr - d, y1]; }],
+                [arc, function (d) { var a = Math.PI / 2 + d / rr; return [x0 + rr + rr * Math.cos(a), y1 - rr + rr * Math.sin(a)]; }],
+                [straightH, function (d) { return [x0, y1 - rr - d]; }],
+                [arc, function (d) { var a = Math.PI + d / rr; return [x0 + rr + rr * Math.cos(a), y0 + rr + rr * Math.sin(a)]; }]
+            ];
+            function at(s) {
+                for (var i = 0; i < parts.length; i++) { if (s <= parts[i][0] || i === parts.length - 1) return parts[i][1](Math.min(s, parts[i][0])); s -= parts[i][0]; }
+                return [x0, y0];
+            }
+            var total = 0;
+            for (var i = 0; i < parts.length; i++) total += parts[i][0];
+            ctx.reset();
+            ctx.lineWidth = w;
+            ctx.strokeStyle = Look.color("ink-disabled");
+            ctx.globalAlpha = 0.78;
+            ctx.beginPath();
+            for (var s = 0; s < total; s += dash + gap) {
+                var p = at(s);
+                ctx.moveTo(p[0], p[1]);
+                for (var t = s + 2; t < Math.min(s + dash, total); t += 2) { p = at(t); ctx.lineTo(p[0], p[1]); }
+                p = at(Math.min(s + dash, total));
+                ctx.lineTo(p[0], p[1]);
+            }
+            ctx.stroke();
+        }
+    }
     Rectangle {
         anchors.fill: parent
         radius: plate.radius

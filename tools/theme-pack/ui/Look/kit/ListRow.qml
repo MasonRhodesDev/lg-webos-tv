@@ -10,7 +10,11 @@ import Look 1.0
 //   check    a check box (`checked`): any number of several
 //   slider   a slider (`fraction`, `valueText`)
 //   stepper  ‹ value › stepping through `options` at `index`
+//   choice   one value of a picker page: a tick in the current colour when `checked` (the Settings boards)
+//   action   the value text, if any, and nothing after it: OK does it (Screen off)
+//   category a category in a side list: no trailing control, a little shorter, no plate at rest unless current
 //   info     the value text only; not focusable
+// `busy` puts a Busy spinner before the value (scanning, connecting).
 // Decoratable as `row`; the trailing controls are decoratable too (knob, thumb, radio, check).
 Item {
     id: row
@@ -29,11 +33,12 @@ Item {
     property bool focused: false
     property bool current: false
     property bool disabled: false
+    property bool busy: false
     readonly property Item control: trailing.item
     signal stepped(int index)
 
     width: parent ? parent.width : Look.px("panel-w")
-    height: Look.px(hint ? "row-h-2" : "row-h")
+    height: variant === "category" ? Look.px("row-h") - Look.px("space-xs") : Look.px(hint ? "row-h-2" : "row-h")
     z: focused ? 2 : 0
     scale: focused ? Look.px("focus-scale") : 1
     Behavior on scale { NumberAnimation { duration: Look.px("motion-focus"); easing.type: Easing.Bezier; easing.bezierCurve: Look.curve("ease-focus") } }
@@ -56,6 +61,7 @@ Item {
             current: row.current
             disabled: row.disabled
             hue: row.hue
+            rest: row.variant === "category" && !row.current ? "transparent" : Look.color("inner")
         }
         Icon {
             id: glyph
@@ -78,7 +84,8 @@ Item {
             x: row.width - row.pad - width
             anchors.verticalCenter: parent.verticalCenter
             sourceComponent: row.variant === "toggle" ? toggle : row.variant === "radio" ? radio : row.variant === "check" ? check
-                           : row.variant === "slider" ? slider : row.variant === "stepper" ? stepper : valueAndChevron
+                           : row.variant === "slider" ? slider : row.variant === "stepper" ? stepper : row.variant === "choice" ? tick
+                           : row.variant === "category" ? null : valueAndChevron
         }
     }
 
@@ -86,6 +93,11 @@ Item {
         id: valueAndChevron
         Row {
             spacing: Look.px("space-xs")
+            Busy {
+                visible: row.busy
+                color: row.soft
+                anchors.verticalCenter: parent.verticalCenter
+            }
             Label {
                 visible: !!row.value
                 role: "value"
@@ -94,12 +106,23 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
             }
             Icon {
-                visible: row.variant !== "info"
+                visible: row.variant !== "info" && row.variant !== "action"
                 name: "drill"
                 size: Look.px("icon") * 0.8
                 color: row.soft
                 anchors.verticalCenter: parent.verticalCenter
             }
+        }
+    }
+    Component {
+        id: tick
+        Icon {
+            name: "check"
+            stroke: 3
+            size: Look.px("icon") * 0.95
+            color: row.disabled ? Look.color("ink-disabled") : row.inverted ? Look.color("focus-ink") : Look.color("current")
+            opacity: row.checked ? 1 : 0
+            Behavior on opacity { NumberAnimation { duration: Look.px("motion-value") } }
         }
     }
     Component { id: toggle; Toggle { on: row.on; disabled: row.disabled; inverted: row.inverted } }
@@ -110,7 +133,7 @@ Item {
         Row {
             spacing: Look.px("space-m")
             Slider {
-                length: Math.round(row.width * 0.38)
+                length: Math.min(Look.px("panel-w") / 2, Math.round(row.width * 0.35))
                 fraction: row.fraction
                 disabled: row.disabled
                 inverted: row.inverted
