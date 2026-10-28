@@ -12,7 +12,7 @@ Item {
 
     // Each file is one part. A part is an Item with `property Item lg` and `function claims(item)`; it may set
     // `searchDepth` (how deep under the root its LG item sits, default 2). A part of our own with no LG counterpart
-    // (the Look picker) leaves out `claims`: nothing is searched for or hidden.
+    // leaves out `claims`: nothing is searched for or hidden.
     // A part with `onDemand: true` replaces an item LG creates later and destroys again (system UI overlays, the
     // toast view). It waits instead of being a gap, is claimed whenever LG shows its item, and is visible only while
     // it holds one.

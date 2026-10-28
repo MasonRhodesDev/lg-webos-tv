@@ -1,5 +1,5 @@
 #!/bin/sh
-# Package the theme-pack demo as a webOS web app (.ipk) for sideloading.
+# Package the Look service, its packs, and the Look app (.ipk) for sideloading.
 # Usage: build-ipk.sh [OUT_DIR]
 # Needs: sh, tar, gzip, node.
 set -eu
@@ -13,9 +13,11 @@ trap 'rm -rf "$work"' EXIT
 app="$work/data/usr/palm/applications/$id"
 mkdir -p "$app" "$work/control" "$out"
 
-cp "$here/tv/appinfo.json" "$here/tv/icon.png" "$here/tv/largeIcon.png" "$app/"
-cp -r "$here/runtime" "$here/packs" "$here/screens" "$app/"
-cp "$here/demo/app.js" "$app/app.js"
+# The Look app, the Home screen's Look icon: the Settings stub's page with no LG targets, so every launch opens our
+# Settings at its Look page and closes (webos/settings-stub/stub.js). It draws nothing.
+cp "$here/tv/appinfo.json" "$here/tv/icon.png" "$here/tv/largeIcon.png" "$here/webos/settings-stub/index.html" \
+   "$here/webos/settings-stub/stub.js" "$app/"
+printf '// The Look app: every launch opens our Settings at its Look page.\nvar SETTINGS_TARGETS = {};\nvar SETTINGS_PAGE = "Look";\n' > "$app/targets.js"
 
 # The Look service and the package manifest that ties it to the app.
 svc="$work/data/usr/palm/services/$id.service"
@@ -25,25 +27,6 @@ node "$here/export-json.mjs" "$svc/packs" >/dev/null
 cp -r "$here/packs/assets" "$here/packs/fonts" "$svc/packs/"
 mkdir -p "$svc/data" && chmod 0777 "$svc/data"
 cp "$here/tv/packageinfo.json" "$work/data/usr/palm/packages/$id/"
-# The app reads the same font files (packs/ is copied whole above); its weights come from the file names.
-node -e '
-const fs = require("fs"), path = require("path");
-const dir = process.argv[1], css = [];
-for (const f of fs.readdirSync(path.join(dir, "packs/styles"))) {
-  const font = require(path.join(dir, "packs/styles", f)).font;
-  for (const file of font.files) {
-    css.push("@font-face { font-family: \x27" + font.family + "\x27; font-style: normal; font-weight: " +
-      /-(\d+)\.ttf$/.exec(file)[1] + "; src: url(packs/fonts/" + file + ") format(\x27truetype\x27); }");
-  }
-}
-fs.writeFileSync(path.join(process.argv[2], "fonts.css"), css.join("\n") + "\n");
-' "$here" "$app"
-
-# The demo page with paths rewritten for the app root, TV mode on, and local fonts.
-sed -e 's#\.\./##g' \
-    -e "s#<script src=\"runtime/theme-pack.js\"></script>#<script>window.THEME_PACK_TV = true;</script>\n<script src=\"runtime/theme-pack.js\"></script>#" \
-    -e 's#</head>#<link rel="stylesheet" href="fonts.css">\n</head>#' \
-    "$here/demo/index.html" > "$app/index.html"
 
 size=$(du -sk "$work/data" | cut -f1)
 cat > "$work/control/control" <<EOF
@@ -54,7 +37,7 @@ Priority: optional
 Architecture: all
 Installed-Size: $size
 Maintainer: theme-pack
-Description: Swappable styles and themes demo
+Description: Look: styles and themes for our TV UI
 webOS-Package-Format-Version: 2
 webOS-Packager-Version: x.y.x
 EOF

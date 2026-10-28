@@ -1,8 +1,8 @@
-(function (root) {
+(function () {
   var pack = {
     kind: 'style', id: 'bubble', name: 'Bubble',
     description: 'Clear white-tinted glass, rounded type, focus fills with each item\'s own colour.',
-    font: { family: 'Fredoka', stack: 'Fredoka, sans-serif', google: 'Fredoka:wght@500;600;700',
+    font: { family: 'Fredoka', google: 'Fredoka:wght@500;600;700',
       files: ['Fredoka/Fredoka-500.ttf', 'Fredoka/Fredoka-600.ttf', 'Fredoka/Fredoka-700.ttf'] },
     tokens: {
       'surface': 'rgba(255,255,255,0.18)', 'surface-edge': 'rgba(255,255,255,0.38)', 'inner': 'rgba(255,255,255,0.12)',
@@ -32,8 +32,7 @@
       'motion-focus': '180ms', 'motion-value': '260ms', 'motion-enter': '420ms', 'motion-exit': '220ms',
       'ease-focus': 'cubic-bezier(0.34,1.56,0.64,1)', 'ease-enter': 'cubic-bezier(0.34,1.3,0.64,1)', 'ease-exit': 'cubic-bezier(0.4,0,1,1)', 'enter-shift': '64px'
     },
-    behaviour: { focusFill: 'hue', textShadow: true }
+    behaviour: { focusFill: 'hue' }
   };
-  if (typeof module !== 'undefined' && module.exports) module.exports = pack;
-  else root.ThemePack.register(pack);
-})(this);
+  module.exports = pack;
+})();

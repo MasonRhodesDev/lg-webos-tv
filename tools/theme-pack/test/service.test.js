@@ -79,16 +79,6 @@ test('openSettings refuses a target that is not a page id', () => {
   assert.strictEqual(sub.length, 1, 'subscribers hear nothing');
 });
 
-test('settings requests leave the picker alone, and the other way round', () => {
-  const { call } = start();
-  call('openPicker');
-  const r = call('openSettings', { target: 'Sound' });
-  assert.strictEqual(r[0].picker.open, true);
-  const p = call('closePicker');
-  assert.strictEqual(p[0].settings.open, true);
-  assert.strictEqual(p[0].settings.target, 'Sound');
-});
-
 test('getTelemetry says active only while the telemetry-off blackhole is live and not switched off', () => {
   const kit = fs.mkdtempSync(path.join(os.tmpdir(), 'telemetry-off-'));
   const hosts = path.join(kit, 'hosts');

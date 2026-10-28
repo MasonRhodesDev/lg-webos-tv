@@ -58,7 +58,6 @@ function payload(style, active) {
     returnValue: true,
     look: { style: style.id, themes: active.map((t) => t.id) },
     subscribers: 0,
-    picker: { open: false, at: 0 },
     settings: { open: false, target: '', at: 0 },
     assets: 'file://' + path.join(packsDir, 'assets') + '/',
     fonts: 'file://' + path.join(packsDir, 'fonts') + '/',

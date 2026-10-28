@@ -35,7 +35,7 @@ function parse(r) {
   const els = [...(r.html || '').matchAll(/<svg\b([^>]*)>([\s\S]*?)<\/svg>/g)];
   if (!els.length || els.map((m) => m[0]).join('') !== r.html.trim()) return { why: 'html is not only <svg> elements' };
   for (const [k] of decls(r.style)) {
-    if (!/^(left|right|top|bottom|width|height|overflow|text-align|opacity)$/.test(k)) return { why: 'style has ' + k };
+    if (!/^(left|right|top|bottom|width|height|opacity)$/.test(k)) return { why: 'style has ' + k };
   }
   return { svgs: els.map((m) => ({ a: attrs(m[1]), body: m[2] })) };
 }

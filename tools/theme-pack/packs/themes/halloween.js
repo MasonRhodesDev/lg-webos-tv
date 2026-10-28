@@ -1,4 +1,4 @@
-(function (root) {
+(function () {
   // Haunted night: a moonlit dusk with bats behind everything, cobwebs gathering in corners, a graveyard along the
   // bottom edge, jack-o'-lantern orange for light, spiders on the switches and a pumpkin on every slider.
   var INK = '#1A0F24';
@@ -64,34 +64,32 @@
   var pack = {
     kind: 'theme', id: 'halloween', name: 'Halloween',
     description: 'Holiday: a moon and bats behind everything, cobwebs in corners, a graveyard under the inputs, spiders on panels and switches, pumpkins on sliders and chips, an orange glow behind focus.',
-    reads: [],
     recipes: [
-      { target: 'screen', slot: 'back', when: 'always', outset: 0, cost: 'static', style: 'overflow:hidden', html: SKY, asset: 'sky.png' },
+      { target: 'screen', slot: 'back', when: 'always', outset: 0, cost: 'static', html: SKY, asset: 'sky.png' },
       { target: 'screen', slot: 'front', when: 'always', outset: 0, cost: 'static', style: 'left:auto;bottom:auto;width:150px;height:150px', html: web(150, false, 'rgba(255,255,255,0.6)'), asset: 'corner-web-right.png' },
       { target: 'screen', slot: 'front', when: 'always', outset: 0, cost: 'static', style: 'right:auto;bottom:auto;width:150px;height:150px', html: web(150, true, 'rgba(255,255,255,0.6)'), asset: 'corner-web-left.png' },
       { target: 'panel', slot: 'front', when: 'always', outset: [0, 52, 0, 0], cost: 'static', style: 'left:auto;bottom:auto;width:44px;height:170px', html: SPIDER, asset: 'spider.png' },
       { target: 'ribbon', slot: 'back', when: 'always', outset: [0, 96, 54, 96], cost: 'static', style: 'top:auto;height:54px', html: GRAVEYARD, asset: 'graveyard.png' },
       { target: 'toast', slot: 'front', when: 'always', outset: [24, 0, 0, 34], cost: 'static', style: 'right:auto;bottom:auto;width:56px;height:28px', html: FLYING_BAT, asset: 'toast-bat.png' },
-      { target: 'dialog', slot: 'back', when: 'always', outset: 28, cost: 'glow', style: 'border-radius:72px;background:' + GLOW + ';opacity:0.2;-webkit-filter:blur(36px);filter:blur(36px)',
+      { target: 'dialog', slot: 'back', when: 'always', outset: 28, cost: 'glow',
         fill: GLOW, radius: 72, blur: 36, opacity: 0.2 },
       { target: 'dialog', slot: 'front', when: 'always', outset: [8, 0, 0, 8], cost: 'static', style: 'right:auto;bottom:auto;width:64px;height:64px', html: web(64, true, 'rgba(255,255,255,0.55)'), asset: 'dialog-web.png' },
-      { target: '*', slot: 'back', when: 'focused', outset: 26, cost: 'glow', style: 'border-radius:56px;background:' + GLOW + ';opacity:0.5;-webkit-filter:blur(16px);filter:blur(16px)',
+      { target: '*', slot: 'back', when: 'focused', outset: 26, cost: 'glow',
         fill: GLOW, radius: 56, blur: 16, opacity: 0.5 },
       { target: 'tile', slot: 'front', when: 'always', outset: [20, 20, 0, 0], cost: 'static', style: 'left:auto;bottom:auto;width:44px;height:44px', html: web(44, false, 'rgba(255,255,255,0.75)'), asset: 'tile-web.png' },
-      { target: 'chip', slot: 'back', when: 'always', outset: 6, cost: 'static', style: 'border-radius:999px;box-shadow:inset 0 0 0 6px ' + GLOW,
+      { target: 'chip', slot: 'back', when: 'always', outset: 6, cost: 'static',
         stroke: GLOW, strokeWidth: 6, radius: 999 },
-      { target: 'chip', slot: 'front', when: 'always', outset: [16, 0, 0, 0], cost: 'static', style: 'bottom:auto;height:16px;text-align:center',
+      { target: 'chip', slot: 'front', when: 'always', outset: [16, 0, 0, 0], cost: 'static', style: 'bottom:auto;height:16px',
         html: '<svg width="14" height="16" viewBox="0 0 14 16" aria-hidden="true"><path d="M6 16c0-6 1-11 6-14-1 4-2 9-2 14z" fill="#3C6E2A"></path></svg>', asset: 'chip-leaf.png' },
-      { target: 'badge', slot: 'back', when: 'always', outset: 3, cost: 'static', style: 'border-radius:999px;box-shadow:inset 0 0 0 3px ' + GLOW,
+      { target: 'badge', slot: 'back', when: 'always', outset: 3, cost: 'static',
         stroke: GLOW, strokeWidth: 3, radius: 999 },
       { target: 'thumb', slot: 'front', when: 'always', outset: 10, cost: 'static', style: '', html: PUMPKIN, asset: 'thumb.png' },
       { target: 'knob', slot: 'front', when: 'always', outset: 6, cost: 'static', style: '', html: SPIDER_KNOB, asset: 'knob.png' },
-      { target: 'radio', slot: 'back', when: 'current', outset: 10, cost: 'glow', style: 'border-radius:999px;background:' + GLOW + ';opacity:0.55;-webkit-filter:blur(8px);filter:blur(8px)',
+      { target: 'radio', slot: 'back', when: 'current', outset: 10, cost: 'glow',
         fill: GLOW, radius: 999, blur: 8, opacity: 0.55 },
-      { target: 'check', slot: 'back', when: 'current', outset: 10, cost: 'glow', style: 'border-radius:18px;background:' + GLOW + ';opacity:0.55;-webkit-filter:blur(8px);filter:blur(8px)',
+      { target: 'check', slot: 'back', when: 'current', outset: 10, cost: 'glow',
         fill: GLOW, radius: 18, blur: 8, opacity: 0.55 }
     ]
   };
-  if (typeof module !== 'undefined' && module.exports) module.exports = pack;
-  else root.ThemePack.register(pack);
-})(this);
+  module.exports = pack;
+})();

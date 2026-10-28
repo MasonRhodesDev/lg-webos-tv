@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Writes each style and theme pack as JSON, the format the Look service and the TV renderers read.
+// Writes each style and theme pack as JSON, the format the Look service reads and serves.
 import { createRequire } from 'node:module';
 import { mkdirSync, readdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';

@@ -116,13 +116,9 @@ QtObject {
         chosen = m.look;
         behaviour = m.style.behaviour || {};
         available = m.available || { "styles": [], "themes": [] };
-        if (m.picker) {
-            // The first answer of each subscription only records where requests stand.
-            if (pickerAt >= 0 && m.picker.at !== pickerAt) pickerRequested(m.picker.open);
-            pickerAt = m.picker.at;
-        }
         if (m.settings) {
-            // Same rule as the picker. Only opens are requests: closeSettings comes from the layer itself.
+            // The first answer of each subscription only records where requests stand. Only opens are requests:
+            // closeSettings comes from the layer itself.
             if (settingsAt >= 0 && m.settings.at !== settingsAt && m.settings.open) settingsRequested(m.settings.target || "");
             settingsAt = m.settings.at;
         }
@@ -157,16 +153,13 @@ QtObject {
         }
     }
 
-    // Someone asked for our Look picker to open or close (the Look app's launch, or luna-send).
-    signal pickerRequested(bool open)
-    property real pickerAt: -1
-    // Someone asked for our Settings at a page (a catalog page id, or "" for the top): the Settings stub, or luna-send.
+    // Someone asked for our Settings at a page (a catalog page id, or "" for the top): the Settings stub, the Look app,
+    // or luna-send.
     signal settingsRequested(string target)
     property real settingsAt: -1
 
     // Changes go out on their own bus object; their result comes back through the subscription.
     function setLook(change) { command.call(service, "/setLook", JSON.stringify(change)); }
-    function closePicker() { command.call(service, "/closePicker", "{}"); }
     function closeSettings() { command.call(service, "/closeSettings", "{}"); }
     property var command: Service { appId: "com.webos.surfacemanager.systemui" }
 
@@ -195,7 +188,6 @@ QtObject {
                 if (m.serviceName !== "dev.themepack.look.service") return;
                 look.online = m.connected;
                 if (m.connected) {
-                    look.pickerAt = -1;
                     look.settingsAt = -1;
                     look.bus.call(look.service, "/getLook", JSON.stringify({ "subscribe": true }));
                 }

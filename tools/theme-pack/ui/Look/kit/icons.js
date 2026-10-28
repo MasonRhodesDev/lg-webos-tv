@@ -1,6 +1,5 @@
 .pragma library
-// The icon set: SVG path data on a 24x24 grid, drawn as 2 px round strokes. The HTML renderer's ICONS
-// (runtime/theme-pack.js) are the same paths; a test keeps the two in step.
+// The icon set: SVG path data on a 24x24 grid, drawn as 2 px round strokes.
 var ICONS = {
     port: 'M3 8h18v5l-3 3H6l-3-3z',
     flask: 'M9 3h6M10 3v6L5 18a2 2 0 0 0 1.8 3h10.4A2 2 0 0 0 19 18l-5-9V3M7.5 14h9',

@@ -1,8 +1,8 @@
-(function (root) {
+(function () {
   var pack = {
     kind: 'style', id: 'smoke', name: 'Smoke',
     description: 'Smoked glass over the picture, hot-pink focus, lime for current and attention.',
-    font: { family: 'Lexend', stack: 'Lexend, sans-serif', google: 'Lexend:wght@400;500;600;700',
+    font: { family: 'Lexend', google: 'Lexend:wght@400;500;600;700',
       files: ['Lexend/Lexend-400.ttf', 'Lexend/Lexend-500.ttf', 'Lexend/Lexend-600.ttf', 'Lexend/Lexend-700.ttf'] },
     tokens: {
       'surface': 'rgba(10,10,18,0.72)', 'surface-edge': 'rgba(255,255,255,0.22)', 'inner': 'rgba(255,255,255,0.08)',
@@ -32,8 +32,7 @@
       'motion-focus': '140ms', 'motion-value': '200ms', 'motion-enter': '320ms', 'motion-exit': '200ms',
       'ease-focus': 'cubic-bezier(0.2,0,0,1)', 'ease-enter': 'cubic-bezier(0.05,0.7,0.1,1)', 'ease-exit': 'cubic-bezier(0.3,0,0.8,0.15)', 'enter-shift': '40px'
     },
-    behaviour: { focusFill: 'token', textShadow: true }
+    behaviour: { focusFill: 'token' }
   };
-  if (typeof module !== 'undefined' && module.exports) module.exports = pack;
-  else root.ThemePack.register(pack);
-})(this);
+  module.exports = pack;
+})();

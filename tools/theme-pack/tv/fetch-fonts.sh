@@ -1,8 +1,7 @@
 #!/bin/sh
 # Download each style's font from Google Fonts into packs/fonts/<family>/, with its OFL licence. The files are
 # committed, so building needs no internet; rerun this only when a style's font or weights change.
-# Static per-weight TrueType files, because neither consumer reads anything newer: the TV's Qt 5.6 FreeType has no
-# WOFF2, and Chromium 53 predates variable fonts. Google serves TTF to a client it does not recognise.
+# Static per-weight TrueType files: the TV's Qt 5.6 FreeType reads no WOFF2, and each style lists a file per weight. Google serves TTF to a client it does not recognise.
 # Each style lists its files in font.files, relative to packs/fonts: <family>/<family>-<weight>.ttf.
 set -eu
 here=$(cd "$(dirname "$0")/.." && pwd)

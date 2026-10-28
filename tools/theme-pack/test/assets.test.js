@@ -31,7 +31,7 @@ test('every style ships its font files as TrueType, with the font\'s licence bes
   });
 });
 
-// The QML Ring places a ring with ui/Look/place.js, read from the recipe's CSS `style`; load it as the QML engine does.
+// The QML Ring places a ring with ui/Look/place.js, read from the recipe's `style`; load it as the QML engine does.
 const place = (() => {
   const ctx = {};
   vm.runInNewContext(fs.readFileSync(path.join(dir, 'ui/Look/place.js'), 'utf8'), ctx);
@@ -66,7 +66,7 @@ test('a sized ring\'s style agrees with the size of the svg it holds', () => {
   });
 });
 
-test('the QML Ring puts corner decorations where the CSS does', () => {
+test('the QML Ring puts corner decorations where the art is drawn for', () => {
   const find = (theme, target, s) => recipes.find((r) => r.theme === theme && r.target === target && (r.style || '').indexOf(s) >= 0);
   // A 300×210 tile: the cobweb straddles its top-right corner, 20 px out.
   assert.deepStrictEqual(outsetBox(find('halloween', 'tile', 'width:44px'), 300, 210), { x: 276, y: -20, width: 44, height: 44 });
@@ -86,14 +86,10 @@ test('the QML Ring puts corner decorations where the CSS does', () => {
   assert.deepStrictEqual(outsetBox(find('halloween', 'thumb', ''), 40, 40), { x: -10, y: -10, width: 60, height: 60 });
 });
 
-// Recipes the QML layer may leave to the HTML renderer, each with why. Empty: every theme draws whole in both.
-const HTML_ONLY = {};
-
 test('every recipe is drawable by the QML layer: it names an asset, a fill or a stroke', () => {
   recipes.forEach((r) => {
     const where = r.theme + ' ' + r.target + '/' + r.slot + ' ' + r.when;
-    if (HTML_ONLY[where]) assert.ok(!r.asset && !r.fill && !r.stroke, where + ' is listed as HTML-only but is drawable');
-    else assert.ok(r.asset || r.fill || r.stroke, where + ' has nothing the QML layer draws (no asset, fill or stroke)');
+    assert.ok(r.asset || r.fill || r.stroke, where + ' has nothing the QML layer draws (no asset, fill or stroke)');
   });
 });
 

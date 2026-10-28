@@ -1,27 +1,24 @@
-(function (root) {
+(function () {
   // Light, in the style's own colours: a bloom and a crisp halo ring around focus, soft light pooling behind
   // surfaces, attachments shining in their attention colour, chosen controls lit in the current colour. No art, so it
   // suits any style and any season. Nothing over the picture's edges, and nothing lights what is disabled.
   function glow(token, outset, radius, blur, opacity) {
-    return { outset: outset, cost: 'glow', fill: token, radius: radius, blur: blur, opacity: opacity,
-      style: 'border-radius:' + radius + 'px;background:var(--tp-' + token + ');opacity:' + opacity + ';-webkit-filter:blur(' + blur + 'px);filter:blur(' + blur + 'px)' };
+    return { outset: outset, cost: 'glow', fill: token, radius: radius, blur: blur, opacity: opacity };
   }
   function recipe(target, slot, when, r, place) {
     r.target = target;
     r.slot = slot;
     r.when = when;
-    if (place) r.style = place + ';' + r.style;
+    if (place) r.style = place;
     return r;
   }
   // A crisp halo around focus, 14 px out, concentric with the component's own corners.
   function ring(target, radius) {
-    return { target: target, slot: 'front', when: 'focused', outset: 14, cost: 'static', stroke: 'focus', strokeWidth: 4, radius: radius,
-      style: 'border-radius:calc(var(--tp-' + radius + ') + 14px);box-shadow:inset 0 0 0 4px var(--tp-focus)' };
+    return { target: target, slot: 'front', when: 'focused', outset: 14, cost: 'static', stroke: 'focus', strokeWidth: 4, radius: radius };
   }
   var pack = {
     kind: 'theme', id: 'glow', name: 'Glow',
     description: 'A soft bloom behind focus and an accent ring around it, light behind panels, toasts and dialogs, and glowing chips and chosen controls. Uses the style\'s own colours.',
-    reads: ['focus', 'attention', 'current', 'ink', 'r-row', 'r-tile', 'r-control'],
     recipes: [
       // Light pools in two corners of the screen, behind everything.
       recipe('screen', 'back', 'always', glow('focus', 0, 320, 160, 0.16), 'left:auto;bottom:auto;width:820px;height:520px'),
@@ -43,6 +40,5 @@
       recipe('check', 'back', 'current', glow('current', 10, 18, 8, 0.55))
     ]
   };
-  if (typeof module !== 'undefined' && module.exports) module.exports = pack;
-  else root.ThemePack.register(pack);
-})(this);
+  module.exports = pack;
+})();

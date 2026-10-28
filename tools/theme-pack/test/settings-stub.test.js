@@ -35,7 +35,7 @@ function launch(launchParams, opts) {
   };
   win.window = win;
   const ctx = vm.createContext(win);
-  for (const f of ['targets.js', 'stub.js']) vm.runInContext(fs.readFileSync(path.join(built, f), 'utf8'), ctx, { filename: f });
+  for (const f of ['targets.js', 'stub.js']) vm.runInContext(fs.readFileSync(path.join(opts.dir || built, f), 'utf8'), ctx, { filename: f });
   did.relaunch = (detail) => listeners.webOSRelaunch({ detail });
   did.answer = (i) => calls[i].onservicecallback('{"returnValue":true}');
   did.run = (ms) => timers.filter((t) => t.ms === ms).forEach((t) => t.fn());
@@ -111,4 +111,47 @@ test('a relaunch while the stub runs forwards the new target', () => {
   const did = launch('{}');
   did.relaunch({ target: 'Language' });
   assert.deepStrictEqual(did.calls[1].params, { target: 'Language' });
+});
+
+// The package tv/build-ipk.sh writes, unpacked: its ar members, then data.tar.gz.
+function buildPackage() {
+  const out = fs.mkdtempSync(path.join(os.tmpdir(), 'look-ipk-'));
+  const ipk = execFileSync('sh', [path.join(dir, 'tv', 'build-ipk.sh'), out], { encoding: 'utf8' }).trim().split('\n').pop();
+  const b = fs.readFileSync(ipk), members = {};
+  assert.strictEqual(b.toString('latin1', 0, 8), '!<arch>\n');
+  for (let at = 8; at < b.length;) {
+    const name = b.toString('latin1', at, at + 16).trim(), size = Number(b.toString('latin1', at + 48, at + 58).trim());
+    members[name] = b.subarray(at + 60, at + 60 + size);
+    at += 60 + size + (size % 2);
+  }
+  fs.writeFileSync(path.join(out, 'data.tar.gz'), members['data.tar.gz']);
+  const root = path.join(out, 'data');
+  fs.mkdirSync(root);
+  execFileSync('tar', ['-xzf', path.join(out, 'data.tar.gz'), '-C', root]);
+  return { members: Object.keys(members), root };
+}
+const pkg = buildPackage();
+const lookApp = path.join(pkg.root, 'usr/palm/applications/dev.themepack.look');
+
+test('the package carries the Look service with its packs, assets and fonts, and the Look app', () => {
+  assert.deepStrictEqual(pkg.members, ['debian-binary', 'control.tar.gz', 'data.tar.gz']);
+  const svc = path.join(pkg.root, 'usr/palm/services/dev.themepack.look.service');
+  for (const f of ['service.js', 'services.json', 'package.json', 'permissions.sh', 'packs/styles/smoke.json', 'packs/themes/winter.json',
+    'packs/assets/winter/snow.png', 'packs/fonts/Lexend/OFL.txt']) assert.ok(fs.existsSync(path.join(svc, f)), 'service ' + f);
+  assert.ok(fs.existsSync(path.join(pkg.root, 'usr/palm/packages/dev.themepack.look/packageinfo.json')));
+  assert.deepStrictEqual(fs.readdirSync(lookApp).sort(), ['appinfo.json', 'icon.png', 'index.html', 'largeIcon.png', 'stub.js', 'targets.js']);
+  const info = JSON.parse(fs.readFileSync(path.join(lookApp, 'appinfo.json'), 'utf8'));
+  assert.strictEqual(info.id, 'dev.themepack.look');
+  assert.notStrictEqual(info.visible, false, 'the Look icon stays on Home');
+  assert.strictEqual(info.transparent, true);
+});
+
+test('the Look app opens our Settings at its Look page and closes, whatever it is launched with', () => {
+  for (const params of [undefined, '{}', '{"target":"network"}']) {
+    const did = launch(params, { dir: lookApp });
+    assert.strictEqual(did.calls[0].uri, URI);
+    assert.deepStrictEqual(did.calls[0].params, { target: 'Look' }, String(params));
+    did.answer(0);
+    assert.strictEqual(did.closed, 1);
+  }
 });

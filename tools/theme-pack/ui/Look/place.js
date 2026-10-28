@@ -1,7 +1,7 @@
-// Where a ring sits in its outset box, read from its recipe's CSS `style`, so the HTML and QML renderers share one
-// source. The ring element has every edge set by its outset; `width`/`height` in px size it, and `left:auto` or
-// `top:auto` move it to the right or bottom edge (`right:auto`/`bottom:auto` keep it at the left or top). Without a
-// size it fills the box. Other declarations are the HTML renderer's alone.
+// Where a ring sits in its outset box, read from its recipe's `style` (CSS placement syntax, which render-assets.mjs
+// also reads to compose the art). The ring has every edge set by its outset; `width`/`height` in px size it, and
+// `left:auto` or `top:auto` move it to the right or bottom edge (`right:auto`/`bottom:auto` keep it at the left or
+// top). Without a size it fills the box. Other declarations are ignored.
 function placement(style) {
     var p = { "left": false, "right": false, "top": false, "bottom": false, "width": -1, "height": -1 };
     var decls = (style || "").split(";");

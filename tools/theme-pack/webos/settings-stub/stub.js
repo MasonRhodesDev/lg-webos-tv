@@ -1,7 +1,8 @@
 // Settings stub: mounted over LG's Settings app, so every launch of com.palm.app.settings (the Home tile, deep links
 // from LG's apps) asks our layer to open our Settings at the page the caller wanted, then closes. It draws nothing.
 // Runs in the TV's Chromium 53: ES5 only. SETTINGS_TARGETS (targets.js, built from settings/catalog.json) maps LG's
-// deep-link target names to our page ids.
+// deep-link target names to our page ids. The Look app is the same page with no targets and SETTINGS_PAGE "Look":
+// the page to open when the launch names none (tv/build-ipk.sh).
 var SettingsStub = (function () {
   'use strict';
   var URI = 'luna://dev.themepack.look.service/openSettings';
@@ -23,7 +24,7 @@ var SettingsStub = (function () {
   }
 
   function forward(params, env) {
-    var page = pageFor(params, env.targets), done = false, bridges = [];
+    var page = pageFor(params, env.targets) || env.page || '', done = false, bridges = [];
     function finish() {
       if (done) return;
       done = true;
@@ -44,6 +45,7 @@ var SettingsStub = (function () {
   function start(win) {
     var env = {
       targets: win.SETTINGS_TARGETS || {},
+      page: win.SETTINGS_PAGE,
       Bridge: win.PalmServiceBridge,
       close: function () { win.close(); },
       setTimeout: function (fn, ms) { return win.setTimeout(fn, ms); }

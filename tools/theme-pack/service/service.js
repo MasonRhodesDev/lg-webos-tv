@@ -12,11 +12,9 @@ var lookFile = path.join(__dirname, 'data', 'look.json');
 var subscribers = {};
 // What the TV's renderers reported (loaded, errors), newest last. They cannot write files, so this is their log.
 var reports = [];
-// Whether our Look picker is open in the compositor's UI layer. `at` changes with every request, so the layer acts on
-// requests rather than on state: a compositor restart must not reopen a picker nobody asked for.
-var picker = { open: false, at: 0 };
-// Whether our Settings is open, and at which page (a page id from settings/catalog.json, or '' for the top). Same
-// request semantics as the picker.
+// Whether our Settings is open, and at which page (a page id from settings/catalog.json, or '' for the top). `at`
+// changes with every request, so the layer acts on requests rather than on state: a compositor restart must not
+// reopen Settings nobody asked for.
 var settings = { open: false, target: '', at: 0 };
 
 // Stay running after the first call: a cold start drops the call that woke the service.
@@ -47,7 +45,6 @@ function payload() {
     returnValue: true,
     look: look,
     subscribers: Object.keys(subscribers).length,
-    picker: picker,
     settings: settings,
     // Theme assets are files next to the packs; renderers resolve a recipe's `asset` against this.
     assets: 'file://' + path.join(packsDir, 'assets') + '/',
@@ -94,16 +91,6 @@ function notify() {
   Object.keys(subscribers).forEach(function (k) { subscribers[k].respond(out); });
   return out;
 }
-
-// The Look app calls openPicker when it is launched; the layer calls closePicker when the picker closes.
-service.register('openPicker', function (message) {
-  picker = { open: true, at: Date.now() };
-  message.respond(notify());
-});
-service.register('closePicker', function (message) {
-  picker = { open: false, at: Date.now() };
-  message.respond(notify());
-});
 
 // The Settings stub (mounted over LG's Settings app) calls openSettings with the page LG's caller asked for; the
 // layer calls closeSettings when our Settings closes.

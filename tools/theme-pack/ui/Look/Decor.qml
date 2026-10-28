@@ -9,7 +9,7 @@ import "passes.js" as Passes
 //
 // Inside a Passes container its layers join that container's planes, so siblings paint in passes and the focused one
 // lifts its whole stack above them. Outside one, or inside another component's origin, they stay here in that order.
-// An attachment with an `anchor` ([x%, y%] of the origin) is centred on that point, as in the HTML renderer.
+// An attachment with an `anchor` ([x%, y%] of the origin) is centred on that point.
 Item {
     id: decor
     property string target

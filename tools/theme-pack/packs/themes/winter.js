@@ -1,4 +1,4 @@
-(function (root) {
+(function () {
   // First snow: snow falling behind everything, icicles along the top of the screen and a snowbank along the bottom,
   // snow settling on the top edge of every surface, tile and tag, frost crystals and an icy glow at focus, a snowman
   // on every slider and snowflakes on the switches.
@@ -50,16 +50,15 @@
   var pack = {
     kind: 'theme', id: 'winter', name: 'Winter',
     description: 'Holiday: snow behind everything, icicles along the top and a snowbank along the bottom, snow on every surface and tile, a snowman on sliders, snowflakes on switches, an icy glow on focus.',
-    reads: [],
     recipes: [
-      { target: 'screen', slot: 'back', when: 'always', outset: 0, cost: 'static', style: 'overflow:hidden', html: FIELD, asset: 'snow.png' },
+      { target: 'screen', slot: 'back', when: 'always', outset: 0, cost: 'static', html: FIELD, asset: 'snow.png' },
       { target: 'screen', slot: 'front', when: 'always', outset: 0, cost: 'static', style: 'bottom:auto;height:44px', html: ICICLES, asset: 'icicles.png' },
       { target: 'panel', slot: 'front', when: 'always', outset: [22, 0, 0, -24], cost: 'static', style: 'right:auto;bottom:auto;width:140px;height:30px', html: cap(140, 30), asset: 'cap.png' },
       { target: 'toast', slot: 'front', when: 'always', outset: [22, 0, 0, -24], cost: 'static', style: 'right:auto;bottom:auto;width:140px;height:30px', html: cap(140, 30), asset: 'cap.png' },
       { target: 'dialog', slot: 'front', when: 'always', outset: [22, 0, 0, -24], cost: 'static', style: 'right:auto;bottom:auto;width:140px;height:30px', html: cap(140, 30), asset: 'cap.png' },
       { target: 'ribbon', slot: 'back', when: 'always', outset: [0, 96, 54, 96], cost: 'static', style: 'top:auto;height:54px', html: SNOWBANK, asset: 'snowbank.png' },
       { target: 'tile', slot: 'front', when: 'always', outset: [16, 0, 0, -18], cost: 'static', style: 'right:auto;bottom:auto;width:96px;height:22px', html: cap(96, 22), asset: 'cap-tile.png' },
-      { target: '*', slot: 'back', when: 'focused', outset: 24, cost: 'glow', style: 'border-radius:56px;background:' + ICE + ';opacity:0.4;-webkit-filter:blur(16px);filter:blur(16px)',
+      { target: '*', slot: 'back', when: 'focused', outset: 24, cost: 'glow',
         fill: ICE, radius: 56, blur: 16, opacity: 0.4 },
       { target: '*', slot: 'front', when: 'focused', outset: [20, 0, 0, 20], cost: 'static', style: 'right:auto;bottom:auto;width:36px;height:36px',
         html: '<svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#EEF8FF" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="' + FLAKE + '"></path></svg>', asset: 'focus-flake.png' },
@@ -69,12 +68,11 @@
       { target: 'badge', slot: 'front', when: 'always', outset: [9, 0, 0, 4], cost: 'static', style: 'right:auto;bottom:auto;width:42px;height:12px', html: cap(42, 12), asset: 'cap-small.png' },
       { target: 'thumb', slot: 'front', when: 'always', outset: 10, cost: 'static', style: '', html: SNOWMAN, asset: 'thumb.png' },
       { target: 'knob', slot: 'front', when: 'always', outset: 4, cost: 'static', style: '', html: FLAKE_KNOB, asset: 'knob.png' },
-      { target: 'radio', slot: 'back', when: 'current', outset: 10, cost: 'glow', style: 'border-radius:999px;background:' + ICE + ';opacity:0.55;-webkit-filter:blur(8px);filter:blur(8px)',
+      { target: 'radio', slot: 'back', when: 'current', outset: 10, cost: 'glow',
         fill: ICE, radius: 999, blur: 8, opacity: 0.55 },
-      { target: 'check', slot: 'back', when: 'current', outset: 10, cost: 'glow', style: 'border-radius:18px;background:' + ICE + ';opacity:0.55;-webkit-filter:blur(8px);filter:blur(8px)',
+      { target: 'check', slot: 'back', when: 'current', outset: 10, cost: 'glow',
         fill: ICE, radius: 18, blur: 8, opacity: 0.55 }
     ]
   };
-  if (typeof module !== 'undefined' && module.exports) module.exports = pack;
-  else root.ThemePack.register(pack);
-})(this);
+  module.exports = pack;
+})();
