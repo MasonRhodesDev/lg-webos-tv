@@ -14,7 +14,8 @@ const FIXTURE = [
   'f(C(M,{icon:"\\ua5a6",target:"Safety"},void 0,"Safety"),C(M,{icon:"\\ua5a8",target:"Accessibility",onSelect:0},void 0,"Accessibility"));',
   '}();'
 ].join('\n');
-const PAGE = '<script>window.onload=function(){if("undefined"==typeof App){load()}}</script>';
+const PAGE = '<html><head><script>window.onload=function(){if("undefined"==typeof App){load()}}</script></head></html>';
+const CSS = '.moonstone .spottable:focus{background-color:#cf0652;color:#fff}.x{border-color:#CF0652}.y{color:#fff}';
 
 function patched() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'settings-look-'));
@@ -22,6 +23,7 @@ function patched() {
   fs.writeFileSync(path.join(dir, 'app', 'main.js'), FIXTURE);
   fs.writeFileSync(path.join(dir, 'app', 'index.html'), PAGE);
   fs.writeFileSync(path.join(dir, 'app', 'index.en.html'), PAGE);
+  fs.writeFileSync(path.join(dir, 'app', 'main.css'), CSS);
   execFileSync('node', [path.join(__dirname, '..', 'webos', 'settings-look.mjs'), '--app', path.join(dir, 'app'), '--out', path.join(dir, 'out')]);
   return path.join(dir, 'out');
 }
@@ -58,4 +60,13 @@ test('theme switches keep each other when the rows hold handlers from an old ren
   assert.deepStrictEqual(panel.state.themes.slice().sort(), ['glow', 'winter']);
   assert.strictEqual(panel.state.style, 'bubble');
   assert.deepStrictEqual(JSON.parse(store['themepack.look']), panel.state);
+});
+
+test('focus colours become variables with stock defaults; unrelated white text is left alone', () => {
+  const css = fs.readFileSync(path.join(patched(), 'main.css'), 'utf8');
+  assert.match(css, /^:root\{--tp-focus:#cf0652;--tp-focus-ink:#fff\}/);
+  assert.match(css, /\.spottable:focus\{background-color:var\(--tp-focus\);color:var\(--tp-focus-ink\)\}/);
+  assert.match(css, /\.x\{border-color:var\(--tp-focus\)\}/);
+  assert.match(css, /\.y\{color:#fff\}/);
+  assert.doesNotMatch(css.replace(/^:root\{[^}]*\}/, ''), /#cf0652/i);
 });

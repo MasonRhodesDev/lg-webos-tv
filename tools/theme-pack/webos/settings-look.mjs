@@ -2,7 +2,7 @@
 // Adds a "Look" category to the stock webOS Settings app (com.palm.app.settings, webOS 4.5).
 // Works on your own copy of the app: --app is the stock app directory, --out receives a patched copy.
 // Every edit is an anchored replacement that must match exactly once, so a different firmware fails loudly.
-import { cpSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { copyFileSync, cpSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -37,9 +37,12 @@ function replaceOnce(src, anchor, replacement, what) {
 // Handlers hold only an id and read state when called: the row wrappers can keep an old handler, so a
 // handler that closed over the state of an earlier render would write back a stale theme list.
 const panel = `function __themepackLook(n){var r=n(0),s=n.n(r),p=n(5),h=n(8),c=n(3),v=n(11);var LOOK=${JSON.stringify(look)};var KEY="themepack.look";` +
-  `function read(){try{var x=JSON.parse(window.localStorage.getItem(KEY));if(x&&x.style)return x}catch(e){}return{style:LOOK.styles[0].id,themes:[]}}` +
+  `var TP=window.__themepack;` +
+  `function read(){var m=TP&&TP.current();if(m)return{style:m.look.style,themes:m.look.themes.slice()};try{var x=JSON.parse(window.localStorage.getItem(KEY));if(x&&x.style)return x}catch(e){}return{style:LOOK.styles[0].id,themes:[]}}` +
   `class LookPanel extends s.a.Component{constructor(e){super(e),this.state=read()}` +
-  `update(f){this.setState(function(prev){var next=Object.assign({},prev,f(prev));try{window.localStorage.setItem(KEY,JSON.stringify(next))}catch(e){}return next})}` +
+  `componentDidMount(){var self=this;if(TP)this.stop=TP.onChange(function(m){self.setState({style:m.look.style,themes:m.look.themes.slice()})})}` +
+  `componentWillUnmount(){if(this.stop)this.stop()}` +
+  `update(f){this.setState(function(prev){var next=Object.assign({},prev,f(prev));try{window.localStorage.setItem(KEY,JSON.stringify(next))}catch(e){}if(TP)TP.setLook({style:next.style,themes:next.themes});return next})}` +
   `pickStyle(id){this.update(function(){return{style:id}})}` +
   `toggleTheme(id){this.update(function(prev){var t=prev.themes.slice(),i=t.indexOf(id);i>=0?t.splice(i,1):t.push(id);return{themes:t}})}` +
   `render(){var self=this,st=this.state,rows=[];` +
@@ -63,11 +66,24 @@ js = replaceOnce(js, ',C(M,{icon:"\\ua5a8",target:"Accessibility",',
   ',C(M,{icon:"\\ua5a8",target:"Accessibility",', 'nav entry');
 writeFileSync(mainPath, js);
 
+// Colours: the focus fill and the text on it become variables whose defaults are the stock values, so a
+// missing Look service leaves the stock look. Text colour is only remapped inside rules that paint the focus fill.
+const cssPath = join(out, 'main.css');
+const css = readFileSync(cssPath, 'utf8').replace(/[^{}]*\{[^{}]*\}/g, (rule) => {
+  if (!/#cf0652/i.test(rule)) return rule;
+  if (/background(-color)?:\s*#cf0652/i.test(rule)) rule = rule.replace(/(^|[;{])color:\s*#fff(fff)?\b/gi, '$1color:var(--tp-focus-ink)');
+  return rule.replace(/#cf0652/gi, 'var(--tp-focus)');
+});
+writeFileSync(cssPath, ':root{--tp-focus:#cf0652;--tp-focus-ink:#fff}' + css);
+copyFileSync(join(here, 'look-bridge.js'), join(out, 'look-bridge.js'));
+
 // The app normally runs from a V8 snapshot of the stock main.js. Make every page load main.js instead.
 let pages = 0;
 for (const f of readdirSync(out).filter((f) => /^index(\..+)?\.html$/.test(f))) {
   const p = join(out, f);
-  writeFileSync(p, replaceOnce(readFileSync(p, 'utf8'), '"undefined"==typeof App', '!0', f));
+  let page = replaceOnce(readFileSync(p, 'utf8'), '"undefined"==typeof App', '!0', f);
+  page = replaceOnce(page, '</head>', '<script src="look-bridge.js"></script></head>', f + ' head');
+  writeFileSync(p, page);
   pages++;
 }
-console.log(`patched main.js and ${pages} pages; Look lists ${look.styles.length} styles and ${look.themes.length} themes`);
+console.log(`patched main.js, main.css and ${pages} pages; Look lists ${look.styles.length} styles and ${look.themes.length} themes`);

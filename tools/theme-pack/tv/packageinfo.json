@@ -1,0 +1,6 @@
+{
+  "id": "dev.themepack.look",
+  "version": "0.1.0",
+  "app": "dev.themepack.look",
+  "services": ["dev.themepack.look.service"]
+}

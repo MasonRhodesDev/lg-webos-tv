@@ -1,0 +1,5 @@
+{
+  "id": "dev.themepack.look.service",
+  "description": "Active look: one style and any themes",
+  "services": [{ "name": "dev.themepack.look.service" }]
+}

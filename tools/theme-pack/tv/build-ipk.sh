@@ -18,6 +18,14 @@ mkdir -p "$app" "$work/control" "$out"
 cp "$here/tv/appinfo.json" "$here/tv/icon.png" "$here/tv/largeIcon.png" "$app/"
 cp -r "$here/runtime" "$here/packs" "$here/screens" "$app/"
 cp "$here/demo/app.js" "$app/app.js"
+
+# The Look service and the package manifest that ties it to the app.
+svc="$work/data/usr/palm/services/$id.service"
+mkdir -p "$svc" "$work/data/usr/palm/packages/$id"
+cp "$here/service/service.js" "$here/service/services.json" "$here/service/package.json" "$svc/"
+node "$here/export-json.mjs" "$svc/packs" >/dev/null
+mkdir -p "$svc/data" && chmod 0777 "$svc/data"
+cp "$here/tv/packageinfo.json" "$work/data/usr/palm/packages/$id/"
 if [ -n "$fonts" ]; then mkdir -p "$app/fonts" && cp "$fonts"/* "$app/fonts/"; fi
 
 # The demo page with paths rewritten for the app root, TV mode on, and local fonts.
