@@ -1,0 +1,573 @@
+{
+ "id": "network",
+ "meaning": "Internet and device connections",
+ "lgTarget": "network",
+ "pages": [
+  {
+   "id": "Network",
+   "meaning": "Connection top page",
+   "lgPath": [
+    "Network"
+   ],
+   "items": [
+    {
+     "id": "networkStatus",
+     "meaning": "Whether the TV is online, and by cable or Wi-Fi",
+     "tier": 1,
+     "api": {
+      "service": "com.webos.service.connectionmanager",
+      "read": "getstatus",
+      "subscribe": true
+     },
+     "type": "info",
+     "notes": "QuickSettings shows the same status (QuickSettings/Service/NetworkService.qml)"
+    },
+    {
+     "id": "wired",
+     "meaning": "Cable (Ethernet) connection",
+     "tier": 2,
+     "type": "page",
+     "opens": "Wired",
+     "api": {
+      "none": "navigation only"
+     }
+    },
+    {
+     "id": "wifi",
+     "meaning": "Wi-Fi connection",
+     "tier": 1,
+     "type": "page",
+     "opens": "Wifi",
+     "api": {
+      "none": "navigation only"
+     }
+    },
+    {
+     "id": "deviceName",
+     "meaning": "The TV's name on the network",
+     "tier": 2,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "network",
+      "keys": [
+       "deviceName"
+      ]
+     },
+     "type": "dynamic",
+     "domain": {
+      "runtime": true
+     },
+     "domainSource": "description.json, base variant",
+     "notes": "shown to phones and casting apps"
+    },
+    {
+     "id": "wolwowlOnOff",
+     "meaning": "Let phones and apps turn the TV on (Mobile TV On)",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "network",
+      "keys": [
+       "wolwowlOnOff"
+      ]
+     },
+     "type": "switch",
+     "domain": {
+      "values": [
+       "true",
+       "false"
+      ]
+     },
+     "domainSource": "description.json, base variant"
+    },
+    {
+     "id": "simplink",
+     "meaning": "HDMI-CEC device control (SIMPLINK)",
+     "tier": 2,
+     "type": "page",
+     "opens": "Simplink",
+     "api": {
+      "none": "navigation only"
+     }
+    },
+    {
+     "id": "screenShare",
+     "meaning": "Screen share (Miracast)",
+     "tier": 3,
+     "type": "page",
+     "opens": "ScreenShare",
+     "api": {
+      "none": "navigation only"
+     }
+    },
+    {
+     "id": "mobileTvOn",
+     "meaning": "Turn on via phone",
+     "tier": 3,
+     "type": "page",
+     "opens": "MobileTvOn",
+     "api": {
+      "none": "navigation only"
+     }
+    }
+   ]
+  },
+  {
+   "id": "Wired",
+   "meaning": "Ethernet",
+   "lgPath": [
+    "Network",
+    "Wired"
+   ],
+   "items": [
+    {
+     "id": "wiredStatus",
+     "meaning": "Cable connection state, IP and DNS",
+     "tier": 2,
+     "api": {
+      "service": "com.webos.service.connectionmanager",
+      "read": "getstatus",
+      "subscribe": true
+     },
+     "type": "info"
+    },
+    {
+     "id": "wiredIpv4",
+     "meaning": "Manual or automatic IP address",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.service.connectionmanager",
+      "write": "setipv4",
+      "params": "{method: \"dhcp\"|\"manual\", address, netmask, gateway}"
+     },
+     "type": "form",
+     "confirm": "Change the IP settings?",
+     "sideEffects": [
+      "the network drops while it reconnects"
+     ]
+    },
+    {
+     "id": "wiredDns",
+     "meaning": "Manual DNS server",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.service.connectionmanager",
+      "write": "setdns",
+      "params": "{dns: [..]}"
+     },
+     "type": "form",
+     "sideEffects": [
+      "network reconnects"
+     ]
+    },
+    {
+     "id": "ipv6Enable",
+     "meaning": "Use IPv6",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "network",
+      "keys": [
+       "ipv6Enable"
+      ]
+     },
+     "type": "switch",
+     "domain": {
+      "values": [
+       "true",
+       "false"
+      ]
+     },
+     "domainSource": "description.json, base variant",
+     "sideEffects": [
+      "network reconnects"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "Wifi",
+   "meaning": "Wi-Fi networks",
+   "lgPath": [
+    "Network",
+    "Wifi"
+   ],
+   "items": [
+    {
+     "id": "wifiEnabled",
+     "meaning": "Wi-Fi on or off",
+     "tier": 2,
+     "api": {
+      "service": "com.webos.service.wifi",
+      "read": "getstatus",
+      "write": "setstate",
+      "params": "{state: \"enabled\"|\"disabled\"}"
+     },
+     "type": "switch",
+     "domain": {
+      "values": [
+       "enabled",
+       "disabled"
+      ]
+     },
+     "sideEffects": [
+      "turning off drops the connection"
+     ],
+     "confirm": "Turn off Wi-Fi? Apps will go offline."
+    },
+    {
+     "id": "wifiNetworks",
+     "meaning": "Nearby networks with signal strength; pick one to join",
+     "tier": 1,
+     "api": {
+      "service": "com.webos.service.wifi",
+      "read": "findnetworks",
+      "subscribe": true,
+      "cancel": "cancel"
+     },
+     "type": "network-list",
+     "notes": "each entry has ssid, signal level, security, connected state"
+    },
+    {
+     "id": "wifiConnect",
+     "meaning": "Join a network (password entry)",
+     "tier": 1,
+     "api": {
+      "service": "com.webos.service.wifi",
+      "write": "connect",
+      "params": "{ssid, security:{securityType, simpleSecurity:{passKey}}} or {profileId}"
+     },
+     "type": "form",
+     "sideEffects": [
+      "the current connection drops while joining"
+     ],
+     "notes": "needs an on-screen keyboard: the compositor's Maliit keyboard can be summoned by a focused TextInput"
+    },
+    {
+     "id": "wifiForget",
+     "meaning": "Forget a saved network",
+     "tier": 2,
+     "api": {
+      "service": "com.webos.service.wifi",
+      "write": "deleteprofile",
+      "params": "{profileId}"
+     },
+     "type": "action",
+     "confirm": "Forget this network?"
+    },
+    {
+     "id": "wifiWps",
+     "meaning": "Join with the router's WPS button or PIN",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.service.wifi",
+      "write": "startwps / createwpspin / cancelwps"
+     },
+     "type": "action"
+    },
+    {
+     "id": "wifiAdvanced",
+     "meaning": "Manual IP/DNS for Wi-Fi",
+     "tier": 3,
+     "type": "page",
+     "opens": "WifiAdvanced",
+     "api": {
+      "none": "navigation only"
+     }
+    },
+    {
+     "id": "wifiDiagnostics",
+     "meaning": "Wi-Fi diagnostics",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.service.wifi",
+      "method": "getwifidiagnostics"
+     },
+     "type": "info"
+    }
+   ]
+  },
+  {
+   "id": "WifiAdd",
+   "meaning": "Add a hidden network",
+   "lgPath": [
+    "Network",
+    "Wifi",
+    "WifiAdd"
+   ],
+   "items": [
+    {
+     "id": "wifiAddHidden",
+     "meaning": "Join a network by name",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.service.wifi",
+      "write": "connect",
+      "params": "{ssid, wasCreatedWithJoinOther: true, security}"
+     },
+     "type": "form"
+    }
+   ]
+  },
+  {
+   "id": "WifiAdvanced",
+   "meaning": "Wi-Fi advanced",
+   "lgPath": [
+    "Network",
+    "Wifi",
+    "WifiAdvanced"
+   ],
+   "items": [
+    {
+     "id": "wifiIpv4",
+     "meaning": "Manual or automatic IP",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.service.connectionmanager",
+      "write": "setipv4"
+     },
+     "type": "form",
+     "sideEffects": [
+      "network reconnects"
+     ]
+    },
+    {
+     "id": "wifiDns",
+     "meaning": "Manual DNS",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.service.connectionmanager",
+      "write": "setdns"
+     },
+     "type": "form"
+    },
+    {
+     "id": "ipv6Enable",
+     "meaning": "Use IPv6",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "network",
+      "keys": [
+       "ipv6Enable"
+      ]
+     },
+     "type": "switch",
+     "domain": {
+      "values": [
+       "true",
+       "false"
+      ]
+     },
+     "domainSource": "description.json, base variant"
+    }
+   ]
+  },
+  {
+   "id": "Simplink",
+   "meaning": "HDMI-CEC (SIMPLINK)",
+   "lgPath": [
+    "Network",
+    "Simplink"
+   ],
+   "items": [
+    {
+     "id": "simplinkEnable",
+     "meaning": "Control HDMI devices with the TV remote (HDMI-CEC)",
+     "tier": 2,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "other",
+      "keys": [
+       "simplinkEnable"
+      ]
+     },
+     "type": "switch",
+     "domain": {
+      "values": [
+       "on",
+       "off"
+      ]
+     },
+     "domainSource": "description.json, base variant",
+     "notes": "listed in settingsservice.allow"
+    },
+    {
+     "id": "simplinkAutoPowerOn",
+     "meaning": "Turn devices on and off with the TV",
+     "tier": 2,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "other",
+      "keys": [
+       "simplinkAutoPowerOn"
+      ]
+     },
+     "type": "switch",
+     "domain": {
+      "values": [
+       "on",
+       "off"
+      ]
+     },
+     "domainSource": "description.json, base variant"
+    },
+    {
+     "id": "ueiEnable",
+     "meaning": "Universal remote control of set-top boxes",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "other",
+      "keys": [
+       "ueiEnable"
+      ]
+     },
+     "type": "switch",
+     "domain": {
+      "values": [
+       "on",
+       "off"
+      ]
+     },
+     "domainSource": "description.json, base variant"
+    }
+   ]
+  },
+  {
+   "id": "MobileTvOn",
+   "meaning": "Turn on via phone",
+   "lgPath": [
+    "Network",
+    "MobileTvOn"
+   ],
+   "items": [
+    {
+     "id": "wolwowlOnOff",
+     "meaning": "Turn on via Wi-Fi/LAN (wake on LAN)",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "network",
+      "keys": [
+       "wolwowlOnOff"
+      ]
+     },
+     "type": "switch",
+     "domain": {
+      "values": [
+       "true",
+       "false"
+      ]
+     },
+     "domainSource": "description.json, base variant",
+     "sideEffects": [
+      "higher standby power"
+     ]
+    },
+    {
+     "id": "bleAdvertisingOnOff",
+     "meaning": "Turn on via Bluetooth",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "network",
+      "keys": [
+       "bleAdvertisingOnOff"
+      ]
+     },
+     "type": "switch",
+     "domain": {
+      "values": [
+       "on",
+       "off"
+      ]
+     },
+     "domainSource": "description.json, base variant"
+    }
+   ]
+  },
+  {
+   "id": "ScreenShare",
+   "meaning": "Screen share",
+   "lgPath": [
+    "Network",
+    "ScreenShare"
+   ],
+   "items": [
+    {
+     "id": "miracastPaired",
+     "meaning": "Forget phones paired for screen share",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.service.miracast",
+      "method": "deletePairedDeviceList"
+     },
+     "type": "action",
+     "confirm": "Forget all paired phones?"
+    }
+   ]
+  },
+  {
+   "id": "Mobile",
+   "meaning": "3G/4G dongle",
+   "lgPath": [
+    "Network",
+    "Mobile"
+   ],
+   "items": [
+    {
+     "id": "mobile",
+     "meaning": "Mobile data dongle status",
+     "tier": 3,
+     "api": {
+      "service": "com.palm.telephony",
+      "read": "networkStatusQuery",
+      "signal": "signalStrengthQuery",
+      "sim": "simStatusQuery"
+     },
+     "type": "info"
+    }
+   ],
+   "region": "models with a 3G/4G dongle; not this TV"
+  },
+  {
+   "id": "IotPanel",
+   "meaning": "IoT devices",
+   "lgPath": [
+    "Network",
+    "IotPanel"
+   ],
+   "items": [
+    {
+     "id": "iot",
+     "meaning": "IoT device connection",
+     "tier": 3,
+     "api": {
+      "none": "not determined"
+     },
+     "type": "info",
+     "unknown": "panel content not extracted; web-dependent"
+    }
+   ]
+  }
+ ]
+}

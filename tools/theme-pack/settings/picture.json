@@ -1,0 +1,2529 @@
+{
+ "id": "picture",
+ "meaning": "How the picture looks",
+ "lgTarget": "picture",
+ "pages": [
+  {
+   "id": "Picture",
+   "meaning": "Picture top page",
+   "lgPath": [
+    "Picture"
+   ],
+   "items": [
+    {
+     "id": "pictureMode",
+     "meaning": "Preset look for the picture (standard, cinema, game, ...). The list depends on SDR/HDR/Dolby Vision content",
+     "tier": 1,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "picture",
+      "keys": [
+       "pictureMode"
+      ]
+     },
+     "type": "enum",
+     "domain": {
+      "values": [
+       "vivid",
+       "hdrVivid",
+       "normal",
+       "eco",
+       "cinema",
+       "hdrStandard",
+       "hdrCinemaBright",
+       "hdrCinema",
+       "sports",
+       "game",
+       "photo",
+       "hdrGame",
+       "hdrEffect",
+       "technicolor",
+       "hdrTechnicolor",
+       "dolbyHdrVivid",
+       "dolbyHdrStandard",
+       "dolbyHdrCinemaBright",
+       "dolbyHdrCinema",
+       "dolbyHdrGame",
+       "technicolorHdrVivid",
+       "technicolorHdrStandard",
+       "technicolorHdrCinemaBright",
+       "technicolorHdrCinema",
+       "technicolorHdrGame",
+       "technicolorHdrTechnicolor",
+       "expert1",
+       "expert2"
+      ]
+     },
+     "dimension": [
+      "input",
+      "_3dStatus",
+      "dynamicRange"
+     ],
+     "domainSource": "description.json, base variant",
+     "confirm": null,
+     "sideEffects": [
+      "LG also calls com.webos.service.tv.display/setPSMChangedByUser {\"pictureMode\":<value>} after a user change"
+     ],
+     "visibleWhen": "always; values filtered by desc ui.visible/active per arrayExt entry",
+     "notes": "picture keys are stored per input, per picture mode and per SDR/HDR (dimension); values and their ui.active change when the input or HDR state changes"
+    },
+    {
+     "id": "pictureModeSettings",
+     "meaning": "Fine-tune the current picture mode",
+     "tier": 2,
+     "type": "page",
+     "opens": "PictureMode",
+     "api": {
+      "none": "navigation only"
+     }
+    },
+    {
+     "id": "aspectRatioSettings",
+     "meaning": "Screen shape and size",
+     "tier": 2,
+     "type": "page",
+     "opens": "AspectRatioSettings",
+     "api": {
+      "none": "navigation only"
+     }
+    },
+    {
+     "id": "energySaving",
+     "meaning": "Power-saving dimming level of the screen",
+     "tier": 2,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "picture",
+      "keys": [
+       "energySaving"
+      ]
+     },
+     "type": "enum",
+     "domain": {
+      "values": [
+       "auto",
+       "off",
+       "min",
+       "med",
+       "max",
+       "screen_off"
+      ]
+     },
+     "domainSource": "description.json, base variant",
+     "notes": "value \"screen_off\" blanks the screen while sound continues"
+    },
+    {
+     "id": "eyeComfortMode",
+     "meaning": "Warmer colours to reduce blue light",
+     "tier": 2,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "picture",
+      "keys": [
+       "eyeComfortMode"
+      ]
+     },
+     "type": "switch",
+     "domain": {
+      "values": [
+       "on",
+       "off"
+      ]
+     },
+     "domainSource": "description.json, base variant"
+    },
+    {
+     "id": "oledPanelSettings",
+     "meaning": "Whether the OLED panel care page is offered",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "picture",
+      "keys": [
+       "oledPanelSettings"
+      ]
+     },
+     "type": "switch",
+     "domain": {
+      "values": [
+       "on",
+       "off"
+      ]
+     },
+     "domainSource": "description.json, base variant",
+     "notes": "drives visibility of the OLED Panel Settings link, not a user value"
+    },
+    {
+     "id": "oledPanelSettingsPage",
+     "meaning": "OLED panel care (pixel shift, logo dimming, panel refresh)",
+     "tier": 3,
+     "type": "page",
+     "opens": "OledPanelSettings",
+     "api": {
+      "none": "navigation only"
+     }
+    },
+    {
+     "id": "additionalOptions",
+     "meaning": "Extra picture options (deep colour, game, ...)",
+     "tier": 3,
+     "type": "page",
+     "opens": "AdditionalOptions",
+     "api": {
+      "none": "navigation only"
+     }
+    },
+    {
+     "id": "pictureTest",
+     "meaning": "Show a test picture to check for panel problems",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.applicationManager",
+      "method": "launch",
+      "params": {
+       "id": "com.webos.app.picturetest"
+      }
+     },
+     "type": "action",
+     "unknown": "LG wires this row to a picture test launch; the exact app id was not confirmed offline (key picture.pictureTest is a 1..10 counter)"
+    }
+   ]
+  },
+  {
+   "id": "PictureMode",
+   "meaning": "Picture mode fine-tuning",
+   "lgPath": [
+    "Picture",
+    "PictureMode"
+   ],
+   "items": [
+    {
+     "id": "pictureMode",
+     "meaning": "Which preset is being tuned",
+     "tier": 1,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "picture",
+      "keys": [
+       "pictureMode"
+      ]
+     },
+     "type": "enum",
+     "domain": {
+      "values": [
+       "vivid",
+       "hdrVivid",
+       "normal",
+       "eco",
+       "cinema",
+       "hdrStandard",
+       "hdrCinemaBright",
+       "hdrCinema",
+       "sports",
+       "game",
+       "photo",
+       "hdrGame",
+       "hdrEffect",
+       "technicolor",
+       "hdrTechnicolor",
+       "dolbyHdrVivid",
+       "dolbyHdrStandard",
+       "dolbyHdrCinemaBright",
+       "dolbyHdrCinema",
+       "dolbyHdrGame",
+       "technicolorHdrVivid",
+       "technicolorHdrStandard",
+       "technicolorHdrCinemaBright",
+       "technicolorHdrCinema",
+       "technicolorHdrGame",
+       "technicolorHdrTechnicolor",
+       "expert1",
+       "expert2"
+      ]
+     },
+     "dimension": [
+      "input",
+      "_3dStatus",
+      "dynamicRange"
+     ],
+     "domainSource": "description.json, base variant",
+     "notes": "picture keys are stored per input, per picture mode and per SDR/HDR (dimension); values and their ui.active change when the input or HDR state changes"
+    },
+    {
+     "id": "backlight",
+     "meaning": "Panel light level (OLED light on OLED sets)",
+     "tier": 2,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "picture",
+      "keys": [
+       "backlight"
+      ]
+     },
+     "type": "range",
+     "domain": {
+      "min": 0,
+      "max": 100,
+      "step": 1
+     },
+     "dimension": [
+      "input",
+      "pictureMode",
+      "_3dStatus"
+     ],
+     "domainSource": "description.json, base variant",
+     "notes": "picture keys are stored per input, per picture mode and per SDR/HDR (dimension); values and their ui.active change when the input or HDR state changes"
+    },
+    {
+     "id": "contrast",
+     "meaning": "Difference between bright and dark",
+     "tier": 2,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "picture",
+      "keys": [
+       "contrast"
+      ]
+     },
+     "type": "range",
+     "domain": {
+      "min": 0,
+      "max": 100,
+      "step": 1
+     },
+     "dimension": [
+      "input",
+      "pictureMode",
+      "_3dStatus"
+     ],
+     "domainSource": "description.json, base variant",
+     "notes": "picture keys are stored per input, per picture mode and per SDR/HDR (dimension); values and their ui.active change when the input or HDR state changes"
+    },
+    {
+     "id": "brightness",
+     "meaning": "Black level lift",
+     "tier": 2,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "picture",
+      "keys": [
+       "brightness"
+      ]
+     },
+     "type": "range",
+     "domain": {
+      "min": 0,
+      "max": 100,
+      "step": 1
+     },
+     "dimension": [
+      "input",
+      "pictureMode",
+      "_3dStatus"
+     ],
+     "domainSource": "description.json, base variant",
+     "notes": "picture keys are stored per input, per picture mode and per SDR/HDR (dimension); values and their ui.active change when the input or HDR state changes"
+    },
+    {
+     "id": "sharpness",
+     "meaning": "Edge crispness",
+     "tier": 2,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "picture",
+      "keys": [
+       "sharpness"
+      ]
+     },
+     "type": "range",
+     "domain": {
+      "min": 0,
+      "max": 50,
+      "step": 1
+     },
+     "dimension": [
+      "input",
+      "pictureMode",
+      "_3dStatus"
+     ],
+     "domainSource": "description.json, base variant",
+     "notes": "picture keys are stored per input, per picture mode and per SDR/HDR (dimension); values and their ui.active change when the input or HDR state changes"
+    },
+    {
+     "id": "color",
+     "meaning": "Colour saturation",
+     "tier": 2,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "picture",
+      "keys": [
+       "color"
+      ]
+     },
+     "type": "range",
+     "domain": {
+      "min": 0,
+      "max": 100,
+      "step": 1
+     },
+     "dimension": [
+      "input",
+      "pictureMode",
+      "_3dStatus"
+     ],
+     "domainSource": "description.json, base variant",
+     "notes": "picture keys are stored per input, per picture mode and per SDR/HDR (dimension); values and their ui.active change when the input or HDR state changes"
+    },
+    {
+     "id": "tint",
+     "meaning": "Red-green balance",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "picture",
+      "keys": [
+       "tint"
+      ]
+     },
+     "type": "range",
+     "domain": {
+      "min": -50,
+      "max": 50,
+      "step": 1
+     },
+     "dimension": [
+      "input",
+      "pictureMode",
+      "_3dStatus"
+     ],
+     "domainSource": "description.json, base variant",
+     "notes": "picture keys are stored per input, per picture mode and per SDR/HDR (dimension); values and their ui.active change when the input or HDR state changes"
+    },
+    {
+     "id": "colorTemperature",
+     "meaning": "Warm-cool white balance",
+     "tier": 2,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "picture",
+      "keys": [
+       "colorTemperature"
+      ]
+     },
+     "type": "range",
+     "domain": {
+      "min": -50,
+      "max": 50,
+      "step": 1
+     },
+     "dimension": [
+      "input",
+      "pictureMode",
+      "_3dStatus"
+     ],
+     "domainSource": "description.json, base variant",
+     "notes": "picture keys are stored per input, per picture mode and per SDR/HDR (dimension); values and their ui.active change when the input or HDR state changes"
+    },
+    {
+     "id": "aiPicture",
+     "meaning": "Let the TV tune the picture to the content automatically",
+     "tier": 2,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "picture",
+      "keys": [
+       "aiPicture"
+      ]
+     },
+     "type": "switch",
+     "domain": {
+      "values": [
+       "on",
+       "off"
+      ]
+     },
+     "dimension": [
+      "input",
+      "pictureMode",
+      "_3dStatus"
+     ],
+     "domainSource": "description.json, base variant",
+     "notes": "picture keys are stored per input, per picture mode and per SDR/HDR (dimension); values and their ui.active change when the input or HDR state changes"
+    },
+    {
+     "id": "isfMode",
+     "meaning": "ISF calibrated day/night variant of the Expert modes",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "picture",
+      "keys": [
+       "isfMode"
+      ]
+     },
+     "type": "enum",
+     "domain": {
+      "values": [
+       "none",
+       "day",
+       "night"
+      ]
+     },
+     "dimension": [
+      "input",
+      "_3dStatus"
+     ],
+     "domainSource": "description.json, base variant",
+     "visibleWhen": "pictureMode is expert1 or expert2 and system property isf is true"
+    },
+    {
+     "id": "hPosition",
+     "meaning": "Move the picture left/right",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "picture",
+      "keys": [
+       "hPosition"
+      ]
+     },
+     "type": "range",
+     "domain": {
+      "min": -10,
+      "max": 10,
+      "step": 1
+     },
+     "dimension": [
+      "input",
+      "pictureMode",
+      "_3dStatus"
+     ],
+     "domainSource": "description.json, base variant",
+     "visibleWhen": "pictureMode expert1/expert2 with isfMode != none"
+    },
+    {
+     "id": "hSize",
+     "meaning": "Stretch the picture horizontally",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "picture",
+      "keys": [
+       "hSize"
+      ]
+     },
+     "type": "range",
+     "domain": {
+      "min": -10,
+      "max": 10,
+      "step": 1
+     },
+     "dimension": [
+      "input",
+      "pictureMode",
+      "_3dStatus"
+     ],
+     "domainSource": "description.json, base variant",
+     "visibleWhen": "pictureMode expert1/expert2 with isfMode != none"
+    },
+    {
+     "id": "vPosition",
+     "meaning": "Move the picture up/down",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "picture",
+      "keys": [
+       "vPosition"
+      ]
+     },
+     "type": "range",
+     "domain": {
+      "min": -10,
+      "max": 10,
+      "step": 1
+     },
+     "dimension": [
+      "input",
+      "pictureMode",
+      "_3dStatus"
+     ],
+     "domainSource": "description.json, base variant",
+     "visibleWhen": "pictureMode expert1/expert2 with isfMode != none"
+    },
+    {
+     "id": "vSize",
+     "meaning": "Stretch the picture vertically",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "picture",
+      "keys": [
+       "vSize"
+      ]
+     },
+     "type": "range",
+     "domain": {
+      "min": -10,
+      "max": 10,
+      "step": 1
+     },
+     "dimension": [
+      "input",
+      "pictureMode",
+      "_3dStatus"
+     ],
+     "domainSource": "description.json, base variant",
+     "visibleWhen": "pictureMode expert1/expert2 with isfMode != none"
+    },
+    {
+     "id": "advancedControls",
+     "meaning": "Contrast and colour enhancers",
+     "tier": 3,
+     "type": "page",
+     "opens": "AdvancedControls",
+     "api": {
+      "none": "navigation only"
+     }
+    },
+    {
+     "id": "expertControls",
+     "meaning": "Calibration controls (expert modes)",
+     "tier": 3,
+     "type": "page",
+     "opens": "ExpertControls",
+     "api": {
+      "none": "navigation only"
+     }
+    },
+    {
+     "id": "pictureOptions",
+     "meaning": "Noise reduction, motion, black level",
+     "tier": 2,
+     "type": "page",
+     "opens": "PictureOptions",
+     "api": {
+      "none": "navigation only"
+     }
+    },
+    {
+     "id": "applyToAllInputs",
+     "meaning": "Copy this mode's tuning to every input",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "method": "batch",
+      "params": {
+       "operations": "[getSystemSettings per input {category:picture, dimension:{input,_3dStatus:2d}, keys:[isfMode,pictureSettingModified]}] then [setSystemSettings per input with dimension {input,pictureMode,_3dStatus:2d}]"
+      }
+     },
+     "type": "action",
+     "confirm": "Copy the current mode's settings to this mode on all inputs?",
+     "sideEffects": [
+      "overwrites the same picture mode on every other input"
+     ]
+    },
+    {
+     "id": "resetPictureMode",
+     "meaning": "Reset this picture mode to factory values",
+     "tier": 2,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "method": "resetSystemSettings",
+      "params": {
+       "category": "picture",
+       "keys": "<the picture-mode keys>",
+       "dimension": "{input, pictureMode, _3dStatus}"
+      }
+     },
+     "type": "action",
+     "confirm": "Reset all settings of this picture mode?",
+     "sideEffects": [
+      "only the current mode on the current input"
+     ],
+     "unknown": "exact key list LG passes was not extracted; reset of picture uses resetSystemSettings like the sound reset (keys + category)"
+    }
+   ]
+  },
+  {
+   "id": "AdvancedControls",
+   "meaning": "Contrast and colour enhancers",
+   "lgPath": [
+    "Picture",
+    "PictureMode",
+    "AdvancedControls"
+   ],
+   "items": [
+    {
+     "id": "dynamicContrast",
+     "meaning": "Boost contrast based on the scene",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "picture",
+      "keys": [
+       "dynamicContrast"
+      ]
+     },
+     "type": "enum",
+     "domain": {
+      "values": [
+       "off",
+       "low",
+       "medium",
+       "high"
+      ]
+     },
+     "dimension": [
+      "input",
+      "pictureMode",
+      "_3dStatus"
+     ],
+     "domainSource": "description.json, base variant",
+     "notes": "picture keys are stored per input, per picture mode and per SDR/HDR (dimension); values and their ui.active change when the input or HDR state changes"
+    },
+    {
+     "id": "hdrDynamicToneMapping",
+     "meaning": "Adapt HDR brightness scene by scene",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "picture",
+      "keys": [
+       "hdrDynamicToneMapping"
+      ]
+     },
+     "type": "enum",
+     "domain": {
+      "values": [
+       "on",
+       "off",
+       "HGIG"
+      ]
+     },
+     "dimension": [
+      "input",
+      "pictureMode",
+      "_3dStatus"
+     ],
+     "domainSource": "description.json, base variant",
+     "visibleWhen": "HDR content (dynamicRange hdr*)",
+     "notes": "picture keys are stored per input, per picture mode and per SDR/HDR (dimension); values and their ui.active change when the input or HDR state changes"
+    },
+    {
+     "id": "dynamicColor",
+     "meaning": "Boost colour vividness",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "picture",
+      "keys": [
+       "dynamicColor"
+      ]
+     },
+     "type": "enum",
+     "domain": {
+      "values": [
+       "off",
+       "low",
+       "medium",
+       "high"
+      ]
+     },
+     "dimension": [
+      "input",
+      "pictureMode",
+      "_3dStatus"
+     ],
+     "domainSource": "description.json, base variant",
+     "notes": "picture keys are stored per input, per picture mode and per SDR/HDR (dimension); values and their ui.active change when the input or HDR state changes"
+    },
+    {
+     "id": "preferredColor",
+     "meaning": "Shift skin, grass and sky tones",
+     "tier": 3,
+     "type": "page",
+     "opens": "PreferredColor",
+     "api": {
+      "none": "navigation only"
+     }
+    },
+    {
+     "id": "colorGamut",
+     "meaning": "Range of colours the panel shows",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "picture",
+      "keys": [
+       "colorGamut"
+      ]
+     },
+     "type": "enum",
+     "domain": {
+      "values": [
+       "wide",
+       "extended",
+       "auto",
+       "srgb"
+      ]
+     },
+     "dimension": [
+      "input",
+      "pictureMode",
+      "_3dStatus"
+     ],
+     "domainSource": "description.json, base variant",
+     "notes": "picture keys are stored per input, per picture mode and per SDR/HDR (dimension); values and their ui.active change when the input or HDR state changes"
+    },
+    {
+     "id": "superResolution",
+     "meaning": "Sharpen low-resolution video",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "picture",
+      "keys": [
+       "superResolution"
+      ]
+     },
+     "type": "enum",
+     "domain": {
+      "values": [
+       "off",
+       "low",
+       "medium",
+       "high"
+      ]
+     },
+     "dimension": [
+      "input",
+      "pictureMode",
+      "_3dStatus"
+     ],
+     "domainSource": "description.json, base variant",
+     "notes": "picture keys are stored per input, per picture mode and per SDR/HDR (dimension); values and their ui.active change when the input or HDR state changes"
+    },
+    {
+     "id": "gamma",
+     "meaning": "Mid-tone brightness curve",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "picture",
+      "keys": [
+       "gamma"
+      ]
+     },
+     "type": "enum",
+     "domain": {
+      "values": [
+       "low",
+       "medium",
+       "high1",
+       "high2"
+      ]
+     },
+     "dimension": [
+      "input",
+      "pictureMode",
+      "_3dStatus"
+     ],
+     "domainSource": "description.json, base variant",
+     "notes": "picture keys are stored per input, per picture mode and per SDR/HDR (dimension); values and their ui.active change when the input or HDR state changes"
+    }
+   ],
+   "visibleWhen": "items shown per desc ui.visible; LG hides this page for expert modes and shows ExpertControls instead"
+  },
+  {
+   "id": "PreferredColor",
+   "meaning": "Skin, grass and sky tones",
+   "lgPath": [
+    "Picture",
+    "PictureMode",
+    "AdvancedControls",
+    "PreferredColor"
+   ],
+   "items": [
+    {
+     "id": "skinColor",
+     "meaning": "Skin tone shift",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "picture",
+      "keys": [
+       "skinColor"
+      ]
+     },
+     "type": "range",
+     "domain": {
+      "min": -5,
+      "max": 5,
+      "step": 1
+     },
+     "dimension": [
+      "input",
+      "pictureMode",
+      "_3dStatus"
+     ],
+     "domainSource": "description.json, base variant"
+    },
+    {
+     "id": "grassColor",
+     "meaning": "Grass green shift",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "picture",
+      "keys": [
+       "grassColor"
+      ]
+     },
+     "type": "range",
+     "domain": {
+      "min": -5,
+      "max": 5,
+      "step": 1
+     },
+     "dimension": [
+      "input",
+      "pictureMode",
+      "_3dStatus"
+     ],
+     "domainSource": "description.json, base variant"
+    },
+    {
+     "id": "skyColor",
+     "meaning": "Sky blue shift",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "picture",
+      "keys": [
+       "skyColor"
+      ]
+     },
+     "type": "range",
+     "domain": {
+      "min": -5,
+      "max": 5,
+      "step": 1
+     },
+     "dimension": [
+      "input",
+      "pictureMode",
+      "_3dStatus"
+     ],
+     "domainSource": "description.json, base variant"
+    }
+   ]
+  },
+  {
+   "id": "ExpertControls",
+   "meaning": "Calibration controls",
+   "lgPath": [
+    "Picture",
+    "PictureMode",
+    "ExpertControls"
+   ],
+   "items": [
+    {
+     "id": "dynamicContrast",
+     "meaning": "Boost contrast based on the scene",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "picture",
+      "keys": [
+       "dynamicContrast"
+      ]
+     },
+     "type": "enum",
+     "domain": {
+      "values": [
+       "off",
+       "low",
+       "medium",
+       "high"
+      ]
+     },
+     "dimension": [
+      "input",
+      "pictureMode",
+      "_3dStatus"
+     ],
+     "domainSource": "description.json, base variant"
+    },
+    {
+     "id": "hdrDynamicToneMapping",
+     "meaning": "Adapt HDR brightness scene by scene",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "picture",
+      "keys": [
+       "hdrDynamicToneMapping"
+      ]
+     },
+     "type": "enum",
+     "domain": {
+      "values": [
+       "on",
+       "off",
+       "HGIG"
+      ]
+     },
+     "dimension": [
+      "input",
+      "pictureMode",
+      "_3dStatus"
+     ],
+     "domainSource": "description.json, base variant"
+    },
+    {
+     "id": "superResolution",
+     "meaning": "Sharpen low-resolution video",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "picture",
+      "keys": [
+       "superResolution"
+      ]
+     },
+     "type": "enum",
+     "domain": {
+      "values": [
+       "off",
+       "low",
+       "medium",
+       "high"
+      ]
+     },
+     "dimension": [
+      "input",
+      "pictureMode",
+      "_3dStatus"
+     ],
+     "domainSource": "description.json, base variant"
+    },
+    {
+     "id": "colorGamut",
+     "meaning": "Range of colours the panel shows",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "picture",
+      "keys": [
+       "colorGamut"
+      ]
+     },
+     "type": "enum",
+     "domain": {
+      "values": [
+       "wide",
+       "extended",
+       "auto",
+       "srgb"
+      ]
+     },
+     "dimension": [
+      "input",
+      "pictureMode",
+      "_3dStatus"
+     ],
+     "domainSource": "description.json, base variant"
+    },
+    {
+     "id": "peakBrightness",
+     "meaning": "Peak highlight brightness",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "picture",
+      "keys": [
+       "peakBrightness"
+      ]
+     },
+     "type": "enum",
+     "domain": {
+      "values": [
+       "off",
+       "low",
+       "medium",
+       "high"
+      ]
+     },
+     "dimension": [
+      "input",
+      "pictureMode",
+      "_3dStatus"
+     ],
+     "domainSource": "description.json, base variant"
+    },
+    {
+     "id": "gamma",
+     "meaning": "Mid-tone brightness curve",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "picture",
+      "keys": [
+       "gamma"
+      ]
+     },
+     "type": "enum",
+     "domain": {
+      "values": [
+       "low",
+       "medium",
+       "high1",
+       "high2"
+      ]
+     },
+     "dimension": [
+      "input",
+      "pictureMode",
+      "_3dStatus"
+     ],
+     "domainSource": "description.json, base variant"
+    },
+    {
+     "id": "whiteBalance",
+     "meaning": "White balance calibration",
+     "tier": 3,
+     "type": "page",
+     "opens": "WhiteBalance",
+     "api": {
+      "none": "navigation only"
+     }
+    },
+    {
+     "id": "colorManagement",
+     "meaning": "Six-colour hue/saturation/luminance tuning",
+     "tier": 3,
+     "type": "page",
+     "opens": "ColorManagement",
+     "api": {
+      "none": "navigation only"
+     }
+    }
+   ],
+   "visibleWhen": "pictureMode expert1/expert2 (and calibration-capable modes)"
+  },
+  {
+   "id": "ColorManagement",
+   "meaning": "Six-colour management system",
+   "lgPath": [
+    "Picture",
+    "PictureMode",
+    "ExpertControls",
+    "ColorManagement"
+   ],
+   "items": [
+    {
+     "id": "colorManagementColorSystem",
+     "meaning": "Which colour is being tuned (red, green, blue, cyan, magenta, yellow)",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "picture",
+      "keys": [
+       "colorManagementColorSystem"
+      ]
+     },
+     "type": "enum",
+     "domain": {
+      "values": [
+       "red",
+       "green",
+       "blue",
+       "cyan",
+       "magenta",
+       "yellow"
+      ]
+     },
+     "dimension": [
+      "input",
+      "pictureMode",
+      "_3dStatus"
+     ],
+     "domainSource": "description.json, base variant"
+    },
+    {
+     "id": "colorManagementSaturation",
+     "meaning": "Saturation of the chosen colour",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "picture",
+      "keys": [
+       "colorManagementSaturationRed",
+       "colorManagementSaturationGreen",
+       "colorManagementSaturationBlue",
+       "colorManagementSaturationCyan",
+       "colorManagementSaturationMagenta",
+       "colorManagementSaturationYellow"
+      ]
+     },
+     "type": "range",
+     "notes": "the key used is picked by colorManagementColorSystem",
+     "domain": {
+      "min": -30,
+      "max": 30,
+      "step": 1
+     }
+    },
+    {
+     "id": "colorManagementHue",
+     "meaning": "Hue of the chosen colour",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "picture",
+      "keys": [
+       "colorManagementHueRed",
+       "colorManagementHueGreen",
+       "colorManagementHueBlue",
+       "colorManagementHueCyan",
+       "colorManagementHueMagenta",
+       "colorManagementHueYellow"
+      ]
+     },
+     "type": "range",
+     "notes": "the key used is picked by colorManagementColorSystem",
+     "domain": {
+      "min": -30,
+      "max": 30,
+      "step": 1
+     }
+    },
+    {
+     "id": "colorManagementLuminance",
+     "meaning": "Brightness of the chosen colour",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "picture",
+      "keys": [
+       "colorManagementLuminanceRed",
+       "colorManagementLuminanceGreen",
+       "colorManagementLuminanceBlue",
+       "colorManagementLuminanceCyan",
+       "colorManagementLuminanceMagenta",
+       "colorManagementLuminanceYellow"
+      ]
+     },
+     "type": "range",
+     "notes": "the key used is picked by colorManagementColorSystem",
+     "domain": {
+      "min": -30,
+      "max": 30,
+      "step": 1
+     }
+    },
+    {
+     "id": "colorManagementApplyAll",
+     "meaning": "Copy colour tuning to all inputs",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "method": "batch",
+      "params": {
+       "operations": "setSystemSettings per input"
+      }
+     },
+     "type": "action",
+     "confirm": "Apply to all inputs?"
+    }
+   ]
+  },
+  {
+   "id": "WhiteBalance",
+   "meaning": "White balance calibration",
+   "lgPath": [
+    "Picture",
+    "PictureMode",
+    "ExpertControls",
+    "WhiteBalance"
+   ],
+   "items": [
+    {
+     "id": "whiteBalanceColorTemperature",
+     "meaning": "Base white temperature",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "picture",
+      "keys": [
+       "whiteBalanceColorTemperature"
+      ]
+     },
+     "type": "enum",
+     "domain": {
+      "values": [
+       "cool",
+       "medium",
+       "warm1",
+       "warm2"
+      ]
+     },
+     "dimension": [
+      "input",
+      "pictureMode",
+      "_3dStatus"
+     ],
+     "domainSource": "description.json, base variant"
+    },
+    {
+     "id": "whiteBalanceMethod",
+     "meaning": "Calibration method: 2, 10 or 22 points",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "picture",
+      "keys": [
+       "whiteBalanceMethod"
+      ]
+     },
+     "type": "enum",
+     "domain": {
+      "values": [
+       "2",
+       "10",
+       "22",
+       "10code",
+       "22code"
+      ]
+     },
+     "dimension": [
+      "input",
+      "pictureMode",
+      "_3dStatus"
+     ],
+     "domainSource": "description.json, base variant"
+    },
+    {
+     "id": "whiteBalancePoint",
+     "meaning": "Low or high point (2-point method)",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "picture",
+      "keys": [
+       "whiteBalancePoint"
+      ]
+     },
+     "type": "enum",
+     "domain": {
+      "values": [
+       "low",
+       "high"
+      ]
+     },
+     "dimension": [
+      "input",
+      "pictureMode",
+      "_3dStatus"
+     ],
+     "domainSource": "description.json, base variant",
+     "visibleWhen": "whiteBalanceMethod = 2"
+    },
+    {
+     "id": "whiteBalanceRedGain",
+     "meaning": "Red gain",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "picture",
+      "keys": [
+       "whiteBalanceRedGain"
+      ]
+     },
+     "type": "range",
+     "domain": {
+      "min": -50,
+      "max": 50,
+      "step": 1
+     },
+     "dimension": [
+      "input",
+      "pictureMode",
+      "_3dStatus"
+     ],
+     "domainSource": "description.json, base variant",
+     "visibleWhen": "whiteBalanceMethod = 2, point high"
+    },
+    {
+     "id": "whiteBalanceGreenGain",
+     "meaning": "Green gain",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "picture",
+      "keys": [
+       "whiteBalanceGreenGain"
+      ]
+     },
+     "type": "range",
+     "domain": {
+      "min": -50,
+      "max": 50,
+      "step": 1
+     },
+     "dimension": [
+      "input",
+      "pictureMode",
+      "_3dStatus"
+     ],
+     "domainSource": "description.json, base variant",
+     "visibleWhen": "whiteBalanceMethod = 2, point high"
+    },
+    {
+     "id": "whiteBalanceBlueGain",
+     "meaning": "Blue gain",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "picture",
+      "keys": [
+       "whiteBalanceBlueGain"
+      ]
+     },
+     "type": "range",
+     "domain": {
+      "min": -50,
+      "max": 50,
+      "step": 1
+     },
+     "dimension": [
+      "input",
+      "pictureMode",
+      "_3dStatus"
+     ],
+     "domainSource": "description.json, base variant",
+     "visibleWhen": "whiteBalanceMethod = 2, point high"
+    },
+    {
+     "id": "whiteBalanceRedOffset",
+     "meaning": "Red offset",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "picture",
+      "keys": [
+       "whiteBalanceRedOffset"
+      ]
+     },
+     "type": "range",
+     "domain": {
+      "min": -50,
+      "max": 50,
+      "step": 1
+     },
+     "dimension": [
+      "input",
+      "pictureMode",
+      "_3dStatus"
+     ],
+     "domainSource": "description.json, base variant",
+     "visibleWhen": "whiteBalanceMethod = 2, point low"
+    },
+    {
+     "id": "whiteBalanceGreenOffset",
+     "meaning": "Green offset",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "picture",
+      "keys": [
+       "whiteBalanceGreenOffset"
+      ]
+     },
+     "type": "range",
+     "domain": {
+      "min": -50,
+      "max": 50,
+      "step": 1
+     },
+     "dimension": [
+      "input",
+      "pictureMode",
+      "_3dStatus"
+     ],
+     "domainSource": "description.json, base variant",
+     "visibleWhen": "whiteBalanceMethod = 2, point low"
+    },
+    {
+     "id": "whiteBalanceBlueOffset",
+     "meaning": "Blue offset",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "picture",
+      "keys": [
+       "whiteBalanceBlueOffset"
+      ]
+     },
+     "type": "range",
+     "domain": {
+      "min": -50,
+      "max": 50,
+      "step": 1
+     },
+     "dimension": [
+      "input",
+      "pictureMode",
+      "_3dStatus"
+     ],
+     "domainSource": "description.json, base variant",
+     "visibleWhen": "whiteBalanceMethod = 2, point low"
+    },
+    {
+     "id": "whiteBalanceIre",
+     "meaning": "Signal level being calibrated (22-point)",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "picture",
+      "keys": [
+       "whiteBalanceIre"
+      ]
+     },
+     "type": "enum",
+     "domain": {
+      "values": [
+       "2.5",
+       "5",
+       "7.5",
+       "10",
+       "15",
+       "20",
+       "25",
+       "30",
+       "35",
+       "40",
+       "45",
+       "50",
+       "55",
+       "60",
+       "65",
+       "70",
+       "75",
+       "80",
+       "85",
+       "90",
+       "95",
+       "100"
+      ]
+     },
+     "dimension": [
+      "input",
+      "pictureMode",
+      "_3dStatus"
+     ],
+     "domainSource": "description.json, base variant",
+     "visibleWhen": "whiteBalanceMethod = 22"
+    },
+    {
+     "id": "whiteBalanceIre10pt",
+     "meaning": "Signal level being calibrated (10-point)",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "picture",
+      "keys": [
+       "whiteBalanceIre10pt"
+      ]
+     },
+     "type": "enum",
+     "domain": {
+      "values": [
+       "10",
+       "20",
+       "30",
+       "40",
+       "50",
+       "60",
+       "70",
+       "80",
+       "90",
+       "100"
+      ]
+     },
+     "dimension": [
+      "input",
+      "pictureMode",
+      "_3dStatus"
+     ],
+     "domainSource": "description.json, base variant",
+     "visibleWhen": "whiteBalanceMethod = 10"
+    },
+    {
+     "id": "whiteBalanceLuminance",
+     "meaning": "Target luminance at this level",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "picture",
+      "keys": [
+       "whiteBalanceLuminance"
+      ]
+     },
+     "type": "range",
+     "domain": {
+      "min": 50,
+      "max": 500,
+      "step": 1
+     },
+     "dimension": [
+      "input",
+      "pictureMode",
+      "_3dStatus"
+     ],
+     "domainSource": "description.json, base variant",
+     "visibleWhen": "method 10/22; editable only at 100 IRE"
+    },
+    {
+     "id": "whiteBalanceRGB",
+     "meaning": "Red/green/blue/luminance trim at the chosen level",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "picture",
+      "keys": [
+       "whiteBalanceRed",
+       "whiteBalanceGreen",
+       "whiteBalanceBlue",
+       "adjustingLuminance",
+       "whiteBalanceRed10pt",
+       "whiteBalanceGreen10pt",
+       "whiteBalanceBlue10pt",
+       "adjustingLuminance10pt"
+      ]
+     },
+     "type": "range",
+     "domain": {
+      "min": -50,
+      "max": 50,
+      "step": 1
+     },
+     "notes": "values are arrays indexed by the chosen IRE level; the 10pt keys are used for the 10-point method"
+    },
+    {
+     "id": "whiteBalanceCodeValue",
+     "meaning": "Code-value calibration level (10/22 code methods)",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettingValues",
+      "write": "setSystemSettings",
+      "category": "picture",
+      "keys": [
+       "whiteBalanceCodeValue",
+       "whiteBalanceCodeValue10pt"
+      ]
+     },
+     "type": "dynamic",
+     "visibleWhen": "whiteBalanceMethod 10code/22code",
+     "domain": {
+      "runtime": true
+     }
+    },
+    {
+     "id": "whiteBalanceAdjustMode",
+     "meaning": "Tell the panel a calibration session is running",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.service.tv.display",
+      "method": "setWbAdjustMode"
+     },
+     "type": "action",
+     "unknown": "parameters not extracted"
+    }
+   ]
+  },
+  {
+   "id": "PictureOptions",
+   "meaning": "Noise reduction, motion and black level",
+   "lgPath": [
+    "Picture",
+    "PictureMode",
+    "PictureOptions"
+   ],
+   "items": [
+    {
+     "id": "noiseReduction",
+     "meaning": "Smooth out video noise",
+     "tier": 2,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "picture",
+      "keys": [
+       "noiseReduction"
+      ]
+     },
+     "type": "enum",
+     "domain": {
+      "values": [
+       "off",
+       "low",
+       "medium",
+       "high",
+       "auto"
+      ]
+     },
+     "dimension": [
+      "input",
+      "pictureMode",
+      "_3dStatus"
+     ],
+     "domainSource": "description.json, base variant"
+    },
+    {
+     "id": "mpegNoiseReduction",
+     "meaning": "Smooth out compression blocks",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "picture",
+      "keys": [
+       "mpegNoiseReduction"
+      ]
+     },
+     "type": "enum",
+     "domain": {
+      "values": [
+       "off",
+       "low",
+       "medium",
+       "high",
+       "auto"
+      ]
+     },
+     "dimension": [
+      "input",
+      "pictureMode",
+      "_3dStatus"
+     ],
+     "domainSource": "description.json, base variant"
+    },
+    {
+     "id": "smoothGradation",
+     "meaning": "Remove colour banding",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "picture",
+      "keys": [
+       "smoothGradation"
+      ]
+     },
+     "type": "enum",
+     "domain": {
+      "values": [
+       "off",
+       "low",
+       "medium",
+       "high"
+      ]
+     },
+     "dimension": [
+      "input",
+      "pictureMode",
+      "_3dStatus"
+     ],
+     "domainSource": "description.json, base variant"
+    },
+    {
+     "id": "blackLevel",
+     "meaning": "Video black level (limited/full range)",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "picture",
+      "keys": [
+       "blackLevel"
+      ]
+     },
+     "type": "enum",
+     "domain": {
+      "values": [
+       "auto",
+       "low",
+       "high"
+      ]
+     },
+     "dimension": [
+      "input",
+      "pictureMode",
+      "_3dStatus"
+     ],
+     "domainSource": "description.json, base variant",
+     "notes": "value stored per colour system: settings.blackLevel[colorSystem]"
+    },
+    {
+     "id": "realCinema",
+     "meaning": "Show film at its native frame rate",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "picture",
+      "keys": [
+       "realCinema"
+      ]
+     },
+     "type": "switch",
+     "domain": {
+      "values": [
+       "on",
+       "off"
+      ]
+     },
+     "dimension": [
+      "input",
+      "pictureMode",
+      "_3dStatus"
+     ],
+     "domainSource": "description.json, base variant"
+    },
+    {
+     "id": "motionEyeCare",
+     "meaning": "Dim very bright scenes to ease the eyes",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "picture",
+      "keys": [
+       "motionEyeCare"
+      ]
+     },
+     "type": "switch",
+     "domain": {
+      "values": [
+       "off",
+       "on"
+      ]
+     },
+     "dimension": [
+      "input",
+      "pictureMode",
+      "_3dStatus"
+     ],
+     "domainSource": "description.json, base variant"
+    },
+    {
+     "id": "localDimming",
+     "meaning": "Dim the backlight by zone",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "picture",
+      "keys": [
+       "localDimming"
+      ]
+     },
+     "type": "enum",
+     "domain": {
+      "values": [
+       "off",
+       "low",
+       "medium",
+       "high"
+      ]
+     },
+     "dimension": [
+      "input",
+      "pictureMode",
+      "_3dStatus"
+     ],
+     "domainSource": "description.json, base variant",
+     "visibleWhen": "LCD sets only (desc ui.visible)"
+    },
+    {
+     "id": "truMotionMode",
+     "meaning": "Motion smoothing (the \"soap opera\" effect)",
+     "tier": 2,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "picture",
+      "keys": [
+       "truMotionMode"
+      ]
+     },
+     "type": "enum",
+     "domain": {
+      "values": [
+       "off",
+       "smooth",
+       "clear",
+       "user"
+      ]
+     },
+     "dimension": [
+      "input",
+      "pictureMode",
+      "_3dStatus"
+     ],
+     "domainSource": "description.json, base variant",
+     "notes": "listed in settingsservice.allow for read/write"
+    },
+    {
+     "id": "truMotionJudder",
+     "meaning": "Motion smoothing: judder amount (user mode)",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "picture",
+      "keys": [
+       "truMotionJudder"
+      ]
+     },
+     "type": "range",
+     "domain": {
+      "min": 0,
+      "max": 10,
+      "step": 1
+     },
+     "dimension": [
+      "input",
+      "pictureMode",
+      "_3dStatus"
+     ],
+     "domainSource": "description.json, base variant",
+     "visibleWhen": "truMotionMode = user"
+    },
+    {
+     "id": "truMotionBlur",
+     "meaning": "Motion smoothing: blur reduction (user mode)",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "picture",
+      "keys": [
+       "truMotionBlur"
+      ]
+     },
+     "type": "range",
+     "domain": {
+      "min": 0,
+      "max": 10,
+      "step": 1
+     },
+     "dimension": [
+      "input",
+      "pictureMode",
+      "_3dStatus"
+     ],
+     "domainSource": "description.json, base variant",
+     "visibleWhen": "truMotionMode = user"
+    },
+    {
+     "id": "motionProOLED",
+     "meaning": "Black-frame insertion (OLED motion pro)",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "picture",
+      "keys": [
+       "motionProOLED"
+      ]
+     },
+     "type": "enum",
+     "domain": {
+      "values": [
+       "off",
+       "low",
+       "medium",
+       "high",
+       "auto"
+      ]
+     },
+     "dimension": [
+      "input",
+      "pictureMode",
+      "_3dStatus"
+     ],
+     "domainSource": "description.json, base variant",
+     "visibleWhen": "OLED, desc ui.visible"
+    },
+    {
+     "id": "ambientLightCompensation",
+     "meaning": "Adjust to room light",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "picture",
+      "keys": [
+       "ambientLightCompensation"
+      ]
+     },
+     "type": "switch",
+     "domain": {
+      "values": [
+       "on",
+       "off"
+      ]
+     },
+     "dimension": [
+      "input",
+      "pictureMode",
+      "_3dStatus"
+     ],
+     "domainSource": "description.json, base variant"
+    }
+   ]
+  },
+  {
+   "id": "AspectRatioSettings",
+   "meaning": "Screen shape and size",
+   "lgPath": [
+    "Picture",
+    "AspectRatioSettings"
+   ],
+   "items": [
+    {
+     "id": "aspectRatio",
+     "meaning": "Shape of the picture on screen (16:9, original, 4:3, zoom, ...)",
+     "tier": 2,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "picture",
+      "keys": [
+       "aspectRatio"
+      ]
+     },
+     "type": "enum",
+     "domain": {
+      "values": [
+       "16x9",
+       "just_scan",
+       "original",
+       "4x3",
+       "zoom",
+       "cinema_zoom"
+      ]
+     },
+     "dimension": [
+      "input"
+     ],
+     "domainSource": "description.json, USA variant",
+     "notes": "stored per input"
+    },
+    {
+     "id": "justScan",
+     "meaning": "Show the whole signal with no overscan",
+     "tier": 2,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "aspectRatio",
+      "keys": [
+       "justScan"
+      ]
+     },
+     "type": "enum",
+     "domain": {
+      "values": [
+       "auto",
+       "on",
+       "off"
+      ]
+     },
+     "dimension": [
+      "input",
+      "resolution"
+     ],
+     "domainSource": "description.json, base variant",
+     "notes": "stored per input and resolution"
+    },
+    {
+     "id": "arcPerApp",
+     "meaning": "Aspect ratio for apps",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "aspectRatio",
+      "keys": [
+       "arcPerApp"
+      ]
+     },
+     "type": "enum",
+     "domain": {
+      "values": [
+       "16x9",
+       "original",
+       "full_wide",
+       "4x3",
+       "vertZoom",
+       "allDirZoom",
+       "32x9",
+       "32x12",
+       "twinZoom"
+      ]
+     },
+     "dimension": [
+      "input",
+      "twinMode"
+     ],
+     "domainSource": "description.json, base variant",
+     "visibleWhen": "an app is in the foreground (current_app: true is sent with the write)"
+    },
+    {
+     "id": "arcMenuBySystem",
+     "meaning": "Whether the system controls the aspect menu",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "aspectRatio",
+      "keys": [
+       "arcMenuBySystem"
+      ]
+     },
+     "type": "switch",
+     "domain": {
+      "values": [
+       "off",
+       "on"
+      ]
+     },
+     "domainSource": "description.json, base variant",
+     "notes": "read only for us"
+    }
+   ]
+  },
+  {
+   "id": "OledPanelSettings",
+   "meaning": "OLED panel care",
+   "lgPath": [
+    "Picture",
+    "AdditionalOptions",
+    "OledPanelSettings"
+   ],
+   "items": [
+    {
+     "id": "clearPanelNoise",
+     "meaning": "Run the panel refresh (about an hour, TV off)",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.service.tv.display",
+      "method": "requestClearPanelNoise"
+     },
+     "type": "action",
+     "confirm": "The TV turns off and refreshes the panel. Continue?",
+     "sideEffects": [
+      "TV powers off for the run"
+     ],
+     "statusApi": {
+      "service": "com.webos.service.tv.display",
+      "method": "getClearPanelNoiseStatus"
+     }
+    },
+    {
+     "id": "screenShift",
+     "meaning": "Move the picture slightly to protect the panel",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "picture",
+      "keys": [
+       "screenShift"
+      ]
+     },
+     "type": "switch",
+     "domain": {
+      "values": [
+       "on",
+       "off"
+      ]
+     },
+     "domainSource": "description.json, base variant"
+    },
+    {
+     "id": "logoLuminanceAdjust",
+     "meaning": "Dim static logos",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "picture",
+      "keys": [
+       "logoLuminanceAdjust"
+      ]
+     },
+     "type": "enum",
+     "domain": {
+      "values": [
+       "off",
+       "light",
+       "strong"
+      ]
+     },
+     "domainSource": "description.json, base variant"
+    }
+   ],
+   "visibleWhen": "OLED sets (picture.oledPanelSettings on)"
+  },
+  {
+   "id": "AdditionalOptions",
+   "meaning": "Extra picture options",
+   "lgPath": [
+    "Picture",
+    "AdditionalOptions"
+   ],
+   "items": [
+    {
+     "id": "uhdDeepColor",
+     "meaning": "HDMI Ultra HD Deep Colour per HDMI port (4K HDR input)",
+     "tier": 2,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "other",
+      "keys": [
+       "uhdDeepColorHDMI1",
+       "uhdDeepColorHDMI2",
+       "uhdDeepColorHDMI3",
+       "uhdDeepColorHDMI4"
+      ]
+     },
+     "type": "switch",
+     "domain": {
+      "values": [
+       "on",
+       "off"
+      ]
+     },
+     "sideEffects": [
+      "the HDMI port re-handshakes: the picture from that device drops for a few seconds"
+     ]
+    },
+    {
+     "id": "gameOptimization",
+     "meaning": "Instant game response (low latency) per HDMI port",
+     "tier": 2,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "other",
+      "keys": [
+       "gameOptimizationHDMI1",
+       "gameOptimizationHDMI2",
+       "gameOptimizationHDMI3",
+       "gameOptimizationHDMI4"
+      ]
+     },
+     "type": "switch",
+     "domain": {
+      "values": [
+       "on",
+       "off"
+      ]
+     }
+    },
+    {
+     "id": "lowLevelAdjustment",
+     "meaning": "Fine tune dark areas",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "other",
+      "keys": [
+       "lowLevelAdjustment"
+      ]
+     },
+     "type": "range",
+     "domain": {
+      "min": -30,
+      "max": 30,
+      "step": 1
+     },
+     "domainSource": "description.json, base variant"
+    },
+    {
+     "id": "eyeComfortMode",
+     "meaning": "Warmer colours to reduce blue light",
+     "tier": 2,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "picture",
+      "keys": [
+       "eyeComfortMode"
+      ]
+     },
+     "type": "switch",
+     "domain": {
+      "values": [
+       "on",
+       "off"
+      ]
+     },
+     "domainSource": "description.json, base variant"
+    },
+    {
+     "id": "rgbwDotPattern",
+     "meaning": "Panel dot test pattern (service)",
+     "tier": 3,
+     "type": "page",
+     "opens": "RGBWDotPattern",
+     "api": {
+      "none": "navigation only"
+     }
+    }
+   ]
+  },
+  {
+   "id": "RGBWDotPattern",
+   "meaning": "Panel dot test pattern",
+   "lgPath": [
+    "Picture",
+    "RGBWDotPattern"
+   ],
+   "items": [
+    {
+     "id": "RGBWDotPatternOnOff",
+     "meaning": "Show the dot pattern",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "picture",
+      "keys": [
+       "RGBWDotPatternOnOff"
+      ]
+     },
+     "type": "switch",
+     "domain": {
+      "values": [
+       "on",
+       "off"
+      ]
+     },
+     "domainSource": "description.json, base variant"
+    },
+    {
+     "id": "RGBWDotPatternMax",
+     "meaning": "Pattern high level",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "picture",
+      "keys": [
+       "RGBWDotPatternMax"
+      ]
+     },
+     "type": "range",
+     "domain": {
+      "min": 127,
+      "max": 255,
+      "step": 1
+     },
+     "domainSource": "description.json, base variant"
+    },
+    {
+     "id": "RGBWDotPatternMin",
+     "meaning": "Pattern low level",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "picture",
+      "keys": [
+       "RGBWDotPatternMin"
+      ]
+     },
+     "type": "range",
+     "domain": {
+      "min": 0,
+      "max": 126,
+      "step": 1
+     },
+     "domainSource": "description.json, base variant"
+    }
+   ],
+   "visibleWhen": "service/RGBW panels only"
+  },
+  {
+   "id": "DeepColor8k",
+   "meaning": "Deep colour per port on 8K sets",
+   "lgPath": [
+    "Picture",
+    "AdditionalOptions",
+    "DeepColor8k"
+   ],
+   "items": [
+    {
+     "id": "uhdDeepColor8k",
+     "meaning": "HDMI deep colour: off, 4K or 8K",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "other",
+      "keys": [
+       "uhdDeepColor8kHDMI1",
+       "uhdDeepColor8kHDMI2",
+       "uhdDeepColor8kHDMI3",
+       "uhdDeepColor8kHDMI4"
+      ]
+     },
+     "type": "enum",
+     "domain": {
+      "values": [
+       "off",
+       "4k",
+       "8k"
+      ]
+     }
+    }
+   ],
+   "region": "8K models only; not this TV"
+  }
+ ]
+}

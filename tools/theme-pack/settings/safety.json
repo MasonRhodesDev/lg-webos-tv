@@ -1,0 +1,620 @@
+{
+ "id": "safety",
+ "meaning": "Parental locks (needs the PIN)",
+ "lgTarget": "parentalControls",
+ "pages": [
+  {
+   "id": "Safety",
+   "meaning": "Safety top page",
+   "lgPath": [
+    "Safety"
+   ],
+   "items": [
+    {
+     "id": "parentalControl",
+     "meaning": "Locks on or off",
+     "tier": 2,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "lock",
+      "keys": [
+       "parentalControl"
+      ]
+     },
+     "type": "switch",
+     "domain": {
+      "values": [
+       true,
+       false
+      ]
+     },
+     "domainSource": "description.json, default variant",
+     "confirm": "PIN entry (com.webos.notification/createPincodePrompt)",
+     "notes": "every Safety page is behind the PIN prompt"
+    },
+    {
+     "id": "ratingLocks",
+     "meaning": "Block programmes by rating",
+     "tier": 2,
+     "type": "page",
+     "opens": "RatingLocks",
+     "api": {
+      "none": "navigation only"
+     }
+    },
+    {
+     "id": "applicationLocks",
+     "meaning": "Lock apps",
+     "tier": 2,
+     "type": "page",
+     "opens": "ApplicationLocks",
+     "api": {
+      "none": "navigation only"
+     }
+    },
+    {
+     "id": "inputLocks",
+     "meaning": "Lock inputs",
+     "tier": 3,
+     "type": "page",
+     "opens": "InputLocks",
+     "api": {
+      "none": "navigation only"
+     }
+    },
+    {
+     "id": "changePin",
+     "meaning": "Change the PIN",
+     "tier": 2,
+     "api": {
+      "service": "com.webos.notification",
+      "method": "createPincodePrompt"
+     },
+     "type": "action",
+     "unknown": "PIN storage/verification is inside the notification manager prompt; no direct set API found"
+    }
+   ],
+   "visibleWhen": "after PIN prompt success"
+  },
+  {
+   "id": "RatingLocks",
+   "meaning": "Rating locks (US)",
+   "lgPath": [
+    "Safety",
+    "RatingLocks"
+   ],
+   "items": [
+    {
+     "id": "tvRatingChildrenAge",
+     "meaning": "TV ratings: children (TV-Y, TV-Y7)",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "lock",
+      "keys": [
+       "tvRatingChildrenAge"
+      ]
+     },
+     "type": "enum",
+     "domain": {
+      "values": [
+       "off",
+       "y",
+       "y7"
+      ]
+     },
+     "domainSource": "description.json, base variant"
+    },
+    {
+     "id": "tvRatingChildrenFantasy",
+     "meaning": "TV ratings: fantasy violence (FV)",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "lock",
+      "keys": [
+       "tvRatingChildrenFantasy"
+      ]
+     },
+     "type": "enum",
+     "domain": {
+      "values": [
+       "off",
+       "y7"
+      ]
+     },
+     "domainSource": "description.json, base variant"
+    },
+    {
+     "id": "tvRatingGeneralAge",
+     "meaning": "TV ratings: general (G, PG, 14, MA)",
+     "tier": 2,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "lock",
+      "keys": [
+       "tvRatingGeneralAge"
+      ]
+     },
+     "type": "enum",
+     "domain": {
+      "values": [
+       "off",
+       "g",
+       "pg",
+       "14",
+       "ma"
+      ]
+     },
+     "domainSource": "description.json, base variant"
+    },
+    {
+     "id": "tvRatingGeneralDialog",
+     "meaning": "TV ratings: dialogue (D)",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "lock",
+      "keys": [
+       "tvRatingGeneralDialog"
+      ]
+     },
+     "type": "enum",
+     "domain": {
+      "values": [
+       "off",
+       "pg",
+       "14"
+      ]
+     },
+     "domainSource": "description.json, base variant"
+    },
+    {
+     "id": "tvRatingGeneralLanguage",
+     "meaning": "TV ratings: language (L)",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "lock",
+      "keys": [
+       "tvRatingGeneralLanguage"
+      ]
+     },
+     "type": "enum",
+     "domain": {
+      "values": [
+       "off",
+       "pg",
+       "14",
+       "ma"
+      ]
+     },
+     "domainSource": "description.json, base variant"
+    },
+    {
+     "id": "tvRatingGeneralSex",
+     "meaning": "TV ratings: sexual content (S)",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "lock",
+      "keys": [
+       "tvRatingGeneralSex"
+      ]
+     },
+     "type": "enum",
+     "domain": {
+      "values": [
+       "off",
+       "pg",
+       "14",
+       "ma"
+      ]
+     },
+     "domainSource": "description.json, base variant"
+    },
+    {
+     "id": "tvRatingGeneralViolence",
+     "meaning": "TV ratings: violence (V)",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "lock",
+      "keys": [
+       "tvRatingGeneralViolence"
+      ]
+     },
+     "type": "enum",
+     "domain": {
+      "values": [
+       "off",
+       "pg",
+       "14",
+       "ma"
+      ]
+     },
+     "domainSource": "description.json, base variant"
+    },
+    {
+     "id": "movieRating",
+     "meaning": "Movie ratings (MPAA)",
+     "tier": 2,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "lock",
+      "keys": [
+       "movieRating"
+      ]
+     },
+     "type": "enum",
+     "domain": {
+      "values": [
+       "off",
+       "g",
+       "pg",
+       "pg13",
+       "r",
+       "nc-17",
+       "x"
+      ]
+     },
+     "domainSource": "description.json, base variant"
+    },
+    {
+     "id": "tvRatingEnglish",
+     "meaning": "Canadian English ratings",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "lock",
+      "keys": [
+       "tvRatingEnglish"
+      ]
+     },
+     "type": "enum",
+     "domain": {
+      "values": [
+       "off",
+       "e",
+       "c",
+       "c8+",
+       "g",
+       "pg",
+       "14+",
+       "18+"
+      ]
+     },
+     "domainSource": "description.json, base variant",
+     "region": "CAN"
+    },
+    {
+     "id": "tvRatingFrench",
+     "meaning": "Canadian French ratings",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "lock",
+      "keys": [
+       "tvRatingFrench"
+      ]
+     },
+     "type": "enum",
+     "domain": {
+      "values": [
+       "off",
+       "e",
+       "g",
+       "8+",
+       "13+",
+       "16+",
+       "18+"
+      ]
+     },
+     "domainSource": "description.json, base variant",
+     "region": "CAN"
+    },
+    {
+     "id": "downloadableRrt",
+     "meaning": "Downloadable rating table",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "lock",
+      "keys": [
+       "downloadableRrt"
+      ]
+     },
+     "type": "file",
+     "domain": {
+      "runtime": true
+     },
+     "domainSource": "description.json, base variant"
+    }
+   ]
+  },
+  {
+   "id": "TVRatingLocks",
+   "meaning": "Age rating locks (non-US)",
+   "lgPath": [
+    "Safety",
+    "TVRatingLocks"
+   ],
+   "items": [
+    {
+     "id": "parentalGuidance",
+     "meaning": "Block by age",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "lock",
+      "keys": [
+       "parentalGuidance"
+      ]
+     },
+     "type": "enum",
+     "domain": {
+      "values": [
+       "off",
+       "4+",
+       "5+",
+       "6+",
+       "7+",
+       "8+",
+       "9+",
+       "10+",
+       "11+",
+       "12+",
+       "13+",
+       "14+",
+       "15+",
+       "16+",
+       "17+",
+       "18+"
+      ]
+     },
+     "domainSource": "description.json, default variant"
+    },
+    {
+     "id": "parentalGuidanceJp",
+     "meaning": "Block by age (Japan)",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "lock",
+      "keys": [
+       "parentalGuidanceJp"
+      ]
+     },
+     "type": "enum",
+     "domain": {
+      "values": [
+       "off",
+       "4+",
+       "5+",
+       "6+",
+       "7+",
+       "8+",
+       "9+",
+       "10+",
+       "11+",
+       "12+",
+       "13+",
+       "14+",
+       "15+",
+       "16+",
+       "17+",
+       "18+",
+       "19+",
+       "20+"
+      ]
+     },
+     "domainSource": "description.json, base variant",
+     "region": "JPN"
+    },
+    {
+     "id": "ratingBR",
+     "meaning": "Block by age (Brazil)",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "lock",
+      "keys": [
+       "ratingBR"
+      ]
+     },
+     "type": "enum",
+     "domain": {
+      "values": [
+       "off",
+       "10+",
+       "12+",
+       "14+",
+       "16+",
+       "18+"
+      ]
+     },
+     "domainSource": "description.json, base variant",
+     "region": "BRA"
+    },
+    {
+     "id": "ratingSA",
+     "meaning": "Block by age (South Africa)",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "lock",
+      "keys": [
+       "ratingSA"
+      ]
+     },
+     "type": "enum",
+     "domain": {
+      "values": [
+       "off",
+       "pg10",
+       "10+",
+       "pg13",
+       "13+",
+       "16+",
+       "18+",
+       "r18"
+      ]
+     },
+     "domainSource": "description.json, base variant",
+     "region": "ZAF"
+    },
+    {
+     "id": "ziggoRaiting",
+     "meaning": "Operator rating (Ziggo)",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "lock",
+      "keys": [
+       "ziggoRaiting"
+      ]
+     },
+     "type": "enum",
+     "domain": {
+      "values": [
+       "off",
+       "all",
+       "4+",
+       "5+",
+       "6+",
+       "7+",
+       "8+",
+       "9+",
+       "10+",
+       "11+",
+       "12+",
+       "13+",
+       "14+",
+       "15+",
+       "16+",
+       "17+",
+       "18+"
+      ]
+     },
+     "domainSource": "description.json, default variant",
+     "region": "NLD operator"
+    },
+    {
+     "id": "vooRating",
+     "meaning": "Operator rating (VOO)",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "lock",
+      "keys": [
+       "vooRating"
+      ]
+     },
+     "type": "enum",
+     "domain": {
+      "values": [
+       "off",
+       "10+",
+       "12+",
+       "16+",
+       "18+"
+      ]
+     },
+     "domainSource": "description.json, base variant",
+     "region": "BEL operator"
+    }
+   ],
+   "region": "non-US"
+  },
+  {
+   "id": "ApplicationLocks",
+   "meaning": "App locks",
+   "lgPath": [
+    "Safety",
+    "ApplicationLocks"
+   ],
+   "items": [
+    {
+     "id": "appLocks",
+     "meaning": "Which apps need the PIN",
+     "tier": 2,
+     "api": {
+      "service": "com.webos.applicationManager",
+      "read": "listApps",
+      "write": "lockApp",
+      "params": "{id, lock}"
+     },
+     "type": "list",
+     "unknown": "the write method was not extracted (listed through applicationManager); verify on the TV"
+    }
+   ]
+  },
+  {
+   "id": "InputLocks",
+   "meaning": "Input locks",
+   "lgPath": [
+    "Safety",
+    "InputLocks"
+   ],
+   "items": [
+    {
+     "id": "inputBlock",
+     "meaning": "Inputs that need the PIN (bit mask)",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "lock",
+      "keys": [
+       "inputBlock"
+      ]
+     },
+     "type": "range",
+     "domain": {
+      "min": 0,
+      "max": 4294967295,
+      "step": 1
+     },
+     "domainSource": "description.json, base variant"
+    }
+   ]
+  }
+ ]
+}

@@ -1,0 +1,1795 @@
+{
+ "id": "general",
+ "meaning": "Time, language, power and the TV itself",
+ "lgTarget": "general",
+ "pages": [
+  {
+   "id": "General",
+   "meaning": "General top page",
+   "lgPath": [
+    "General"
+   ],
+   "items": [
+    {
+     "id": "language",
+     "meaning": "Menu and audio languages",
+     "tier": 2,
+     "type": "page",
+     "opens": "Language",
+     "api": {
+      "none": "navigation only"
+     }
+    },
+    {
+     "id": "location",
+     "meaning": "Country and postcode",
+     "tier": 3,
+     "type": "page",
+     "opens": "Location",
+     "api": {
+      "none": "navigation only"
+     }
+    },
+    {
+     "id": "timeDate",
+     "meaning": "Clock and time zone",
+     "tier": 2,
+     "type": "page",
+     "opens": "TimeDate",
+     "api": {
+      "none": "navigation only"
+     }
+    },
+    {
+     "id": "timers",
+     "meaning": "Sleep timer and power on/off timers",
+     "tier": 1,
+     "type": "page",
+     "opens": "Timers",
+     "api": {
+      "none": "navigation only"
+     }
+    },
+    {
+     "id": "ecoMode",
+     "meaning": "Auto power off",
+     "tier": 2,
+     "type": "page",
+     "opens": "EcoMode",
+     "api": {
+      "none": "navigation only"
+     }
+    },
+    {
+     "id": "aboutThisTV",
+     "meaning": "Software version, updates, legal",
+     "tier": 2,
+     "type": "page",
+     "opens": "AboutThisTV",
+     "api": {
+      "none": "navigation only"
+     }
+    },
+    {
+     "id": "additionalGeneral",
+     "meaning": "Home screen, start-up and other options",
+     "tier": 3,
+     "type": "page",
+     "opens": "AdditionalGeneral",
+     "api": {
+      "none": "navigation only"
+     }
+    },
+    {
+     "id": "aiService",
+     "meaning": "AI recommendations",
+     "tier": 3,
+     "type": "page",
+     "opens": "AiService",
+     "api": {
+      "none": "navigation only"
+     }
+    },
+    {
+     "id": "quickStartMode",
+     "meaning": "Quick Start+: faster power on, more standby power",
+     "tier": 2,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "option",
+      "keys": [
+       "quickStartMode"
+      ]
+     },
+     "type": "switch",
+     "domain": {
+      "values": [
+       "on",
+       "off"
+      ]
+     },
+     "domainSource": "description.json, base variant"
+    },
+    {
+     "id": "screenSaverEnabled",
+     "meaning": "Screen saver when idle",
+     "tier": 2,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "general",
+      "keys": [
+       "screenSaverEnabled"
+      ]
+     },
+     "type": "switch",
+     "domain": {
+      "values": [
+       "on",
+       "off"
+      ]
+     },
+     "domainSource": "description.json, base variant"
+    },
+    {
+     "id": "resetToInitial",
+     "meaning": "Reset the TV to factory settings",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.service.tv.systemproperty",
+      "method": "doUserDefault"
+     },
+     "type": "action",
+     "confirm": "Erase all settings, apps and accounts and restart?",
+     "sideEffects": [
+      "factory reset",
+      "TV restarts",
+      "network settings and paired devices are lost"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "Timers",
+   "meaning": "Timers",
+   "lgPath": [
+    "General",
+    "Timers"
+   ],
+   "items": [
+    {
+     "id": "sleepTimer",
+     "meaning": "Turn the TV off after a set time",
+     "tier": 1,
+     "api": {
+      "service": "com.webos.service.tv.time",
+      "read": "getSleepTimeInfo",
+      "subscribe": true,
+      "write": "setSleepTimeInfo",
+      "param": "sleepTimeMinute"
+     },
+     "type": "enum",
+     "domain": {
+      "values": [
+       "off",
+       "10",
+       "20",
+       "30",
+       "60",
+       "90",
+       "120",
+       "180",
+       "240"
+      ],
+      "unit": "min"
+     },
+     "notes": "response has sleepTimeMinute and sleepTimeSecond (remaining); LG maps the remaining time onto the list. QuickSettings uses the same service (ServiceModel/TimerServiceModel.qml); tv.time does not answer \"subscribed\": true"
+    },
+    {
+     "id": "timerPowerOn",
+     "meaning": "Turn on at a set time",
+     "tier": 3,
+     "type": "page",
+     "opens": "TimerPowerOn",
+     "api": {
+      "none": "navigation only"
+     }
+    },
+    {
+     "id": "timerPowerOff",
+     "meaning": "Turn off at a set time",
+     "tier": 3,
+     "type": "page",
+     "opens": "TimerPowerOff",
+     "api": {
+      "none": "navigation only"
+     }
+    },
+    {
+     "id": "autoOff2HourOnTimer",
+     "meaning": "Turn off 2 hours after a timed power-on with no use",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "time",
+      "keys": [
+       "autoOff2HourOnTimer"
+      ]
+     },
+     "type": "switch",
+     "domain": {
+      "values": [
+       "on",
+       "off"
+      ]
+     },
+     "domainSource": "description.json, base variant"
+    }
+   ]
+  },
+  {
+   "id": "TimerPowerOn",
+   "meaning": "Power on timer",
+   "lgPath": [
+    "General",
+    "Timers",
+    "TimerPowerOn"
+   ],
+   "items": [
+    {
+     "id": "onTimerEnable",
+     "meaning": "Power on timer on/off",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "time",
+      "keys": [
+       "onTimerEnable"
+      ]
+     },
+     "type": "switch",
+     "domain": {
+      "values": [
+       "off",
+       "on"
+      ]
+     },
+     "domainSource": "description.json, base variant"
+    },
+    {
+     "id": "onTimerHour",
+     "meaning": "Hour",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "time",
+      "keys": [
+       "onTimerHour"
+      ]
+     },
+     "type": "range",
+     "domain": {
+      "min": 0,
+      "max": 24,
+      "step": 1
+     },
+     "domainSource": "description.json, base variant"
+    },
+    {
+     "id": "onTimerMinute",
+     "meaning": "Minute",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "time",
+      "keys": [
+       "onTimerMinute"
+      ]
+     },
+     "type": "range",
+     "domain": {
+      "min": 0,
+      "max": 59,
+      "step": 1
+     },
+     "domainSource": "description.json, base variant"
+    },
+    {
+     "id": "onTimerWeekday",
+     "meaning": "Repeat days (bit mask, Sun = bit 0)",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "time",
+      "keys": [
+       "onTimerWeekday"
+      ]
+     },
+     "type": "range",
+     "domain": {
+      "min": 0,
+      "max": 255,
+      "step": 1
+     },
+     "domainSource": "description.json, base variant",
+     "unknown": "bit order assumed from shortDayNames order in LG code"
+    },
+    {
+     "id": "onTimerSource",
+     "meaning": "Input to start on",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "time",
+      "keys": [
+       "onTimerSource"
+      ]
+     },
+     "type": "enum",
+     "domain": {
+      "values": [
+       "dtv",
+       "atv",
+       "av1",
+       "av2",
+       "pictest",
+       "comp1",
+       "comp2",
+       "comp3",
+       "rgb",
+       "hdmi1",
+       "hdmi2",
+       "hdmi3",
+       "hdmi4",
+       "hdmi1_pc",
+       "hdmi2_pc",
+       "hdmi3_pc",
+       "hdmi4_pc",
+       "program",
+       "scart",
+       "smhl"
+      ]
+     },
+     "domainSource": "description.json, base variant"
+    },
+    {
+     "id": "onTimerChannel",
+     "meaning": "Channel to start on",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "time",
+      "keys": [
+       "onTimerChannel"
+      ]
+     },
+     "type": "dynamic",
+     "domain": {
+      "runtime": true
+     },
+     "domainSource": "description.json, base variant"
+    },
+    {
+     "id": "onTimerAppId",
+     "meaning": "App to start",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "time",
+      "keys": [
+       "onTimerAppId"
+      ]
+     },
+     "type": "dynamic",
+     "domain": {
+      "runtime": true
+     },
+     "domainSource": "description.json, base variant"
+    },
+    {
+     "id": "onTimerVolume",
+     "meaning": "Volume at power on",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "time",
+      "keys": [
+       "onTimerVolume"
+      ]
+     },
+     "type": "range",
+     "domain": {
+      "min": 0,
+      "max": 100,
+      "step": 1
+     },
+     "domainSource": "description.json, base variant"
+    }
+   ],
+   "visibleWhen": "clock must be set (LG asks to set the time first)"
+  },
+  {
+   "id": "TimerPowerOff",
+   "meaning": "Power off timer",
+   "lgPath": [
+    "General",
+    "Timers",
+    "TimerPowerOff"
+   ],
+   "items": [
+    {
+     "id": "offTimerEnable",
+     "meaning": "Power off timer on/off",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "time",
+      "keys": [
+       "offTimerEnable"
+      ]
+     },
+     "type": "switch",
+     "domain": {
+      "values": [
+       "off",
+       "on"
+      ]
+     },
+     "domainSource": "description.json, base variant"
+    },
+    {
+     "id": "offTimerHour",
+     "meaning": "Hour",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "time",
+      "keys": [
+       "offTimerHour"
+      ]
+     },
+     "type": "range",
+     "domain": {
+      "min": 0,
+      "max": 24,
+      "step": 1
+     },
+     "domainSource": "description.json, base variant"
+    },
+    {
+     "id": "offTimerMinute",
+     "meaning": "Minute",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "time",
+      "keys": [
+       "offTimerMinute"
+      ]
+     },
+     "type": "range",
+     "domain": {
+      "min": 0,
+      "max": 59,
+      "step": 1
+     },
+     "domainSource": "description.json, base variant"
+    },
+    {
+     "id": "offTimerWeekday",
+     "meaning": "Repeat days (bit mask)",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "time",
+      "keys": [
+       "offTimerWeekday"
+      ]
+     },
+     "type": "range",
+     "domain": {
+      "min": 0,
+      "max": 255,
+      "step": 1
+     },
+     "domainSource": "description.json, base variant"
+    }
+   ]
+  },
+  {
+   "id": "TimeDate",
+   "meaning": "Time and date",
+   "lgPath": [
+    "General",
+    "TimeDate"
+   ],
+   "items": [
+    {
+     "id": "autoTime",
+     "meaning": "Set the clock from the network/broadcast",
+     "tier": 2,
+     "api": {
+      "service": "com.palm.systemservice",
+      "read": "getPreferences",
+      "write": "setPreferences",
+      "keys": [
+       "useNetworkTime"
+      ]
+     },
+     "type": "switch",
+     "domain": {
+      "values": [
+       true,
+       false
+      ]
+     }
+    },
+    {
+     "id": "manualTime",
+     "meaning": "Set date and time by hand",
+     "tier": 3,
+     "api": {
+      "service": "com.palm.systemservice/time",
+      "write": "setSystemTime",
+      "params": "{utc: <seconds>}"
+     },
+     "type": "form",
+     "visibleWhen": "useNetworkTime false"
+    },
+    {
+     "id": "timeZone",
+     "meaning": "Time zone",
+     "tier": 2,
+     "api": {
+      "service": "com.palm.systemservice",
+      "read": "getPreferences",
+      "write": "setPreferences",
+      "keys": [
+       "timeZone"
+      ]
+     },
+     "type": "enum",
+     "domain": {
+      "runtime": true,
+      "source": "/etc/palm/defaultTimeZone.json and the TV's timezone list"
+     }
+    },
+    {
+     "id": "currentTime",
+     "meaning": "Current time shown",
+     "tier": 2,
+     "api": {
+      "service": "com.palm.systemservice/time",
+      "read": "getEffectiveBroadcastTime"
+     },
+     "type": "info"
+    }
+   ]
+  },
+  {
+   "id": "Language",
+   "meaning": "Languages",
+   "lgPath": [
+    "General",
+    "Language"
+   ],
+   "items": [
+    {
+     "id": "menuLanguage",
+     "meaning": "Language of menus",
+     "tier": 2,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "",
+      "keys": [
+       "localeInfo"
+      ],
+      "listFrom": "com.webos.settingsservice/getSystemSettingValues {category:\"option\", key:\"menuLanguage\"}"
+     },
+     "type": "enum",
+     "domain": {
+      "runtime": true
+     },
+     "sideEffects": [
+      "every app reloads its strings (webOSLocaleChange); LG Settings closes and reopens"
+     ],
+     "confirm": null
+    },
+    {
+     "id": "audioLanguage",
+     "meaning": "Preferred broadcast audio language",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "channel",
+      "keys": [
+       "audioLanguage"
+      ]
+     },
+     "type": "dynamic",
+     "domain": {
+      "runtime": true
+     },
+     "domainSource": "description.json, base variant"
+    },
+    {
+     "id": "teletextLanguageFirst",
+     "meaning": "First teletext language",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "option",
+      "keys": [
+       "teletextLanguageFirst"
+      ]
+     },
+     "type": "enum",
+     "domain": {
+      "values": [
+       "eng",
+       "spa",
+       "fre"
+      ]
+     },
+     "domainSource": "description.json, USA variant",
+     "region": "EU"
+    },
+    {
+     "id": "teletextLanguageSecond",
+     "meaning": "Second teletext language",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "option",
+      "keys": [
+       "teletextLanguageSecond"
+      ]
+     },
+     "type": "enum",
+     "domain": {
+      "values": [
+       "eng",
+       "spa",
+       "fre"
+      ]
+     },
+     "domainSource": "description.json, USA variant",
+     "region": "EU"
+    },
+    {
+     "id": "keyboardLanguages",
+     "meaning": "On-screen keyboard languages",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "category": "",
+      "keys": [
+       "localeInfo"
+      ],
+      "field": "localeInfo.keyboards"
+     },
+     "type": "multi-enum",
+     "domain": {
+      "runtime": true
+     }
+    }
+   ]
+  },
+  {
+   "id": "Location",
+   "meaning": "Location",
+   "lgPath": [
+    "General",
+    "Location"
+   ],
+   "items": [
+    {
+     "id": "country",
+     "meaning": "Broadcast country",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.service.sdx",
+      "write": "setCountrySettingByManual",
+      "read": "com.webos.settingsservice option.country"
+     },
+     "type": "enum",
+     "domain": {
+      "runtime": true,
+      "source": "/etc/palm/countryList.json"
+     },
+     "confirm": "Change the country? Channels and apps may change.",
+     "sideEffects": [
+      "channel list reset",
+      "app store region changes",
+      "TV may restart"
+     ]
+    },
+    {
+     "id": "smartServiceCountryCode3",
+     "meaning": "LG services country",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "option",
+      "keys": [
+       "smartServiceCountryCode3"
+      ]
+     },
+     "type": "dynamic",
+     "domain": {
+      "runtime": true
+     },
+     "domainSource": "description.json, base variant",
+     "sideEffects": [
+      "store and content change"
+     ]
+    },
+    {
+     "id": "zipcode",
+     "meaning": "Postcode (for local content)",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "option",
+      "keys": [
+       "zipcode"
+      ]
+     },
+     "type": "dynamic",
+     "domain": {
+      "runtime": true
+     },
+     "domainSource": "description.json, base variant"
+    }
+   ]
+  },
+  {
+   "id": "EcoMode",
+   "meaning": "Power saving",
+   "lgPath": [
+    "General",
+    "EcoMode"
+   ],
+   "items": [
+    {
+     "id": "automaticStandBy",
+     "meaning": "Turn off after hours of no remote use",
+     "tier": 2,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "time",
+      "keys": [
+       "automaticStandBy"
+      ]
+     },
+     "type": "enum",
+     "domain": {
+      "values": [
+       "0",
+       "2",
+       "4",
+       "6",
+       "8"
+      ]
+     },
+     "domainSource": "description.json, default variant",
+     "confirm": "Extending or turning off auto power off may increase energy use. Continue?"
+    },
+    {
+     "id": "noSignalAutoOff",
+     "meaning": "Turn off after 15 minutes of no signal",
+     "tier": 2,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "time",
+      "keys": [
+       "noSignalAutoOff"
+      ]
+     },
+     "type": "switch",
+     "domain": {
+      "values": [
+       "on",
+       "off"
+      ]
+     },
+     "domainSource": "description.json, default variant"
+    },
+    {
+     "id": "noOperationAutoOff",
+     "meaning": "Turn off after hours with no operation (some regions)",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "time",
+      "keys": [
+       "noOperationAutoOff"
+      ]
+     },
+     "type": "enum",
+     "domain": {
+      "values": [
+       "off",
+       "3",
+       "6",
+       "12",
+       "24"
+      ]
+     },
+     "domainSource": "description.json, default variant"
+    },
+    {
+     "id": "hddEcoMode",
+     "meaning": "Put an idle USB hard disk to sleep",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "option",
+      "keys": [
+       "hddEcoMode"
+      ]
+     },
+     "type": "switch",
+     "domain": {
+      "values": [
+       "on",
+       "off"
+      ]
+     },
+     "domainSource": "description.json, base variant"
+    },
+    {
+     "id": "autoOff15Min",
+     "meaning": "Turn off after 15 minutes of no signal (variant)",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "time",
+      "keys": [
+       "autoOff15Min"
+      ]
+     },
+     "type": "switch",
+     "domain": {
+      "values": [
+       "on",
+       "off"
+      ]
+     },
+     "domainSource": "description.json, base variant",
+     "region": "some countries"
+    }
+   ]
+  },
+  {
+   "id": "AboutThisTV",
+   "meaning": "About this TV",
+   "lgPath": [
+    "General",
+    "AboutThisTV"
+   ],
+   "items": [
+    {
+     "id": "swVersion",
+     "meaning": "Software version",
+     "tier": 2,
+     "api": {
+      "service": "com.webos.service.update",
+      "read": "getVersion"
+     },
+     "type": "info",
+     "notes": "also com.palm.systemservice/osInfo/query"
+    },
+    {
+     "id": "checkUpdate",
+     "meaning": "Check for a software update",
+     "tier": 2,
+     "api": {
+      "service": "com.webos.service.update",
+      "write": "checkUpdate",
+      "status": "getCurStatus / getProgress",
+      "start": "startUpdate",
+      "cancel": "cancelUpdate"
+     },
+     "type": "action",
+     "sideEffects": [
+      "installing reboots the TV"
+     ],
+     "notes": "useless offline; a rooted TV may want updates blocked anyway"
+    },
+    {
+     "id": "automaticUpdate",
+     "meaning": "Install updates automatically",
+     "tier": 2,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "support",
+      "keys": [
+       "automaticUpdate"
+      ]
+     },
+     "type": "switch",
+     "domain": {
+      "values": [
+       "on",
+       "off"
+      ]
+     },
+     "domainSource": "description.json, base variant",
+     "notes": "on a rooted TV an update can remove root; keep off"
+    },
+    {
+     "id": "tvInformation",
+     "meaning": "Model, serial, MAC addresses",
+     "tier": 2,
+     "api": {
+      "service": "com.palm.systemservice/deviceInfo",
+      "read": "query"
+     },
+     "type": "info",
+     "notes": "serial/MAC are personal data; show on screen only"
+    },
+    {
+     "id": "legalNotice",
+     "meaning": "Legal notices and licences",
+     "tier": 3,
+     "type": "page",
+     "opens": "LegalNotice",
+     "api": {
+      "none": "navigation only"
+     }
+    }
+   ]
+  },
+  {
+   "id": "AdditionalGeneral",
+   "meaning": "Additional settings",
+   "lgPath": [
+    "General",
+    "AdditionalGeneral"
+   ],
+   "items": [
+    {
+     "id": "homeSettings",
+     "meaning": "Home screen options",
+     "tier": 3,
+     "type": "page",
+     "opens": "HomeSettings",
+     "api": {
+      "none": "navigation only"
+     }
+    },
+    {
+     "id": "emergencyAlert",
+     "meaning": "Emergency broadcast alerts",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "option",
+      "keys": [
+       "emergencyAlert"
+      ]
+     },
+     "type": "switch",
+     "domain": {
+      "values": [
+       "on",
+       "off"
+      ]
+     },
+     "domainSource": "description.json, base variant"
+    },
+    {
+     "id": "startupSound",
+     "meaning": "Sound at power on",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "sound",
+      "keys": [
+       "startupSound"
+      ]
+     },
+     "type": "switch",
+     "domain": {
+      "values": [
+       "on",
+       "off"
+      ]
+     },
+     "domainSource": "description.json, base variant"
+    },
+    {
+     "id": "logoLight",
+     "meaning": "Front logo light",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "option",
+      "keys": [
+       "logoLight"
+      ]
+     },
+     "type": "enum",
+     "domain": {
+      "values": [
+       "off",
+       "low",
+       "medium",
+       "high"
+      ]
+     },
+     "domainSource": "description.json, base variant"
+    },
+    {
+     "id": "standByLight",
+     "meaning": "Standby light",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "option",
+      "keys": [
+       "standByLight"
+      ]
+     },
+     "type": "switch",
+     "domain": {
+      "values": [
+       "on",
+       "off"
+      ]
+     },
+     "domainSource": "description.json, base variant"
+    },
+    {
+     "id": "livePlus",
+     "meaning": "Live Plus (interactive TV content)",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "option",
+      "keys": [
+       "livePlus"
+      ]
+     },
+     "type": "switch",
+     "domain": {
+      "values": [
+       "on",
+       "off"
+      ]
+     },
+     "domainSource": "description.json, base variant"
+    },
+    {
+     "id": "helpOnSettings",
+     "meaning": "Help text beside settings",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "option",
+      "keys": [
+       "helpOnSettings"
+      ]
+     },
+     "type": "switch",
+     "domain": {
+      "values": [
+       "on",
+       "off"
+      ]
+     },
+     "domainSource": "description.json, base variant"
+    },
+    {
+     "id": "screenSaverAd",
+     "meaning": "Promotions in the screen saver",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "general",
+      "keys": [
+       "screenSaverAd"
+      ]
+     },
+     "type": "switch",
+     "domain": {
+      "values": [
+       "on",
+       "off"
+      ]
+     },
+     "domainSource": "description.json, base variant"
+    },
+    {
+     "id": "noSignalScreenSaver",
+     "meaning": "Image when there is no signal",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "general",
+      "keys": [
+       "noSignalScreenSaver"
+      ]
+     },
+     "type": "switch",
+     "domain": {
+      "values": [
+       "on",
+       "off"
+      ]
+     },
+     "domainSource": "description.json, base variant"
+    },
+    {
+     "id": "storeMode",
+     "meaning": "Home or shop-demo mode",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "option",
+      "keys": [
+       "storeMode"
+      ]
+     },
+     "type": "enum",
+     "domain": {
+      "values": [
+       "home",
+       "store"
+      ]
+     },
+     "domainSource": "description.json, base variant",
+     "confirm": "Shop mode resets picture settings periodically. Continue?",
+     "sideEffects": [
+      "store mode forces vivid picture and periodic resets"
+     ]
+    },
+    {
+     "id": "adCookie",
+     "meaning": "Ad tracking",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "general",
+      "keys": [
+       "adCookie"
+      ]
+     },
+     "type": "switch",
+     "domain": {
+      "values": [
+       "on",
+       "off"
+      ]
+     },
+     "domainSource": "description.json, base variant"
+    },
+    {
+     "id": "play8kVideoOnApps",
+     "meaning": "Play 8K streams in apps",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "option",
+      "keys": [
+       "play8kVideoOnApps"
+      ]
+     },
+     "type": "switch",
+     "domain": {
+      "values": [
+       "on",
+       "off"
+      ]
+     },
+     "domainSource": "description.json, base variant",
+     "region": "8K models only"
+    }
+   ]
+  },
+  {
+   "id": "HomeSettings",
+   "meaning": "Home screen",
+   "lgPath": [
+    "General",
+    "AdditionalGeneral",
+    "HomeSettings"
+   ],
+   "items": [
+    {
+     "id": "homeAutoLaunch",
+     "meaning": "Open Home at power on",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "general",
+      "keys": [
+       "homeAutoLaunch"
+      ]
+     },
+     "type": "switch",
+     "domain": {
+      "values": [
+       "on",
+       "off"
+      ]
+     },
+     "domainSource": "description.json, base variant"
+    },
+    {
+     "id": "homePromotion",
+     "meaning": "Promotions on Home",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "general",
+      "keys": [
+       "homePromotion"
+      ]
+     },
+     "type": "switch",
+     "domain": {
+      "values": [
+       "on",
+       "off"
+      ]
+     },
+     "domainSource": "description.json, base variant"
+    },
+    {
+     "id": "defaultApps",
+     "meaning": "Default apps on Home",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "general",
+      "keys": [
+       "defaultApps"
+      ]
+     },
+     "type": "dynamic",
+     "domain": {
+      "runtime": true
+     },
+     "domainSource": "description.json, base variant"
+    }
+   ]
+  },
+  {
+   "id": "HomeStyle",
+   "meaning": "Home screen style",
+   "lgPath": [
+    "General",
+    "AdditionalGeneral",
+    "HomeSettings",
+    "HomeStyle"
+   ],
+   "items": [
+    {
+     "id": "defaultApps",
+     "meaning": "Which apps Home shows by default",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "general",
+      "keys": [
+       "defaultApps"
+      ]
+     },
+     "type": "dynamic",
+     "domain": {
+      "runtime": true
+     },
+     "domainSource": "description.json, base variant"
+    }
+   ]
+  },
+  {
+   "id": "WirelessKeyboard",
+   "meaning": "LG wireless keyboard",
+   "lgPath": [
+    "General",
+    "AdditionalGeneral",
+    "WirelessKeyboard"
+   ],
+   "items": [
+    {
+     "id": "wirelessKeyboard",
+     "meaning": "Pair or remove an LG wireless keyboard",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.service.mrcu/hid",
+      "subscribe": "subscribeDevicesStatus",
+      "connect": "connect",
+      "disconnect": "disconnect"
+     },
+     "type": "device-list"
+    }
+   ]
+  },
+  {
+   "id": "AiService",
+   "meaning": "AI service",
+   "lgPath": [
+    "General",
+    "AiService"
+   ],
+   "items": [
+    {
+     "id": "aiNudge",
+     "meaning": "AI suggestions",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "general",
+      "keys": [
+       "aiNudge"
+      ]
+     },
+     "type": "switch",
+     "domain": {
+      "values": [
+       "on",
+       "off"
+      ]
+     },
+     "domainSource": "description.json, base variant"
+    },
+    {
+     "id": "broadcastInfoNoti",
+     "meaning": "Broadcast info notifications",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "option",
+      "keys": [
+       "broadcastInfoNoti"
+      ]
+     },
+     "type": "switch",
+     "domain": {
+      "values": [
+       "on",
+       "off"
+      ]
+     },
+     "domainSource": "description.json, USA variant"
+    },
+    {
+     "id": "personalRecommend",
+     "meaning": "Personal recommendations",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "general",
+      "keys": [
+       "personalRecommend"
+      ]
+     },
+     "type": "dynamic",
+     "domain": {
+      "runtime": true
+     },
+     "domainSource": "description.json, base variant"
+    },
+    {
+     "id": "voiceRecognition",
+     "meaning": "Voice recognition",
+     "tier": 3,
+     "type": "page",
+     "opens": "VoiceRecognition",
+     "api": {
+      "none": "navigation only"
+     }
+    },
+    {
+     "id": "usageReset",
+     "meaning": "Reset usage data",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.service.usercontextmanager",
+      "method": "reset"
+     },
+     "type": "action",
+     "confirm": "Reset viewing history?"
+    }
+   ]
+  },
+  {
+   "id": "VoiceRecognition",
+   "meaning": "Voice recognition service",
+   "lgPath": [
+    "General",
+    "AiService",
+    "VoiceRecognition"
+   ],
+   "items": [
+    {
+     "id": "selectedService",
+     "meaning": "Which voice service to use",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "voiceframework",
+      "keys": [
+       "selectedService"
+      ]
+     },
+     "type": "dynamic",
+     "domain": {
+      "runtime": true
+     },
+     "domainSource": "description.json, base variant"
+    }
+   ]
+  },
+  {
+   "id": "Advertising",
+   "meaning": "Advertising",
+   "lgPath": [
+    "General",
+    "AdditionalGeneral",
+    "Advertising"
+   ],
+   "items": [
+    {
+     "id": "lmt",
+     "meaning": "Limit ad tracking",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "general",
+      "keys": [
+       "lmt"
+      ]
+     },
+     "type": "switch",
+     "domain": {
+      "values": [
+       "on",
+       "off"
+      ]
+     },
+     "domainSource": "description.json, base variant"
+    },
+    {
+     "id": "resetAdId",
+     "meaning": "Reset advertising id",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.service.admanager",
+      "method": "resetIFA"
+     },
+     "type": "action"
+    }
+   ]
+  },
+  {
+   "id": "LegalNotice",
+   "meaning": "Legal notices",
+   "lgPath": [
+    "General",
+    "AboutThisTV",
+    "LegalNotice"
+   ],
+   "items": [
+    {
+     "id": "licenses",
+     "meaning": "Open source licences and user agreements",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "category": "",
+      "keys": [
+       "eulaInfoNetwork"
+      ]
+     },
+     "type": "info"
+    }
+   ]
+  },
+  {
+   "id": "SignatureTVSetting",
+   "meaning": "SIGNATURE TV options",
+   "lgPath": [
+    "General",
+    "SignatureTVSetting"
+   ],
+   "items": [
+    {
+     "id": "tvOnScreen",
+     "meaning": "Opening effect",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "general",
+      "keys": [
+       "tvOnScreen"
+      ]
+     },
+     "type": "enum",
+     "domain": {
+      "values": [
+       "effect",
+       "liveTV"
+      ]
+     },
+     "domainSource": "description.json, base variant"
+    },
+    {
+     "id": "tvOnSound",
+     "meaning": "Power-on sound volume",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "general",
+      "keys": [
+       "tvOnSound"
+      ]
+     },
+     "type": "enum",
+     "domain": {
+      "values": [
+       "off",
+       "veryLow",
+       "low",
+       "medium",
+       "high",
+       "veryHigh"
+      ]
+     },
+     "domainSource": "description.json, base variant"
+    },
+    {
+     "id": "alwaysOn",
+     "meaning": "Always-on display",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "general",
+      "keys": [
+       "alwaysOn"
+      ]
+     },
+     "type": "switch",
+     "domain": {
+      "values": [
+       "on",
+       "off"
+      ]
+     },
+     "domainSource": "description.json, base variant"
+    },
+    {
+     "id": "voiceLongDistance",
+     "meaning": "Far-field voice (\"Hi LG\")",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "general",
+      "keys": [
+       "voiceLongDistance"
+      ]
+     },
+     "type": "switch",
+     "domain": {
+      "values": [
+       "on",
+       "off"
+      ]
+     },
+     "domainSource": "description.json, base variant"
+    }
+   ],
+   "region": "SIGNATURE models only; not this TV"
+  },
+  {
+   "id": "AlwaysOn",
+   "meaning": "Always-on display",
+   "lgPath": [
+    "General",
+    "SignatureTVSetting",
+    "AlwaysOn"
+   ],
+   "items": [
+    {
+     "id": "alwaysOn",
+     "meaning": "Always-on display",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "general",
+      "keys": [
+       "alwaysOn"
+      ]
+     },
+     "type": "switch",
+     "domain": {
+      "values": [
+       "on",
+       "off"
+      ]
+     },
+     "domainSource": "description.json, base variant"
+    },
+    {
+     "id": "blueToothSpeakerMode",
+     "meaning": "Act as a Bluetooth speaker when off",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "general",
+      "keys": [
+       "blueToothSpeakerMode"
+      ]
+     },
+     "type": "switch",
+     "domain": {
+      "values": [
+       "on",
+       "off"
+      ]
+     },
+     "domainSource": "description.json, base variant"
+    },
+    {
+     "id": "welcomeFeature",
+     "meaning": "Welcome on approach",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "general",
+      "keys": [
+       "welcomeFeature"
+      ]
+     },
+     "type": "switch",
+     "domain": {
+      "values": [
+       "on",
+       "off"
+      ]
+     },
+     "domainSource": "description.json, base variant"
+    },
+    {
+     "id": "alwaysOnQuietHours",
+     "meaning": "Hours the always-on display stays off",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "general",
+      "keys": [
+       "alwaysOnDisableStartHour",
+       "alwaysOnDisableStartMinute",
+       "alwaysOnDisableEndHour",
+       "alwaysOnDisableEndMinute"
+      ]
+     },
+     "type": "form",
+     "domain": {
+      "hour": [
+       0,
+       24
+      ],
+      "minute": [
+       0,
+       59
+      ]
+     }
+    }
+   ],
+   "region": "SIGNATURE models only; not this TV"
+  }
+ ]
+}

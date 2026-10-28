@@ -1,0 +1,994 @@
+{
+ "id": "sound",
+ "meaning": "How the TV sounds and where sound goes",
+ "lgTarget": "sound",
+ "pages": [
+  {
+   "id": "Sound",
+   "meaning": "Sound top page",
+   "lgPath": [
+    "Sound"
+   ],
+   "items": [
+    {
+     "id": "soundMode",
+     "meaning": "Preset sound (standard, cinema, news, sports, music, game)",
+     "tier": 1,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "sound",
+      "keys": [
+       "soundMode"
+      ]
+     },
+     "type": "enum",
+     "domain": {
+      "values": [
+       "standard",
+       "movie",
+       "news",
+       "sports",
+       "music",
+       "game"
+      ]
+     },
+     "dimension": [
+      "input"
+     ],
+     "domainSource": "description.json, default variant",
+     "notes": "stored per input"
+    },
+    {
+     "id": "smartSoundMode",
+     "meaning": "Let the TV pick the sound mode for the content",
+     "tier": 2,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "sound",
+      "keys": [
+       "smartSoundMode"
+      ]
+     },
+     "type": "switch",
+     "domain": {
+      "values": [
+       "on",
+       "off"
+      ]
+     },
+     "domainSource": "description.json, base variant"
+    },
+    {
+     "id": "aiSound",
+     "meaning": "AI sound (virtual surround tuned to content)",
+     "tier": 2,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "sound",
+      "keys": [
+       "aiSound"
+      ]
+     },
+     "type": "switch",
+     "domain": {
+      "values": [
+       "on",
+       "off"
+      ]
+     },
+     "domainSource": "description.json, base variant"
+    },
+    {
+     "id": "soundOutput",
+     "meaning": "Where sound plays: TV speakers, optical, HDMI ARC, Bluetooth, headphones, line out",
+     "tier": 1,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "sound",
+      "keys": [
+       "soundOutput"
+      ]
+     },
+     "type": "enum",
+     "domain": {
+      "values": [
+       "tv_speaker",
+       "tv_speakerbar",
+       "external_optical",
+       "external_arc",
+       "bt_soundbar",
+       "wisa_speaker",
+       "lineout",
+       "builtin_soundbar",
+       "headphone",
+       "bt_audio",
+       "tv_external_speaker",
+       "tv_speaker_headphone",
+       "tv_speakerbar_headphone"
+      ]
+     },
+     "domainSource": "description.json, base variant",
+     "notes": "listed in settingsservice.allow for read/write. Bluetooth/WiSA targets need a connected device first (btaudiosrc/wisa)",
+     "sideEffects": [
+      "switching away from TV speakers mutes them; a missing device gives silence"
+     ]
+    },
+    {
+     "id": "soundOut",
+     "meaning": "Sound output devices and options",
+     "tier": 1,
+     "type": "page",
+     "opens": "SoundOut",
+     "api": {
+      "none": "navigation only"
+     }
+    },
+    {
+     "id": "soundModeSettings",
+     "meaning": "Balance, equaliser and surround for the current mode",
+     "tier": 2,
+     "type": "page",
+     "opens": "SoundMode",
+     "api": {
+      "none": "navigation only"
+     }
+    },
+    {
+     "id": "autoVolume",
+     "meaning": "Keep loudness even across channels and adverts",
+     "tier": 2,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "sound",
+      "keys": [
+       "autoVolume"
+      ]
+     },
+     "type": "switch",
+     "domain": {
+      "values": [
+       "on",
+       "off"
+      ]
+     },
+     "domainSource": "description.json, base variant"
+    },
+    {
+     "id": "avSync",
+     "meaning": "Delay sound or picture to keep lips in sync",
+     "tier": 2,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "sound",
+      "keys": [
+       "avSync"
+      ]
+     },
+     "type": "switch",
+     "domain": {
+      "values": [
+       "on",
+       "off"
+      ]
+     },
+     "dimension": [
+      "input"
+     ],
+     "domainSource": "description.json, base variant",
+     "notes": "listed in settingsservice.allow. LG adjusts the delay amount with avSyncSpdif / avSyncBypassInput"
+    },
+    {
+     "id": "magicSpaceSound",
+     "meaning": "Room-tuned sound (needs the remote mic calibration)",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "sound",
+      "keys": [
+       "magicSpaceSound"
+      ]
+     },
+     "type": "enum",
+     "domain": {
+      "values": [
+       "off",
+       "standard",
+       "bass",
+       "treble",
+       "flat"
+      ]
+     },
+     "domainSource": "description.json, base variant"
+    },
+    {
+     "id": "supportATMOS",
+     "meaning": "Whether Dolby Atmos is available",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "sound",
+      "keys": [
+       "supportATMOS"
+      ]
+     },
+     "type": "info",
+     "domain": {
+      "values": [
+       "on",
+       "off"
+      ]
+     },
+     "domainSource": "description.json, base variant",
+     "notes": "LG reads it to label sound modes"
+    },
+    {
+     "id": "additionalSound",
+     "meaning": "Additional sound settings",
+     "tier": 3,
+     "type": "page",
+     "opens": "AdditionalSound",
+     "api": {
+      "none": "navigation only"
+     }
+    },
+    {
+     "id": "soundTest",
+     "meaning": "Play a test tone to check the speakers",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "write": "setSystemSettings",
+      "category": "sound",
+      "keys": [
+       "soundTest"
+      ]
+     },
+     "type": "action",
+     "unknown": "LG wires the sound test via the sound.soundTest key; exact trigger value not extracted"
+    }
+   ]
+  },
+  {
+   "id": "SoundMode",
+   "meaning": "Sound mode fine-tuning",
+   "lgPath": [
+    "Sound",
+    "SoundMode"
+   ],
+   "items": [
+    {
+     "id": "soundMode",
+     "meaning": "Preset being tuned",
+     "tier": 1,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "sound",
+      "keys": [
+       "soundMode"
+      ]
+     },
+     "type": "enum",
+     "domain": {
+      "values": [
+       "standard",
+       "movie",
+       "news",
+       "sports",
+       "music",
+       "game"
+      ]
+     },
+     "dimension": [
+      "input"
+     ],
+     "domainSource": "description.json, default variant"
+    },
+    {
+     "id": "audioBalance",
+     "meaning": "Left-right balance",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "sound",
+      "keys": [
+       "audioBalance"
+      ]
+     },
+     "type": "range",
+     "domain": {
+      "min": -50,
+      "max": 50,
+      "step": 1
+     },
+     "domainSource": "description.json, base variant"
+    },
+    {
+     "id": "virtualSurround",
+     "meaning": "Virtual surround",
+     "tier": 2,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "sound",
+      "keys": [
+       "virtualSurround"
+      ]
+     },
+     "type": "switch",
+     "domain": {
+      "values": [
+       "on",
+       "off"
+      ]
+     },
+     "domainSource": "description.json, base variant"
+    },
+    {
+     "id": "userEqualizer",
+     "meaning": "Use the custom equaliser",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "sound",
+      "keys": [
+       "userEqualizer"
+      ]
+     },
+     "type": "switch",
+     "domain": {
+      "values": [
+       "on",
+       "off"
+      ]
+     },
+     "domainSource": "description.json, base variant"
+    },
+    {
+     "id": "userEqualizerValues",
+     "meaning": "Equaliser bands (array of band gains)",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "sound",
+      "keys": [
+       "userEqualizerValues"
+      ]
+     },
+     "type": "range",
+     "domain": {
+      "min": -10,
+      "max": 10,
+      "step": 1
+     },
+     "domainSource": "description.json, base variant",
+     "notes": "value is an array of band gains, each in the range"
+    },
+    {
+     "id": "resetSound",
+     "meaning": "Reset balance, equaliser and surround",
+     "tier": 2,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "method": "resetSystemSettings",
+      "params": {
+       "category": "sound",
+       "keys": [
+        "virtualSurround",
+        "audioBalance",
+        "userEqualizer",
+        "userEqualizerValues",
+        "soundModeModified"
+       ]
+      }
+     },
+     "type": "action",
+     "confirm": "Reset the sound mode settings?"
+    }
+   ],
+   "visibleWhen": "only when sound output is the TV speaker (desc ui.active)"
+  },
+  {
+   "id": "SoundOut",
+   "meaning": "Sound output",
+   "lgPath": [
+    "Sound",
+    "SoundOut"
+   ],
+   "items": [
+    {
+     "id": "soundOutput",
+     "meaning": "Where sound plays",
+     "tier": 1,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "sound",
+      "keys": [
+       "soundOutput"
+      ]
+     },
+     "type": "enum",
+     "domain": {
+      "values": [
+       "tv_speaker",
+       "tv_speakerbar",
+       "external_optical",
+       "external_arc",
+       "bt_soundbar",
+       "wisa_speaker",
+       "lineout",
+       "builtin_soundbar",
+       "headphone",
+       "bt_audio",
+       "tv_external_speaker",
+       "tv_speaker_headphone",
+       "tv_speakerbar_headphone"
+      ]
+     },
+     "domainSource": "description.json, base variant"
+    },
+    {
+     "id": "soundOutputDigital",
+     "meaning": "Digital audio format to the receiver: auto, PCM, pass-through",
+     "tier": 2,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "sound",
+      "keys": [
+       "soundOutputDigital"
+      ]
+     },
+     "type": "enum",
+     "domain": {
+      "values": [
+       "pcm",
+       "auto",
+       "passThrough"
+      ]
+     },
+     "domainSource": "description.json, base variant",
+     "notes": "listed in settingsservice.allow"
+    },
+    {
+     "id": "eArcSupport",
+     "meaning": "Enhanced ARC to a soundbar",
+     "tier": 2,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "sound",
+      "keys": [
+       "eArcSupport"
+      ]
+     },
+     "type": "switch",
+     "domain": {
+      "values": [
+       "on",
+       "off"
+      ]
+     },
+     "domainSource": "description.json, base variant",
+     "notes": "listed in settingsservice.allow"
+    },
+    {
+     "id": "lgSoundSync",
+     "meaning": "Control an LG soundbar volume with the TV remote",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "sound",
+      "keys": [
+       "lgSoundSync"
+      ]
+     },
+     "type": "switch",
+     "domain": {
+      "values": [
+       "on",
+       "off"
+      ]
+     },
+     "domainSource": "description.json, base variant"
+    },
+    {
+     "id": "volumeControl",
+     "meaning": "External speaker volume range",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "sound",
+      "keys": [
+       "volumeControl"
+      ]
+     },
+     "type": "enum",
+     "domain": {
+      "values": [
+       "low",
+       "medium",
+       "high"
+      ]
+     },
+     "domainSource": "description.json, base variant"
+    },
+    {
+     "id": "bluetooth",
+     "meaning": "Bluetooth speakers and headphones",
+     "tier": 1,
+     "type": "page",
+     "opens": "Bluetooth",
+     "api": {
+      "none": "navigation only"
+     }
+    },
+    {
+     "id": "wisa",
+     "meaning": "Wireless WiSA speakers",
+     "tier": 3,
+     "type": "page",
+     "opens": "WiSASoundSync",
+     "api": {
+      "none": "navigation only"
+     }
+    }
+   ]
+  },
+  {
+   "id": "Bluetooth",
+   "meaning": "Bluetooth audio devices",
+   "lgPath": [
+    "Sound",
+    "SoundOut",
+    "Bluetooth"
+   ],
+   "items": [
+    {
+     "id": "btDevices",
+     "meaning": "Paired and nearby Bluetooth audio devices",
+     "tier": 1,
+     "api": {
+      "service": "com.webos.service.btaudiosrc",
+      "read": "getPairedDevices",
+      "subscribe": "getDeviceStatus",
+      "discover": "startDiscovery / cancelDiscovery",
+      "connect": "connect",
+      "disconnect": "disconnect",
+      "forget": "removePairedDevice",
+      "current": "getConnectedDevice"
+     },
+     "type": "device-list",
+     "sideEffects": [
+      "connecting switches sound output to Bluetooth"
+     ],
+     "notes": "QuickSettings uses the same service in-process"
+    },
+    {
+     "id": "btSoundOutActive",
+     "meaning": "Open the device picker LG shows from Quick Settings",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.service.btaudiosrc",
+      "method": "onDeviceSelectionMenu"
+     },
+     "type": "action",
+     "notes": "a notification that the selection UI is up"
+    }
+   ]
+  },
+  {
+   "id": "EasyPairing",
+   "meaning": "LG speaker easy pairing",
+   "lgPath": [
+    "Sound",
+    "SoundOut",
+    "Bluetooth",
+    "EasyPairing"
+   ],
+   "items": [
+    {
+     "id": "btDotAutoScan",
+     "meaning": "Look for LG speakers automatically",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "sound",
+      "keys": [
+       "btDotAutoScan"
+      ]
+     },
+     "type": "switch",
+     "domain": {
+      "values": [
+       "on",
+       "off"
+      ]
+     },
+     "domainSource": "description.json, base variant"
+    },
+    {
+     "id": "btDotSignalStrength",
+     "meaning": "Pairing signal threshold",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "sound",
+      "keys": [
+       "btDotSignalStrength"
+      ]
+     },
+     "type": "enum",
+     "domain": {
+      "values": [
+       "low",
+       "high"
+      ]
+     },
+     "domainSource": "description.json, base variant"
+    }
+   ]
+  },
+  {
+   "id": "WiSASoundSync",
+   "meaning": "WiSA wireless speakers",
+   "lgPath": [
+    "Sound",
+    "SoundOut",
+    "WiSASoundSync"
+   ],
+   "items": [
+    {
+     "id": "wisaSpeakerChannelType",
+     "meaning": "Speaker layout: 2.0 or 5.1",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "sound",
+      "keys": [
+       "wisaSpeakerChannelType"
+      ]
+     },
+     "type": "enum",
+     "domain": {
+      "values": [
+       "2",
+       "5.1"
+      ]
+     },
+     "domainSource": "description.json, USA variant"
+    },
+    {
+     "id": "wisaSpeakers",
+     "meaning": "Find, test and remove WiSA speakers",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.service.wisa",
+      "read": "getSelectedSpeakerState",
+      "search": "searchSpeaker",
+      "test": "soundTestOneSpeaker",
+      "remove": "deleteOneSpeaker",
+      "type": "setSpeakerType"
+     },
+     "type": "device-list"
+    }
+   ],
+   "visibleWhen": "a WiSA dongle is attached (pdm)"
+  },
+  {
+   "id": "AdditionalSound",
+   "meaning": "Additional sound settings",
+   "lgPath": [
+    "Sound",
+    "AdditionalSound"
+   ],
+   "items": [
+    {
+     "id": "soundOptimizer",
+     "meaning": "Tune sound for stand or wall mounting",
+     "tier": 2,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "sound",
+      "keys": [
+       "soundOptimizer"
+      ]
+     },
+     "type": "enum",
+     "domain": {
+      "values": [
+       "normal",
+       "stand",
+       "wall_mount"
+      ]
+     },
+     "domainSource": "description.json, base variant"
+    },
+    {
+     "id": "digitalAudioPriority",
+     "meaning": "Preferred broadcast audio codec",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "sound",
+      "keys": [
+       "digitalAudioPriority"
+      ]
+     },
+     "type": "enum",
+     "domain": {
+      "values": [
+       "mpeg",
+       "dolbyDigital",
+       "dobyDigitalPlus",
+       "heAaC",
+       "auto"
+      ]
+     },
+     "domainSource": "description.json, default variant"
+    },
+    {
+     "id": "inputAudioFormat",
+     "meaning": "HDMI input audio format",
+     "tier": 3,
+     "type": "page",
+     "opens": "InputAudioFormat",
+     "api": {
+      "none": "navigation only"
+     }
+    },
+    {
+     "id": "volumeMode",
+     "meaning": "Volume behaviour",
+     "tier": 3,
+     "type": "page",
+     "opens": "VolumeMode",
+     "api": {
+      "none": "navigation only"
+     }
+    },
+    {
+     "id": "tvPowerSound",
+     "meaning": "Beep on power on/off",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "sound",
+      "keys": [
+       "tvPowerSound"
+      ]
+     },
+     "type": "switch",
+     "domain": {
+      "values": [
+       "on",
+       "off"
+      ]
+     },
+     "domainSource": "description.json, USA variant"
+    }
+   ]
+  },
+  {
+   "id": "InputAudioFormat",
+   "meaning": "HDMI input audio format",
+   "lgPath": [
+    "Sound",
+    "AdditionalSound",
+    "InputAudioFormat"
+   ],
+   "items": [
+    {
+     "id": "inputAudioFormat",
+     "meaning": "Bitstream or PCM per HDMI port",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "sound",
+      "keys": [
+       "inputAudioFormatHDMI1",
+       "inputAudioFormatHDMI2",
+       "inputAudioFormatHDMI3",
+       "inputAudioFormatHDMI4"
+      ]
+     },
+     "type": "enum",
+     "domain": {
+      "values": [
+       "bitstream",
+       "pcm"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "VolumeMode",
+   "meaning": "Volume behaviour",
+   "lgPath": [
+    "Sound",
+    "AdditionalSound",
+    "VolumeMode"
+   ],
+   "items": [
+    {
+     "id": "autoVolume",
+     "meaning": "Keep loudness even",
+     "tier": 2,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "sound",
+      "keys": [
+       "autoVolume"
+      ]
+     },
+     "type": "switch",
+     "domain": {
+      "values": [
+       "on",
+       "off"
+      ]
+     },
+     "domainSource": "description.json, base variant"
+    },
+    {
+     "id": "volumeControl",
+     "meaning": "Volume range",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "sound",
+      "keys": [
+       "volumeControl"
+      ]
+     },
+     "type": "enum",
+     "domain": {
+      "values": [
+       "low",
+       "medium",
+       "high"
+      ]
+     },
+     "domainSource": "description.json, base variant"
+    }
+   ]
+  },
+  {
+   "id": "Equalizer",
+   "meaning": "Equaliser",
+   "lgPath": [
+    "Sound",
+    "Equalizer"
+   ],
+   "items": [
+    {
+     "id": "userEqualizerValues",
+     "meaning": "Equaliser bands",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "sound",
+      "keys": [
+       "userEqualizerValues"
+      ]
+     },
+     "type": "range",
+     "domain": {
+      "min": -10,
+      "max": 10,
+      "step": 1
+     },
+     "domainSource": "description.json, base variant"
+    }
+   ]
+  },
+  {
+   "id": "MagicSpaceSound",
+   "meaning": "Room-tuned sound",
+   "lgPath": [
+    "Sound",
+    "MagicSpaceSound"
+   ],
+   "items": [
+    {
+     "id": "magicSpaceSound",
+     "meaning": "Room-tuned sound style",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "sound",
+      "keys": [
+       "magicSpaceSound"
+      ]
+     },
+     "type": "enum",
+     "domain": {
+      "values": [
+       "off",
+       "standard",
+       "bass",
+       "treble",
+       "flat"
+      ]
+     },
+     "domainSource": "description.json, base variant"
+    },
+    {
+     "id": "magicSoundTime",
+     "meaning": "When the room calibration was made",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "sound",
+      "keys": [
+       "magicSoundTime"
+      ]
+     },
+     "type": "info",
+     "domain": {
+      "runtime": true
+     },
+     "domainSource": "description.json, base variant"
+    }
+   ],
+   "visibleWhen": "TV speaker output and a Magic Remote with a microphone"
+  }
+ ]
+}

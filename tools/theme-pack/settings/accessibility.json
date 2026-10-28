@@ -1,0 +1,1085 @@
+{
+ "id": "accessibility",
+ "meaning": "Captions, audio guidance and readability",
+ "lgTarget": "accessibility",
+ "pages": [
+  {
+   "id": "Accessibility",
+   "meaning": "Accessibility top page",
+   "lgPath": [
+    "Accessibility"
+   ],
+   "items": [
+    {
+     "id": "captionEnable",
+     "meaning": "Show closed captions",
+     "tier": 1,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "caption",
+      "keys": [
+       "captionEnable"
+      ]
+     },
+     "type": "switch",
+     "domain": {
+      "values": [
+       "on",
+       "off"
+      ]
+     },
+     "domainSource": "description.json, base variant",
+     "notes": "listed in settingsservice.allow for read/write"
+    },
+    {
+     "id": "closedCaption",
+     "meaning": "Caption options",
+     "tier": 2,
+     "type": "page",
+     "opens": "ClosedCaption",
+     "api": {
+      "none": "navigation only"
+     }
+    },
+    {
+     "id": "audioGuidance",
+     "meaning": "Spoken menus",
+     "tier": 2,
+     "type": "page",
+     "opens": "AudioGuidance",
+     "api": {
+      "none": "navigation only"
+     }
+    },
+    {
+     "id": "audioDescription",
+     "meaning": "Narration of on-screen action",
+     "tier": 2,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "sound",
+      "keys": [
+       "audioDescription"
+      ]
+     },
+     "type": "switch",
+     "domain": {
+      "values": [
+       "on",
+       "off"
+      ]
+     },
+     "domainSource": "description.json, base variant"
+    },
+    {
+     "id": "audioDescriptionVolume",
+     "meaning": "Narration volume",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "sound",
+      "keys": [
+       "audioDescriptionVolume"
+      ]
+     },
+     "type": "range",
+     "domain": {
+      "min": -15,
+      "max": 15,
+      "step": 1
+     },
+     "domainSource": "description.json, base variant",
+     "visibleWhen": "audioDescription on"
+    },
+    {
+     "id": "menuTransparency",
+     "meaning": "See-through menus",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "option",
+      "keys": [
+       "menuTransparency"
+      ]
+     },
+     "type": "switch",
+     "domain": {
+      "values": [
+       "on",
+       "off"
+      ]
+     },
+     "domainSource": "description.json, base variant",
+     "notes": "LG Settings reads it for its own panel; ours can honour it"
+    },
+    {
+     "id": "additionalAudioSelection",
+     "meaning": "Extra audio track type (description, clean audio, spoken subtitles)",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "option",
+      "keys": [
+       "additionalAudioSelection"
+      ]
+     },
+     "type": "enum",
+     "domain": {
+      "values": [
+       "none",
+       "audioDescription",
+       "cleanAudio",
+       "spokenSubtitles"
+      ]
+     },
+     "domainSource": "description.json, base variant",
+     "region": "EU"
+    },
+    {
+     "id": "supplementaryAudio",
+     "meaning": "Supplementary audio",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "option",
+      "keys": [
+       "supplementaryAudio"
+      ]
+     },
+     "type": "enum",
+     "domain": {
+      "values": [
+       "off",
+       "audioDescription",
+       "spokenSubtitles",
+       "allType"
+      ]
+     },
+     "domainSource": "description.json, base variant",
+     "region": "EU"
+    },
+    {
+     "id": "highContrast",
+     "meaning": "High-contrast menus",
+     "tier": 2,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "option",
+      "keys": [
+       "highContrast"
+      ]
+     },
+     "type": "switch",
+     "domain": {
+      "values": [
+       "on",
+       "off"
+      ]
+     },
+     "domainSource": "description.json, base variant",
+     "notes": "our Settings should switch to a high-contrast style variant"
+    },
+    {
+     "id": "hardOfHearing",
+     "meaning": "Subtitles for the hard of hearing",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "caption",
+      "keys": [
+       "hardOfHearing"
+      ]
+     },
+     "type": "switch",
+     "domain": {
+      "values": [
+       "on",
+       "off"
+      ]
+     },
+     "domainSource": "description.json, default variant",
+     "region": "EU"
+    },
+    {
+     "id": "visualImpaired",
+     "meaning": "Visually impaired audio",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "sound",
+      "keys": [
+       "visualImpaired"
+      ]
+     },
+     "type": "switch",
+     "domain": {
+      "values": [
+       "on",
+       "off"
+      ]
+     },
+     "domainSource": "description.json, base variant",
+     "region": "EU"
+    },
+    {
+     "id": "pointerOptions",
+     "meaning": "Magic Remote pointer",
+     "tier": 3,
+     "type": "page",
+     "opens": "PointerOptions",
+     "api": {
+      "none": "navigation only"
+     }
+    }
+   ]
+  },
+  {
+   "id": "ClosedCaption",
+   "meaning": "Closed captions",
+   "lgPath": [
+    "Accessibility",
+    "ClosedCaption"
+   ],
+   "items": [
+    {
+     "id": "captionEnable",
+     "meaning": "Captions on/off",
+     "tier": 1,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "caption",
+      "keys": [
+       "captionEnable"
+      ]
+     },
+     "type": "switch",
+     "domain": {
+      "values": [
+       "on",
+       "off"
+      ]
+     },
+     "domainSource": "description.json, base variant"
+    },
+    {
+     "id": "analogMode",
+     "meaning": "Analog caption channel",
+     "tier": 3,
+     "type": "page",
+     "opens": "AnalogMode",
+     "api": {
+      "none": "navigation only"
+     }
+    },
+    {
+     "id": "digitalMode",
+     "meaning": "Digital caption service",
+     "tier": 2,
+     "type": "page",
+     "opens": "DigitalMode",
+     "api": {
+      "none": "navigation only"
+     }
+    },
+    {
+     "id": "captionStyle",
+     "meaning": "Caption look",
+     "tier": 3,
+     "type": "page",
+     "opens": "HDModeOption",
+     "api": {
+      "none": "navigation only"
+     }
+    }
+   ]
+  },
+  {
+   "id": "AnalogMode",
+   "meaning": "Analog captions",
+   "lgPath": [
+    "Accessibility",
+    "ClosedCaption",
+    "AnalogMode"
+   ],
+   "items": [
+    {
+     "id": "captionAnalog",
+     "meaning": "Analog caption channel (CC1-4, text 1-4)",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "caption",
+      "keys": [
+       "captionAnalog"
+      ]
+     },
+     "type": "enum",
+     "domain": {
+      "values": [
+       "cc1",
+       "cc2",
+       "cc3",
+       "cc4",
+       "t1",
+       "t2",
+       "t3",
+       "t4",
+       "eng",
+       "kor"
+      ]
+     },
+     "domainSource": "description.json, USA variant"
+    }
+   ]
+  },
+  {
+   "id": "DigitalMode",
+   "meaning": "Digital captions",
+   "lgPath": [
+    "Accessibility",
+    "ClosedCaption",
+    "DigitalMode"
+   ],
+   "items": [
+    {
+     "id": "captionDigital",
+     "meaning": "Digital caption service",
+     "tier": 2,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "caption",
+      "keys": [
+       "captionDigital"
+      ]
+     },
+     "type": "enum",
+     "domain": {
+      "values": [
+       "off",
+       "svc1",
+       "svc2",
+       "svc3",
+       "svc4",
+       "svc5",
+       "svc6",
+       "Portuguese",
+       "Spanish",
+       "English"
+      ]
+     },
+     "domainSource": "description.json, USA variant"
+    },
+    {
+     "id": "digitalPlusCaptionLanguage",
+     "meaning": "Caption language",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "caption",
+      "keys": [
+       "digitalPlusCaptionLanguage"
+      ]
+     },
+     "type": "enum",
+     "domain": {
+      "values": [
+       "kor",
+       "eng",
+       "jpn",
+       "chi"
+      ]
+     },
+     "domainSource": "description.json, base variant"
+    }
+   ]
+  },
+  {
+   "id": "HDModeOption",
+   "meaning": "Caption look",
+   "lgPath": [
+    "Accessibility",
+    "ClosedCaption",
+    "HDModeOption"
+   ],
+   "items": [
+    {
+     "id": "captionStyle",
+     "meaning": "Broadcaster style or my style",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "caption",
+      "keys": [
+       "captionStyle"
+      ]
+     },
+     "type": "enum",
+     "domain": {
+      "values": [
+       "auto",
+       "manual"
+      ]
+     },
+     "domainSource": "description.json, USA variant"
+    },
+    {
+     "id": "captionSize",
+     "meaning": "Text size",
+     "tier": 2,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "caption",
+      "keys": [
+       "captionSize"
+      ]
+     },
+     "type": "enum",
+     "domain": {
+      "values": [
+       "small",
+       "standard",
+       "large"
+      ]
+     },
+     "domainSource": "description.json, USA variant"
+    },
+    {
+     "id": "captionFont",
+     "meaning": "Font",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "caption",
+      "keys": [
+       "captionFont"
+      ]
+     },
+     "type": "enum",
+     "domain": {
+      "values": [
+       "font0",
+       "font1",
+       "font2",
+       "font3",
+       "font4",
+       "font5",
+       "font6",
+       "font7"
+      ]
+     },
+     "domainSource": "description.json, USA variant"
+    },
+    {
+     "id": "captionTextColor",
+     "meaning": "Text colour",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "caption",
+      "keys": [
+       "captionTextColor"
+      ]
+     },
+     "type": "enum",
+     "domain": {
+      "values": [
+       "white",
+       "black",
+       "red",
+       "green",
+       "blue",
+       "cyan",
+       "magenta",
+       "yellow"
+      ]
+     },
+     "domainSource": "description.json, USA variant"
+    },
+    {
+     "id": "captionTextOpacity",
+     "meaning": "Text opacity",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "caption",
+      "keys": [
+       "captionTextOpacity"
+      ]
+     },
+     "type": "enum",
+     "domain": {
+      "values": [
+       "flash",
+       "translucent",
+       "transparent",
+       "solid"
+      ]
+     },
+     "domainSource": "description.json, USA variant"
+    },
+    {
+     "id": "captionBgColor",
+     "meaning": "Background colour",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "caption",
+      "keys": [
+       "captionBgColor"
+      ]
+     },
+     "type": "enum",
+     "domain": {
+      "values": [
+       "white",
+       "black",
+       "red",
+       "green",
+       "blue",
+       "cyan",
+       "magenta",
+       "yellow"
+      ]
+     },
+     "domainSource": "description.json, USA variant"
+    },
+    {
+     "id": "captionBgOpacity",
+     "meaning": "Background opacity",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "caption",
+      "keys": [
+       "captionBgOpacity"
+      ]
+     },
+     "type": "enum",
+     "domain": {
+      "values": [
+       "flash",
+       "translucent",
+       "transparent",
+       "solid"
+      ]
+     },
+     "domainSource": "description.json, USA variant"
+    },
+    {
+     "id": "captionEdgeType",
+     "meaning": "Text edge",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "caption",
+      "keys": [
+       "captionEdgeType"
+      ]
+     },
+     "type": "enum",
+     "domain": {
+      "values": [
+       "none",
+       "uniform",
+       "raised",
+       "depressed",
+       "left_drop_shadow",
+       "right_drop_shadow"
+      ]
+     },
+     "domainSource": "description.json, USA variant"
+    },
+    {
+     "id": "captionEdgeColor",
+     "meaning": "Edge colour",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "caption",
+      "keys": [
+       "captionEdgeColor"
+      ]
+     },
+     "type": "enum",
+     "domain": {
+      "values": [
+       "white",
+       "black",
+       "red",
+       "green",
+       "blue",
+       "cyan",
+       "magenta",
+       "yellow"
+      ]
+     },
+     "domainSource": "description.json, USA variant"
+    },
+    {
+     "id": "captionWindowColor",
+     "meaning": "Window colour",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "caption",
+      "keys": [
+       "captionWindowColor"
+      ]
+     },
+     "type": "enum",
+     "domain": {
+      "values": [
+       "white",
+       "black",
+       "red",
+       "green",
+       "blue",
+       "cyan",
+       "magenta",
+       "yellow"
+      ]
+     },
+     "domainSource": "description.json, USA variant"
+    },
+    {
+     "id": "captionWindowOpacity",
+     "meaning": "Window opacity",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "caption",
+      "keys": [
+       "captionWindowOpacity"
+      ]
+     },
+     "type": "enum",
+     "domain": {
+      "values": [
+       "translucent",
+       "transparent",
+       "solid"
+      ]
+     },
+     "domainSource": "description.json, USA variant"
+    },
+    {
+     "id": "captionPreview",
+     "meaning": "Live preview of caption style",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.service.tv.subtitle",
+      "start": "enablePreview",
+      "stop": "disablePreview"
+     },
+     "type": "action"
+    }
+   ],
+   "visibleWhen": "caption style editable when captionStyle = manual"
+  },
+  {
+   "id": "AudioGuidance",
+   "meaning": "Spoken menus",
+   "lgPath": [
+    "Accessibility",
+    "AudioGuidance"
+   ],
+   "items": [
+    {
+     "id": "audioGuidance",
+     "meaning": "Read menus aloud",
+     "tier": 2,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "option",
+      "keys": [
+       "audioGuidance"
+      ]
+     },
+     "type": "switch",
+     "domain": {
+      "values": [
+       "on",
+       "off"
+      ]
+     },
+     "domainSource": "description.json, base variant",
+     "notes": "read-only in settingsservice.allow; QuickSettings subscribes to it. Our UI must speak through com.webos.service.tts/speak when on"
+    },
+    {
+     "id": "audioGuidanceSpeed",
+     "meaning": "Speech speed",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "option",
+      "keys": [
+       "audioGuidanceSpeed"
+      ]
+     },
+     "type": "enum",
+     "domain": {
+      "values": [
+       "verySlow",
+       "slow",
+       "medium",
+       "fast",
+       "veryFast"
+      ]
+     },
+     "domainSource": "description.json, base variant"
+    },
+    {
+     "id": "audioGuidanceVolume",
+     "meaning": "Speech volume",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "option",
+      "keys": [
+       "audioGuidanceVolume"
+      ]
+     },
+     "type": "enum",
+     "domain": {
+      "values": [
+       "veryLow",
+       "low",
+       "medium",
+       "high",
+       "veryHigh"
+      ]
+     },
+     "domainSource": "description.json, base variant"
+    },
+    {
+     "id": "audioGuidancePitch",
+     "meaning": "Speech pitch",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "option",
+      "keys": [
+       "audioGuidancePitch"
+      ]
+     },
+     "type": "enum",
+     "domain": {
+      "values": [
+       "veryLow",
+       "low",
+       "medium",
+       "high",
+       "veryHigh"
+      ]
+     },
+     "domainSource": "description.json, base variant"
+    }
+   ]
+  },
+  {
+   "id": "Subtitles",
+   "meaning": "Subtitles",
+   "lgPath": [
+    "Accessibility",
+    "Subtitles"
+   ],
+   "items": [
+    {
+     "id": "captionEnable",
+     "meaning": "Subtitles on/off",
+     "tier": 2,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "caption",
+      "keys": [
+       "captionEnable"
+      ]
+     },
+     "type": "switch",
+     "domain": {
+      "values": [
+       "on",
+       "off"
+      ]
+     },
+     "domainSource": "description.json, base variant"
+    },
+    {
+     "id": "subtitleLanguageFirst",
+     "meaning": "First subtitle language",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "option",
+      "keys": [
+       "subtitleLanguageFirst"
+      ]
+     },
+     "type": "enum",
+     "domain": {
+      "values": [
+       "eng",
+       "spa",
+       "fre"
+      ]
+     },
+     "domainSource": "description.json, USA variant"
+    },
+    {
+     "id": "subtitleLanguageSecond",
+     "meaning": "Second subtitle language",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "option",
+      "keys": [
+       "subtitleLanguageSecond"
+      ]
+     },
+     "type": "enum",
+     "domain": {
+      "values": [
+       "eng",
+       "spa",
+       "fre"
+      ]
+     },
+     "domainSource": "description.json, USA variant"
+    }
+   ],
+   "region": "DVB"
+  },
+  {
+   "id": "PointerOptions",
+   "meaning": "Pointer",
+   "lgPath": [
+    "Accessibility",
+    "PointerOptions"
+   ],
+   "items": [
+    {
+     "id": "pointerSpeed",
+     "meaning": "Pointer speed",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "option",
+      "keys": [
+       "pointerSpeed"
+      ]
+     },
+     "type": "enum",
+     "domain": {
+      "values": [
+       "slow",
+       "normal",
+       "fast"
+      ]
+     },
+     "domainSource": "description.json, base variant"
+    },
+    {
+     "id": "pointerSize",
+     "meaning": "Pointer size",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "option",
+      "keys": [
+       "pointerSize"
+      ]
+     },
+     "type": "enum",
+     "domain": {
+      "values": [
+       "small",
+       "medium",
+       "large"
+      ]
+     },
+     "domainSource": "description.json, base variant"
+    }
+   ]
+  },
+  {
+   "id": "JPClosedCaption",
+   "meaning": "Japanese captions",
+   "lgPath": [
+    "Accessibility",
+    "JPClosedCaption"
+   ],
+   "items": [
+    {
+     "id": "japanCaptionEnable",
+     "meaning": "Captions",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "caption",
+      "keys": [
+       "japanCaptionEnable"
+      ]
+     },
+     "type": "enum",
+     "domain": {
+      "values": [
+       "off",
+       "jpn",
+       "eng"
+      ]
+     },
+     "domainSource": "description.json, base variant"
+    },
+    {
+     "id": "japanSuperImposeEnable",
+     "meaning": "Superimpose",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "caption",
+      "keys": [
+       "japanSuperImposeEnable"
+      ]
+     },
+     "type": "enum",
+     "domain": {
+      "values": [
+       "off",
+       "jpn",
+       "eng"
+      ]
+     },
+     "domainSource": "description.json, base variant"
+    }
+   ],
+   "region": "JPN"
+  },
+  {
+   "id": "PHClosedCaption",
+   "meaning": "Philippine captions",
+   "lgPath": [
+    "Accessibility",
+    "PHClosedCaption"
+   ],
+   "items": [
+    {
+     "id": "phlCaptionEnable",
+     "meaning": "Captions",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "caption",
+      "keys": [
+       "phlCaptionEnable"
+      ]
+     },
+     "type": "enum",
+     "domain": {
+      "values": [
+       "off",
+       "eng",
+       "tgl"
+      ]
+     },
+     "domainSource": "description.json, base variant"
+    },
+    {
+     "id": "phlSuperImposeEnable",
+     "meaning": "Superimpose",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "caption",
+      "keys": [
+       "phlSuperImposeEnable"
+      ]
+     },
+     "type": "enum",
+     "domain": {
+      "values": [
+       "off",
+       "eng",
+       "tgl"
+      ]
+     },
+     "domainSource": "description.json, base variant"
+    }
+   ],
+   "region": "PHL"
+  }
+ ]
+}

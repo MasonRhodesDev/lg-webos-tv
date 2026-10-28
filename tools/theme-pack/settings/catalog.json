@@ -1,0 +1,403 @@
+{
+ "schema": 1,
+ "about": "Every setting LG's Settings app (com.palm.app.settings 4.0.1, webOS 4.5) offers, as LG's category > page > item tree, with the API behind each item. Labels are our own words. Written from the app bundle and the TV's settings description offline; see SETTINGS-PLAN.md.",
+ "fields": {
+  "id": "settingsservice key, or our name for a non-key item",
+  "meaning": "what the item does, in our words",
+  "tier": "1 daily, 2 occasional, 3 rare or technical",
+  "api": "settingsservice: {service, read, write, category, keys}; other services: {service, read/write/... method names, params}; navigation rows: {none}",
+  "type": "switch | enum | range | dynamic (values only at runtime) | file | info | action | form | page | device-list | network-list | list | multi-enum",
+  "domain": "static seed from the TV's /etc/palm/description.json (US variant where one exists); the live getSystemSettingDesc wins",
+  "dimension": "the settingsservice dimensions a value is stored under (input, pictureMode, _3dStatus, dynamicRange...)",
+  "visibleWhen": "rules LG codes on top of the description's ui.visible/ui.active",
+  "confirm": "what must be confirmed before writing, if anything",
+  "sideEffects": "what else happens",
+  "region": "page or item only exists for a country group or model",
+  "unknown": "what could not be determined offline"
+ },
+ "reading": {
+  "settingsservice": "LG reads with luna://com.webos.settingsservice/batch {operations:[{method:getSystemSettings, params:{category, keys, dimension?}}, {method:getSystemSettingDesc, params:{category, keys}}]} and keeps getSystemSettings {category, keys, subscribe:true} open. Writes are setSystemSettings {category, settings:{key:value}, dimension?}; resets are resetSystemSettings {category, keys, dimension?}. getSystemSettingValues {category, key} lists values for dynamic keys.",
+  "visibility": "LG decides most row visibility at runtime from getSystemSettingDesc: ui.visible hides a row, ui.active greys it, and each arrayExt entry has its own visible/active. A few rules are coded on top (visibleWhen).",
+  "dimensions": "Picture keys are stored per input x pictureMode x _3dStatus (and pictureMode per dynamicRange). Reading without a dimension returns the current input's values. Subscriptions fire when the input or HDR state changes.",
+  "otherServices": "Sleep timer: com.webos.service.tv.time getSleepTimeInfo {subscribe:true} / setSleepTimeInfo {sleepTimeMinute}. Network: com.webos.service.connectionmanager getstatus {subscribe:true}; com.webos.service.wifi findnetworks/connect/setstate/deleteprofile. Bluetooth audio: com.webos.service.btaudiosrc. Time: com.palm.systemservice getPreferences/setPreferences {useNetworkTime, timeZone}. Updates: com.webos.service.update."
+ },
+ "identity": {
+  "ours": "The compositor's QML calls the bus as whatever appId its WebOSServices Service declares. Our layer uses com.webos.surfacemanager.systemui, which is in no permission group (commit 6d1b402).",
+  "lgInProcess": "LG's Quick Settings, inside the same compositor, calls settingsservice get/set/desc/values, tv.time sleep, btaudiosrc, pdm, wisa, config and applicationManager/launch as appId com.webos.app.quicksettings (QuickSettings/Globals.js). Several Service objects sharing one appId in one process is LG's own pattern.",
+  "settingsserviceAllow": "/etc/palm/settingsservice.allow lists 21 keys with read or read/write permissions (captionEnable, soundOutput, soundOutputDigital, avSync*, eArcSupport, truMotionMode, simplinkEnable, supportBnoModel; country, audioGuidance*, highContrast, storeMode... read only). It holds no pictureMode or soundMode. Hypothesis, unverified: it is the per-key allowlist for callers outside the settings groups, so com.webos.surfacemanager.systemui could not write tier-1 picture/sound keys today.",
+  "toVerifyOnTv": [
+   "/usr/share/luna-service2/api-permissions.d/com.webos.settingsservice.api.json (groups per method)",
+   "/usr/share/luna-service2/client-permissions.d/com.webos.settingsservice.perm.json",
+   "the compositor's client permissions (listed in /usr/share/luna-service2/manifests.d/starfish-luna-surface-manager.manifest.json): which groups com.webos.app.quicksettings and com.webos.surfacemanager* names hold",
+   "luna-send -n 1 luna://com.webos.settingsservice/getSystemSettingDesc '{\"category\":\"picture\",\"keys\":[\"pictureMode\"]}' (live domain)",
+   "/etc/configd/layers/base/com.webos.surfacemanager.json: systemUIManager and keyFilters values"
+  ]
+ },
+ "internalKeys": {
+  "meaning": "Keys LG's panels read only to decide visibility, labels or dimensions. Not user settings; our data layer reads some of them the same way.",
+  "keys": {
+   "picture": [
+    "pictureSettingModified",
+    "pictureModeSettingsActive",
+    "pictureModeSettingsActivePerApp",
+    "psmListForExpert",
+    "whiteBalanceActive"
+   ],
+   "psmModified": [
+    "eco",
+    "expert1",
+    "expert2"
+   ],
+   "dimensionInfo": [
+    "input",
+    "dynamicRange",
+    "_3dStatus"
+   ],
+   "sound": [
+    "sound",
+    "soundModeModified",
+    "soundEffect",
+    "magicSoundModified"
+   ],
+   "channel": [
+    "multiFeed",
+    "multiAudio",
+    "objectAudio",
+    "supportOperatorProfile"
+   ],
+   "lock": [
+    "camPinCode"
+   ],
+   "twinTv": [
+    "role",
+    "systemMode",
+    "status"
+   ],
+   "hotelMode": [
+    "enableHotelMode",
+    "enableLimitedMode",
+    "enableSystemProviderMode",
+    "enableProgramChange",
+    "enterStationMenu",
+    "auxSettingsEnabled",
+    "password",
+    "enablePowerOnDefault",
+    "enablePowerOnDefaultVolume",
+    "enableSetIdMenu"
+   ],
+   "network": [
+    "wiredConnection",
+    "wifiConnection"
+   ],
+   "commercial": [
+    "channelLock"
+   ],
+   "option": [
+    "cicNumber",
+    "vsn",
+    "countryRegion",
+    "japanCitySelection",
+    "autoSmartServiceCountry",
+    "setId",
+    "country",
+    "localeInfo"
+   ],
+   "general": [
+    "lastInputApp",
+    "avmsd"
+   ],
+   "": [
+    "eulaStatus"
+   ]
+  }
+ },
+ "lgTargets": {
+  "meaning": "launch params LG Settings accepts: {target} opens a page path (unknown targets fall back to Picture), {item} focuses an item, {pictureData, soundData} pre-seeds values (Quick Settings All Settings row), webOSRelaunch re-runs the same. Our Settings should accept the same targets so deep links keep working.",
+  "map": {
+   "picture": "Picture",
+   "sound": "Sound",
+   "channel": "Channels",
+   "network": "Network",
+   "general": "General",
+   "parentalControls": "Safety",
+   "accessibility": "Accessibility",
+   "AboutThisTV": [
+    "General",
+    "AboutThisTV"
+   ],
+   "AdditionalGeneral": [
+    "General",
+    "AdditionalGeneral"
+   ],
+   "AdditionalSound": [
+    "Sound",
+    "AdditionalSound"
+   ],
+   "AddOptions": [
+    "Picture",
+    "AdditionalOptions"
+   ],
+   "AdvancedControls": [
+    "Picture",
+    "PictureMode",
+    "AdvancedControls"
+   ],
+   "Advertising": [
+    "General",
+    "AdditionalGeneral",
+    "Advertising"
+   ],
+   "AiService": [
+    "General",
+    "AiService"
+   ],
+   "VoiceRecognition": [
+    "General",
+    "AiService",
+    "VoiceRecognition"
+   ],
+   "AlwaysOn": [
+    "General",
+    "SignatureTVSetting",
+    "AlwaysOn"
+   ],
+   "AspectRatio": [
+    "Picture",
+    "AspectRatioSettings"
+   ],
+   "AudioGuidance": [
+    "Accessibility",
+    "AudioGuidance"
+   ],
+   "Bluetooth": [
+    "Sound",
+    "SoundOut",
+    "Bluetooth"
+   ],
+   "CasModuleInfo": [
+    "Channels",
+    "Bcas"
+   ],
+   "ClosedCaption": [
+    "Accessibility",
+    "ClosedCaption"
+   ],
+   "CopyChannels": [
+    "Channels",
+    "CopyChannels"
+   ],
+   "DateTime": [
+    "General",
+    "TimeDate"
+   ],
+   "EasyPairing": [
+    "Sound",
+    "SoundOut",
+    "Bluetooth",
+    "EasyPairing"
+   ],
+   "EcoMode": [
+    "General",
+    "EcoMode"
+   ],
+   "ExpertControls": [
+    "Picture",
+    "PictureMode",
+    "ExpertControls"
+   ],
+   "HbbTV": [
+    "Channels",
+    "HbbTV"
+   ],
+   "HomeSettings": [
+    "General",
+    "AdditionalGeneral",
+    "HomeSettings"
+   ],
+   "HomeStyle": [
+    "General",
+    "AdditionalGeneral",
+    "HomeSettings",
+    "HomeStyle"
+   ],
+   "IbbService": [
+    "Channels",
+    "IbbService"
+   ],
+   "InputAudioFormat": [
+    "Sound",
+    "AdditionalSound",
+    "InputAudioFormat"
+   ],
+   "IotConnection": [
+    "Network",
+    "IotPanel"
+   ],
+   "JPClosedCaption": [
+    "Accessibility",
+    "JPClosedCaption"
+   ],
+   "Language": [
+    "General",
+    "Language"
+   ],
+   "LegalNotice": [
+    "General",
+    "AboutThisTV",
+    "LegalNotice"
+   ],
+   "Location": [
+    "General",
+    "Location"
+   ],
+   "MagicSpaceSound": [
+    "Sound",
+    "MagicSpaceSound"
+   ],
+   "Message": [
+    "Channels",
+    "Message"
+   ],
+   "MobileConnection": [
+    "Network",
+    "Mobile"
+   ],
+   "MobileTVOn": [
+    "Network",
+    "MobileTvOn"
+   ],
+   "OLEDPanelSettings": [
+    "Picture",
+    "AdditionalOptions",
+    "OledPanelSettings"
+   ],
+   "PHClosedCaption": [
+    "Accessibility",
+    "PHClosedCaption"
+   ],
+   "PictureMode": [
+    "Picture",
+    "PictureMode"
+   ],
+   "PictureOptions": [
+    "Picture",
+    "PictureMode",
+    "PictureOptions"
+   ],
+   "PointerOptions": [
+    "Accessibility",
+    "PointerOptions"
+   ],
+   "ScreenShare": [
+    "Network",
+    "ScreenShare"
+   ],
+   "SignatureTVSetting": [
+    "General",
+    "SignatureTVSetting"
+   ],
+   "Simplink": [
+    "Network",
+    "Simplink"
+   ],
+   "SoundModeSettings": [
+    "Sound",
+    "SoundMode"
+   ],
+   "SoundOut": [
+    "Sound",
+    "SoundOut"
+   ],
+   "Subtitles": [
+    "Accessibility",
+    "Subtitles"
+   ],
+   "Timer": [
+    "General",
+    "Timers"
+   ],
+   "VolumeMode": [
+    "Sound",
+    "AdditionalSound",
+    "VolumeMode"
+   ],
+   "WifiConnection": [
+    "Network",
+    "Wifi"
+   ],
+   "WiredConnection": [
+    "Network",
+    "Wired"
+   ],
+   "WirelessKeyboard": [
+    "General",
+    "AdditionalGeneral",
+    "WirelessKeyboard"
+   ],
+   "WiSASoundSync": [
+    "Sound",
+    "SoundOut",
+    "WiSASoundSync"
+   ]
+  },
+  "notInCatalog": []
+ },
+ "categories": [
+  {
+   "id": "picture",
+   "meaning": "How the picture looks",
+   "lgTarget": "picture",
+   "file": "picture.json",
+   "pages": 13,
+   "items": 94
+  },
+  {
+   "id": "sound",
+   "meaning": "How the TV sounds and where sound goes",
+   "lgTarget": "sound",
+   "file": "sound.json",
+   "pages": 11,
+   "items": 42
+  },
+  {
+   "id": "channels",
+   "meaning": "Broadcast channels (antenna/cable)",
+   "lgTarget": "channel",
+   "file": "channels.json",
+   "pages": 6,
+   "items": 21
+  },
+  {
+   "id": "network",
+   "meaning": "Internet and device connections",
+   "lgTarget": "network",
+   "file": "network.json",
+   "pages": 10,
+   "items": 31
+  },
+  {
+   "id": "general",
+   "meaning": "Time, language, power and the TV itself",
+   "lgTarget": "general",
+   "file": "general.json",
+   "pages": 19,
+   "items": 83
+  },
+  {
+   "id": "safety",
+   "meaning": "Parental locks (needs the PIN)",
+   "lgTarget": "parentalControls",
+   "file": "safety.json",
+   "pages": 5,
+   "items": 24
+  },
+  {
+   "id": "accessibility",
+   "meaning": "Captions, audio guidance and readability",
+   "lgTarget": "accessibility",
+   "file": "accessibility.json",
+   "pages": 10,
+   "items": 44
+  }
+ ]
+}

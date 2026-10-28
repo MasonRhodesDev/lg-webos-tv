@@ -1,0 +1,471 @@
+{
+ "id": "channels",
+ "meaning": "Broadcast channels (antenna/cable)",
+ "lgTarget": "channel",
+ "pages": [
+  {
+   "id": "Channels",
+   "meaning": "Channels top page",
+   "lgPath": [
+    "Channels"
+   ],
+   "items": [
+    {
+     "id": "channelTuning",
+     "meaning": "Scan for channels (auto tuning)",
+     "tier": 2,
+     "api": {
+      "service": "com.webos.applicationManager",
+      "method": "launch",
+      "params": {
+       "id": "com.webos.app.channelsetting"
+      }
+     },
+     "type": "action",
+     "notes": "LG Settings hands tuning to a separate app; our Settings can launch it as is",
+     "unknown": "exact app id/params not extracted offline; channelsetting is in localKeyWhiteList of appLaunch.js"
+    },
+    {
+     "id": "channelManager",
+     "meaning": "Edit, hide and sort channels",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.applicationManager",
+      "method": "launch",
+      "params": {
+       "id": "com.webos.app.channeledit"
+      }
+     },
+     "type": "action",
+     "notes": "separate LG app"
+    },
+    {
+     "id": "autoscanChannelGroup",
+     "meaning": "Which channels an update scan keeps",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "channel",
+      "keys": [
+       "autoscanChannelGroup"
+      ]
+     },
+     "type": "enum",
+     "domain": {
+      "values": [
+       "primary_channel",
+       "all_channel"
+      ]
+     },
+     "domainSource": "description.json, base variant"
+    },
+    {
+     "id": "analogSystemColor",
+     "meaning": "Analog colour system",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "channel",
+      "keys": [
+       "analogSystemColor"
+      ]
+     },
+     "type": "enum",
+     "domain": {
+      "values": [
+       "multi",
+       "pal-m",
+       "pal-n",
+       "ntsc"
+      ]
+     },
+     "domainSource": "description.json, base variant",
+     "region": "Latin America"
+    },
+    {
+     "id": "channelplus",
+     "meaning": "LG Channels (free internet channels in the guide)",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "option",
+      "keys": [
+       "channelplus"
+      ]
+     },
+     "type": "switch",
+     "domain": {
+      "values": [
+       "on",
+       "off"
+      ]
+     },
+     "domainSource": "description.json, USA variant",
+     "notes": "enable/disable via com.webos.service.dmost/enableChannelPlus|disableChannelPlus"
+    },
+    {
+     "id": "dataService",
+     "meaning": "Interactive data service type",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "option",
+      "keys": [
+       "dataService"
+      ]
+     },
+     "type": "enum",
+     "domain": {
+      "values": [
+       "mheg",
+       "ttx"
+      ]
+     },
+     "domainSource": "description.json, base variant",
+     "region": "EU (DVB)"
+    },
+    {
+     "id": "interactivity",
+     "meaning": "Broadcast interactivity",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "option",
+      "keys": [
+       "interactivity"
+      ]
+     },
+     "type": "switch",
+     "domain": {
+      "values": [
+       "on",
+       "off"
+      ]
+     },
+     "domainSource": "description.json, base variant",
+     "region": "EU (DVB)"
+    },
+    {
+     "id": "mhegGuide",
+     "meaning": "MHEG guide",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "option",
+      "keys": [
+       "mhegGuide"
+      ]
+     },
+     "type": "switch",
+     "domain": {
+      "values": [
+       "on",
+       "off"
+      ]
+     },
+     "domainSource": "description.json, base variant",
+     "region": "UK/AU/NZ"
+    },
+    {
+     "id": "hybridCast",
+     "meaning": "Hybridcast",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "option",
+      "keys": [
+       "hybridCast"
+      ]
+     },
+     "type": "switch",
+     "domain": {
+      "values": [
+       "on",
+       "off"
+      ]
+     },
+     "domainSource": "description.json, default variant",
+     "region": "JPN"
+    },
+    {
+     "id": "hbbTV",
+     "meaning": "HbbTV interactive services",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "option",
+      "keys": [
+       "hbbTV"
+      ]
+     },
+     "type": "enum",
+     "domain": {
+      "values": [
+       "on",
+       "off",
+       "onByUser",
+       "offByUser"
+      ]
+     },
+     "domainSource": "description.json, default variant",
+     "region": "EU"
+    },
+    {
+     "id": "dualMono",
+     "meaning": "Dual mono broadcast language",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "channel",
+      "keys": [
+       "dualMono"
+      ]
+     },
+     "type": "dynamic",
+     "domain": {
+      "runtime": true
+     },
+     "domainSource": "description.json, base variant",
+     "notes": "volatile; per program"
+    },
+    {
+     "id": "audioLanguage",
+     "meaning": "Broadcast audio track",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "channel",
+      "keys": [
+       "audioLanguage"
+      ]
+     },
+     "type": "dynamic",
+     "domain": {
+      "runtime": true
+     },
+     "domainSource": "description.json, base variant",
+     "notes": "volatile; per program"
+    },
+    {
+     "id": "subtitleLanguage",
+     "meaning": "Broadcast subtitle track",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "channel",
+      "keys": [
+       "subtitleLanguage"
+      ]
+     },
+     "type": "dynamic",
+     "domain": {
+      "runtime": true
+     },
+     "domainSource": "description.json, base variant",
+     "notes": "volatile; per program"
+    },
+    {
+     "id": "copyChannels",
+     "meaning": "Copy the channel list to/from USB",
+     "tier": 3,
+     "type": "page",
+     "opens": "CopyChannels",
+     "api": {
+      "none": "navigation only"
+     }
+    },
+    {
+     "id": "message",
+     "meaning": "Broadcast messages",
+     "tier": 3,
+     "type": "page",
+     "opens": "Message",
+     "api": {
+      "none": "navigation only"
+     }
+    }
+   ]
+  },
+  {
+   "id": "CopyChannels",
+   "meaning": "Copy channel list via USB",
+   "lgPath": [
+    "Channels",
+    "CopyChannels"
+   ],
+   "items": [
+    {
+     "id": "copyChannels",
+     "meaning": "Send or receive the channel list on a USB stick",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.service.tv.tvlink/cloning",
+      "method": "start"
+     },
+     "type": "action",
+     "confirm": "Replace the TV's channel list from USB?",
+     "sideEffects": [
+      "receiving reboots the TV (com.webos.service.tvpower/power/reboot {reason:\"reset\"})"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "HbbTV",
+   "meaning": "HbbTV",
+   "lgPath": [
+    "Channels",
+    "HbbTV"
+   ],
+   "items": [
+    {
+     "id": "hbbTV",
+     "meaning": "HbbTV on/off",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "option",
+      "keys": [
+       "hbbTV"
+      ]
+     },
+     "type": "enum",
+     "domain": {
+      "values": [
+       "on",
+       "off",
+       "onByUser",
+       "offByUser"
+      ]
+     },
+     "domainSource": "description.json, default variant"
+    },
+    {
+     "id": "hbbTvDeviceId",
+     "meaning": "HbbTV device id use",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "option",
+      "keys": [
+       "hbbTvDeviceId"
+      ]
+     },
+     "type": "enum",
+     "domain": {
+      "values": [
+       "on",
+       "off",
+       "onByUser",
+       "offByUser"
+      ]
+     },
+     "domainSource": "description.json, base variant"
+    }
+   ],
+   "region": "EU"
+  },
+  {
+   "id": "IbbService",
+   "meaning": "IBB service",
+   "lgPath": [
+    "Channels",
+    "IbbService"
+   ],
+   "items": [
+    {
+     "id": "ibb",
+     "meaning": "IBB service",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "option",
+      "keys": [
+       "ibb"
+      ]
+     },
+     "type": "switch",
+     "domain": {
+      "values": [
+       "on",
+       "off"
+      ]
+     },
+     "domainSource": "description.json, default variant"
+    }
+   ],
+   "region": "KOR"
+  },
+  {
+   "id": "Bcas",
+   "meaning": "B-CAS card",
+   "lgPath": [
+    "Channels",
+    "Bcas"
+   ],
+   "items": [
+    {
+     "id": "bcasCard",
+     "meaning": "B-CAS card info",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.service.tv.channel/bcas",
+      "method": "getCardId"
+     },
+     "type": "info"
+    }
+   ],
+   "region": "JPN"
+  },
+  {
+   "id": "Message",
+   "meaning": "Broadcast messages",
+   "lgPath": [
+    "Channels",
+    "Message"
+   ],
+   "items": [
+    {
+     "id": "messages",
+     "meaning": "Messages from the broadcaster",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.service.utp.channel",
+      "method": "changeMessageChannel"
+     },
+     "type": "info",
+     "unknown": "region-specific; not used in the US"
+    }
+   ],
+   "region": "JPN/KOR"
+  }
+ ]
+}
