@@ -15,6 +15,7 @@ QtObject {
             response(method, JSON.stringify(Fixture.payload));
         } else if (method === "/report") {
             console.log("report: " + params);
+            Fixture.reports.push(JSON.parse(params));
         }
     }
 }

@@ -8,6 +8,7 @@ Item {
     id: part
     property Item lg: null
     readonly property int searchDepth: 0
+    readonly property bool onDemand: true
     function claims(item) { return item.objectName === "toastView" && item.model !== undefined && item.close !== undefined; }
 
     readonly property var model: lg ? lg.model : null

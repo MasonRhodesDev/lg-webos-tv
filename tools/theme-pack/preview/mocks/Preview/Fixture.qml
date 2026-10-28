@@ -6,6 +6,8 @@ QtObject {
     id: fixture
     property var payload: ({})
     property var subscribers: []
+    // What the UI reported to the Look service this run, for tests: [{ kind, text }].
+    property var reports: []
     function subscribe(s) { subscribers.push(s); }
     function load(json) {
         payload = JSON.parse(json);

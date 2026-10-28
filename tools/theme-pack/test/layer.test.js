@@ -1,0 +1,27 @@
+const test = require('node:test');
+const assert = require('node:assert');
+const path = require('node:path');
+const { spawnSync } = require('node:child_process');
+
+// The QML layer's tests run in the offscreen preview harness, on a Qt 5 `qml` tool (QML_BIN, default qml-qt5).
+const dir = path.join(__dirname, '..');
+const QML = process.env.QML_BIN || 'qml-qt5';
+const haveQml = !spawnSync(QML, ['--help'], { stdio: 'ignore' }).error;
+
+function runScene(file) {
+  return spawnSync(QML, [path.join(dir, 'preview/tests', file)], {
+    encoding: 'utf8', timeout: 20000,
+    env: Object.assign({}, process.env, {
+      QT_FORCE_STDERR_LOGGING: '1', QT_QPA_PLATFORM: 'offscreen', QT_QUICK_BACKEND: 'software',
+      QML2_IMPORT_PATH: path.join(dir, 'preview/mocks') + path.delimiter + path.join(dir, 'ui')
+    })
+  });
+}
+
+test('the layer claims on-demand LG items when LG shows them, and lets go when LG destroys them', { skip: !haveQml && QML + ' not found' }, () => {
+  const r = runScene('LateClaims.qml');
+  const out = r.stdout + r.stderr;
+  assert.strictEqual(r.status, 0, out);
+  assert.ok(/late claims: all passed/.test(out), out);
+  assert.ok(!/FAIL /.test(out), out);
+});
