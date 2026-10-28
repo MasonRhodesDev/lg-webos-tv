@@ -101,6 +101,9 @@ test('getTelemetry says active only while the telemetry-off blackhole is live an
     assert.strictEqual(kitState(), 'unknown', 'no kit, no hosts file');
     fs.writeFileSync(hosts, '127.0.0.1 localhost\n');
     assert.strictEqual(kitState(), 'unknown', 'no kit visible');
+    fs.writeFileSync(hosts, '127.0.0.1 localhost\n' + marker + ' (3 names)\n');
+    assert.strictEqual(kitState(), 'unknown', 'a marker with no kit visible (a jail\'s stale copy) proves nothing');
+    fs.writeFileSync(hosts, '127.0.0.1 localhost\n');
     fs.mkdirSync(path.join(kit, 'kit', 'state'), { recursive: true });
     assert.strictEqual(kitState(), 'inactive', 'kit installed, blackhole not mounted');
     fs.writeFileSync(hosts, '127.0.0.1 localhost\n' + marker + ' (3 names)\n0.0.0.0 example.invalid\n');

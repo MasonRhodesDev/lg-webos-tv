@@ -122,7 +122,8 @@ service.register('closeSettings', function (message) {
 
 // Whether tools/telemetry-off is in force this boot. Its boot hook (80-telemetry-off) bind-mounts a generated hosts
 // file carrying MARKER over /etc/hosts, so the marker is there only while this boot's blackhole is live; the kit's
-// off switch and an unfinished run say it is not. "active", "inactive" (the kit is there but not in force) or
+// off switch and an unfinished run say it is not. "active" needs the kit's directory visible too: a jail's /etc/hosts
+// is a copy made once, so a marker alone may be stale. "active", "inactive" (the kit is there but not in force) or
 // "unknown" (no kit visible, or nothing readable). The paths are the kit's (telemetry-off.sh); env vars move them.
 var KIT_DIR = process.env.TELEMETRY_OFF_DIR || '/var/lib/telemetry-off';
 var HOSTS = process.env.TELEMETRY_OFF_HOSTS || '/etc/hosts';
@@ -132,8 +133,8 @@ function telemetryKit() {
   var hosts = null;
   try { hosts = fs.readFileSync(HOSTS, 'utf8'); } catch (e) { hosts = null; }
   var off = has(path.join(KIT_DIR, 'disabled')) || has(path.join(KIT_DIR, 'state', 'applying'));
-  if (hosts !== null && hosts.indexOf(MARKER) >= 0 && !off) return 'active';
-  return has(KIT_DIR) ? 'inactive' : 'unknown';
+  if (!has(KIT_DIR)) return 'unknown';
+  return hosts !== null && hosts.indexOf(MARKER) >= 0 && !off ? 'active' : 'inactive';
 }
 service.register('getTelemetry', function (message) {
   message.respond({ returnValue: true, kit: telemetryKit() });

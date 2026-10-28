@@ -116,7 +116,7 @@ Board content: the adapters behind the designed pages (UNVERIFIED reads, from LG
 - [ ] `luna-send -n 1 luna://dev.themepack.look.service/getTelemetry '{}'` says `"kit":"active"` after a cold boot
       with tools/telemetry-off installed (once its hook has run, ~35 s), `inactive` after
       `80-telemetry-off revert`, and that the service sees the root namespace's `/etc/hosts` (not a jail's stale copy:
-      the marker must vanish after `revert`). The footer then reads "telemetry off", "agreements withdrawn" (kit not in
+      the marker must vanish after `revert`; a marker with the kit directory invisible answers `unknown`). The footer then reads "telemetry off", "agreements withdrawn" (kit not in
       force, agreements refused) or "telemetry on" (an agreement accepted).
 - [ ] Device connector opens LG's connection wizard (`com.webos.app.connectionwizard`); Picture test and Sound test
       open LG's customer support app at those tests (`com.webos.app.customersupport {target}`); Back from each returns

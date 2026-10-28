@@ -101,6 +101,16 @@ Item {
             part.menu.close();
             openSettings("picture", 99);
             compare(part.menu.footer.text, "Offline \u00b7 agreements withdrawn", "no kit: the agreements, not telemetry");
+            // A reply without an answer is unknown, not the last one.
+            TvSettings.telemetryKit = "active";
+            part.menu.close();
+            openSettings("picture", 98);
+            compare(part.menu.footer.text, "Offline \u00b7 telemetry off");
+            TvSettings.telemetryKit = "";
+            part.menu.close();
+            compare(part.store.values.telemetryKit, undefined, "closing forgets the kit's state");
+            openSettings("picture", 97);
+            compare(part.menu.footer.text, "Offline \u00b7 agreements withdrawn", "an unreadable kit reply claims nothing");
             TvSettings.telemetryKit = "active";
             part.menu.close();
             openSettings("picture", 100);
@@ -170,6 +180,14 @@ Item {
             compare(rows().rows[rowNamed("Frame rate")].value, "60 Hz", "and follows the source");
             TvSettings.hdmi.frameRate = 120;
             TvSettings.notify("", "signal");
+            TvSettings.values.dimensionInfo.input = "dtv";
+            TvSettings.notify("dimensionInfo", "input");
+            compare(part.menu.page.sub, "Live TV");
+            var blank = ["HDMI mode", "Resolution", "Frame rate", "Scan type"];
+            for (var b = 0; b < blank.length; b++) compare(rows().rows[rowNamed(blank[b])].value, "", "off HDMI: no " + blank[b]);
+            TvSettings.values.dimensionInfo.input = "hdmi2";
+            TvSettings.notify("dimensionInfo", "input");
+            compare(rows().rows[rowNamed("Frame rate")].value, "120 Hz");
             keyClick(Qt.Key_Escape);
             compare(topId(), "Support");
             compare(rows().rows[rowNamed("Privacy and terms")].value, "Agreements withdrawn");

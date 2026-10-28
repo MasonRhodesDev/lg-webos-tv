@@ -96,4 +96,8 @@ test('the footer and Privacy and terms claim only what LG\'s eulaStatus reply an
   assert.strictEqual(M.telemetryLabel('active', all(false)), 'telemetry off', 'the kit in force and agreements withdrawn');
   assert.strictEqual(M.telemetryLabel('active', {}), 'telemetry off', 'the kit in force, agreements unreadable');
   assert.strictEqual(M.telemetryLabel('active', oneTrue), 'telemetry on', 'an accepted agreement wins over the kit');
+  const stringTrue = Object.assign(all(false), { acrOnAllowed: 'true' });
+  assert.strictEqual(M.telemetryLabel('active', stringTrue), 'telemetry on', 'accepted as a string, with the kit active');
+  assert.strictEqual(M.telemetryLabel(undefined, stringTrue), 'telemetry on', 'accepted as a string');
+  assert.strictEqual(M.valueLabel('agreements', stringTrue), 'Accepted');
 });

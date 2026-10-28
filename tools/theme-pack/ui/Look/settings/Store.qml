@@ -84,7 +84,12 @@ QtObject {
             if (!ch) continue;
             ch.count--;
             if (isSettings(it)) { var k = it.api.keys[0]; if (--ch.keys[k] <= 0) delete ch.keys[k]; }
-            if (ch.count <= 0) { close(name); delete channels[name]; }
+            if (ch.count <= 0) {
+                close(name);
+                delete channels[name];
+                // Not known again until the next open reads it: a stale "active" must not outlive its answer.
+                if (name === "kit") { delete values.telemetryKit; changed(); }
+            }
         }
     }
 
@@ -151,8 +156,7 @@ QtObject {
             var kit = service();
             kit.response.connect(function (method, payload) {
                 var m = parse(payload);
-                if (!m || m.returnValue === false || !m.kit) return;
-                store.values.telemetryKit = m.kit;
+                store.values.telemetryKit = m && m.returnValue !== false && m.kit ? m.kit : "unknown";
                 store.changed();
             });
             kit.call("luna://dev.themepack.look.service", "/getTelemetry", "{}");

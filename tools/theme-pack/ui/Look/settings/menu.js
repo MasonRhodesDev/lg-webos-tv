@@ -163,16 +163,16 @@ var extra = {
 var dataAgreements = ["acrOnAllowed", "acrAdAllowed", "customAdAllowed", "additionalDataAllowed", "voiceAllowed",
                       "voice2Allowed", "takeOnAllowed", "chpAllowed"];
 
-// An eulaStatus reply: "accepted" when any data agreement is true, "withdrawn" only when every one is there and
-// false, "" when the reply cannot say (missing keys, other types).
+// An eulaStatus reply: "accepted" when any data agreement reads as accepted (true, or "true" as some replies type
+// it), "withdrawn" only when every one is there and false, "" when the reply cannot say (missing keys, other types).
 function agreementState(v) {
     if (!v || typeof v !== "object") return "";
-    var unsure = false;
-    for (var i = 0; i < dataAgreements.length; i++) {
-        var x = v[dataAgreements[i]];
-        if (x === true) return "accepted";
-        if (x !== false) unsure = true;
+    var unsure = false, i, x;
+    for (i = 0; i < dataAgreements.length; i++) {
+        x = v[dataAgreements[i]];
+        if (x === true || x === "true") return "accepted";
     }
+    for (i = 0; i < dataAgreements.length; i++) if (v[dataAgreements[i]] !== false) unsure = true;
     return unsure ? "" : "withdrawn";
 }
 
