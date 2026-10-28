@@ -107,8 +107,12 @@
     return w === 'always' || !!state[w];
   }
 
+  // The decoration target (DESIGN.md, Decoration contract) of components the demo draws under its own names.
+  var TARGET = { settings: 'panel', volume: 'panel' };
+
   function rings(type, state, slot, ctx) {
     if (!ctx.decor) return '';
+    type = TARGET[type] || type;
     var themes = slot === 'back' ? ctx.themes.slice().reverse() : ctx.themes;
     var out = '';
     themes.forEach(function (theme) {
@@ -125,13 +129,15 @@
   function layered(type, props, originStyle, originHtml, ctx, opts) {
     var state = stateOf(props);
     var lift = props.focused && ctx.lift ? 10 : 0;
+    // Decoration on a disabled component recedes with it.
+    var dim = props.disabled ? ';opacity:0.5' : '';
     var place = props.place || '';
     var container = opts && opts.container;
     var attach = (props.attach || []).map(function (a) { return renderAttachment(a, ctx); }).join('');
     return '<div data-tp="' + type + '"' + (props.focused ? ' data-tp-focused="1"' : '') + ' style="position:relative;' + place + '">' +
-      '<div data-tp-slot="back" style="' + FILL + ';z-index:' + (1 + lift) + '">' + rings(type, state, 'back', ctx) + '</div>' +
+      '<div data-tp-slot="back" style="' + FILL + ';z-index:' + (1 + lift) + dim + '">' + rings(type, state, 'back', ctx) + '</div>' +
       '<div data-tp-slot="origin" style="position:relative;z-index:' + (2 + lift) + ';' + (container ? 'isolation:isolate;' : '') + originStyle + '">' + originHtml + '</div>' +
-      '<div data-tp-slot="front" style="' + FILL + ';z-index:' + (3 + lift) + '">' + rings(type, state, 'front', ctx) + '</div>' +
+      '<div data-tp-slot="front" style="' + FILL + ';z-index:' + (3 + lift) + dim + '">' + rings(type, state, 'front', ctx) + '</div>' +
       '<div data-tp-slot="attach" style="' + FILL + ';z-index:' + (4 + lift) + '">' + attach + '</div>' +
       '</div>';
   }
@@ -206,7 +212,7 @@
     var ink = p.disabled ? 'var(--tp-ink-disabled)' : f ? fc.ink : 'var(--tp-ink)';
     var edges = [f ? fc.edge : 'inset 0 0 0 1.5px var(--tp-surface-edge)'];
     if (p.current) edges.push('inset 0 -7px 0 var(--tp-current)');
-    var tag = p.tag ? '<span style="padding:5px 14px;border-radius:999px;background:var(--tp-ink);color:var(--tp-focus-ink);font-size:19px;font-weight:700;text-shadow:none">' + esc(p.tag) + '</span>' : '';
+    var tag = p.tag ? render(el('badge', { text: p.tag }), ctx) : '';
     var html = '<span style="display:-webkit-box;display:flex;justify-content:space-between;align-items:flex-start">' +
       icon(p.icon || 'port', p.disabled ? 'var(--tp-ink-disabled)' : f ? fc.ink : hueVar(p.hue), 42) + tag + '</span>' +
       '<span style="display:block"><span style="display:block;font-size:32px;font-weight:700;line-height:1.1">' + esc(p.label) + '</span>' +
@@ -224,6 +230,10 @@
     return layered('chip', p, 'min-width:50px;height:50px;box-sizing:border-box;padding:0 12px;border-radius:999px;' +
       'background:var(--tp-' + tone + ');color:var(--tp-' + tone + '-ink);font-size:26px;font-weight:700;' +
       'display:-webkit-box;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 14px rgba(0,0,0,0.35)', esc(p.text), ctx);
+  };
+
+  C.badge = function (p, kids, ctx) {
+    return layered('badge', p, 'padding:5px 14px;border-radius:999px;background:var(--tp-ink);color:var(--tp-focus-ink);font-size:19px;font-weight:700;text-shadow:none', esc(p.text), ctx);
   };
 
   C.row = function (p, kids, ctx) {
@@ -267,13 +277,13 @@
 
   C.dock = function (p, kids, ctx) {
     var html = '<div style="position:absolute;left:0;right:0;bottom:0;height:520px;background:linear-gradient(to bottom,rgba(0,0,0,0) 0,var(--tp-scrim) 160px)"></div>' +
-      '<div style="position:absolute;left:96px;right:96px;bottom:54px">' +
+      '<div style="position:absolute;left:96px;right:96px;bottom:54px">' + layered('ribbon', {}, '',
       '<div style="display:-webkit-box;display:flex;justify-content:space-between;align-items:center;margin-bottom:30px;' + shadow(ctx) + '">' +
       '<span style="font-size:30px;font-weight:700">' + esc(p.title) + '</span>' +
       '<span style="display:-webkit-box;display:flex;align-items:center"><span style="padding:8px 20px;border-radius:999px;background:var(--tp-surface);' + EDGE + 'font-size:22px;font-weight:600;margin-right:16px">' + esc(p.status) + '</span>' +
       '<span style="font-size:40px;font-weight:700">' + esc(p.clock) + '</span></span></div>' +
       '<div style="display:-webkit-box;display:flex;align-items:flex-end;margin-bottom:30px">' + stack(kids, ctx, 'row', 24) + '</div>' +
-      '<div style="display:-webkit-box;display:flex;font-size:22px;font-weight:600;' + shadow(ctx) + '">' + keyHints(p.hints, ctx) + '</div></div>';
+      '<div style="display:-webkit-box;display:flex;font-size:22px;font-weight:600;' + shadow(ctx) + '">' + keyHints(p.hints, ctx) + '</div>', ctx, { container: true }) + '</div>';
     return layered('dock', p, 'position:absolute;left:0;top:0;width:1920px;height:1080px', html, ctx, { container: true });
   };
 

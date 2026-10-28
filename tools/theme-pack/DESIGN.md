@@ -191,8 +191,37 @@ Each piece is wrapped in `Decor` with a target and the states it passes. Themes 
 
 - `*` with `when: focused` reaches rows, tiles and buttons only: leaf pieces never pass `focused`, so a slider in a
   focused row does not grow a second bloom.
-- Attachments (a tile's chip) are drawn after the tile's front decoration, so a theme never covers them.
-- The compositor draws recipes that name an `asset` or a `fill`; `html`-only recipes are the HTML renderer's alone.
+- Attachments (a tile's chip) are drawn after the tile's front decoration, so a theme never covers them. Chips and
+  badges are targets of their own, so a theme dresses them as it dresses the tile.
+- Back (−1) holds glow, shadow, plate, pattern, artwork and snow. Front (+1) holds the focus ring, frost, frames and
+  sparkle. Neither covers text or a value: front pieces sit on edges and corners, outside the content padding, unless
+  a negative outset opts in.
+- State is the style's. Themes celebrate focus (a bloom behind, a ring or a sparkle in front) but never carry it, and
+  they leave `current` to the style's bar, so Smoke's pink fill with its white edge and its lime bar stay the
+  strongest signals. A chosen radio or check may glow. Decoration on a disabled component recedes with it: both
+  renderers draw its rings at half opacity.
+- Every recipe is drawn by both renderers: the compositor draws `asset`, `fill` (a glow) and `stroke` (a crisp ring);
+  the HTML renderer draws `html` and `style`. A test rejects a recipe the compositor can't draw.
+- Every recipe declares its `cost`: `static` (a texture or a rectangle, drawn once) or `glow` (a blur shader, which
+  costs GPU each frame it moves or fades, as focus does). Nothing animates on its own yet; when something does, it
+  will declare `motion` so a screen can cap how much moves at once.
+
+What each theme gives each target (– is deliberate: the theme leaves it plain):
+
+| target | Glow | Halloween | Winter |
+|---|---|---|---|
+| `screen` | light pooled in two corners | moonlit dusk and bats; cobwebs in the top corners | falling snow; icicles along the top |
+| `panel` | halo | a spider hanging off its top-right | snow on its top edge |
+| `ribbon` | a floor of light under the tiles | a graveyard in the bottom overscan strip | a snowbank in the bottom overscan strip |
+| `toast` | halo | a bat off its top-left corner | snow on its top edge |
+| `dialog` | halo | a lantern glow; a cobweb in its top-left corner | snow on its top edge |
+| `row`, `button` focused | bloom and a halo ring | orange bloom | icy bloom and a frost flake |
+| `tile` | focused: bloom and a halo ring | a cobweb on its top-right corner; focused: orange bloom | snow on its top edge; focused: icy bloom and a frost flake |
+| `chip` | glows in its own colour | a pumpkin: orange rim and a stem | a snowflake behind, snow on top |
+| `badge` | a soft glow | an orange rim | snow on top |
+| `thumb` | a soft glow | a pumpkin | a snowman |
+| `knob` | a soft glow | a spider | a snowflake |
+| `radio`, `check` chosen | glows in the current colour | ember glow | icy glow |
 
 ## Using the kit
 

@@ -84,7 +84,7 @@ QtObject {
     // What a focused item fills with: the focus colour, or under a style whose behaviour says so, the item's hue.
     function focusFill(hueIndex) { return behaviour.focusFill === "hue" && hueIndex >= 0 ? hue(hueIndex) : color("focus"); }
 
-    // A recipe's fill is a colour or a token name.
+    // A recipe's fill or stroke is a colour or a token name.
     function fill(value) { return /^(#|rgb)/.test(value) ? colorOf(value) : color(value); }
 
     // The rings one slot draws for a component type, in paint order. Themes listed later wrap further out: their back
@@ -96,7 +96,7 @@ QtObject {
             for (var j = 0; j < recipes.length; j++) {
                 var r = recipes[j];
                 if (r.slot !== slot || (r.target !== "*" && r.target !== target)) continue;
-                if (!r.asset && !r.fill) continue;
+                if (!r.asset && !r.fill && !r.stroke) continue;
                 out.push({ theme: list[i].id, recipe: r });
             }
         }

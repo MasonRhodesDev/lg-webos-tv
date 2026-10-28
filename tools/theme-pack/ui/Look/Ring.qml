@@ -3,7 +3,8 @@ import QtGraphicalEffects 1.0
 import Look 1.0
 import "place.js" as Place
 
-// One theme recipe drawn around a component: an image from the theme's asset pack, or a soft fill (a glow).
+// One theme recipe drawn around a component: an image from the theme's asset pack, a soft fill (a glow), or a
+// crisp stroke (a ring).
 // The outset is [top, right, bottom, left] in px out from the component, or one number for all four. A recipe whose
 // style gives a size sits at an edge of that box instead of filling it (place.js).
 Item {
@@ -14,13 +15,16 @@ Item {
 
     readonly property var o: typeof recipe.outset === "number" ? [recipe.outset, recipe.outset, recipe.outset, recipe.outset]
                                                                : (recipe.outset || [0, 0, 0, 0])
+    // A radius in px, or a radius token grown by the outset so the ring stays concentric with the component.
+    readonly property real radius: typeof recipe.radius === "string" ? Look.px(recipe.radius) + o[0] : (recipe.radius || 0)
     readonly property var box: Place.rect(Place.placement(recipe.style), host.width + o[1] + o[3], host.height + o[0] + o[2])
     x: -o[3] + box.x
     y: -o[0] + box.y
     width: box.width
     height: box.height
     visible: { var w = recipe.when || "always"; return w === "always" || host[w] === true; }
-    opacity: recipe.opacity !== undefined ? recipe.opacity : 1
+    // Decoration on a disabled component recedes with it (DESIGN.md, Decoration contract).
+    opacity: (recipe.opacity !== undefined ? recipe.opacity : 1) * (host.disabled ? 0.5 : 1)
 
     Image {
         visible: !!ring.recipe.asset
@@ -38,7 +42,16 @@ Item {
         anchors.margins: ring.recipe.blur || 0
         glowRadius: ring.recipe.blur || 0
         spread: 0.2
-        cornerRadius: ring.recipe.radius || 0
+        cornerRadius: ring.radius
         color: ring.recipe.fill ? Look.fill(ring.recipe.fill) : "transparent"
+    }
+
+    Rectangle {
+        visible: !!ring.recipe.stroke
+        anchors.fill: parent
+        color: "transparent"
+        border.width: ring.recipe.strokeWidth || 1
+        border.color: ring.recipe.stroke ? Look.fill(ring.recipe.stroke) : "transparent"
+        radius: Math.min(ring.radius, width / 2, height / 2)
     }
 }

@@ -68,10 +68,13 @@ test('a sized ring\'s style agrees with the size of the svg it holds', () => {
 
 test('the QML Ring puts corner decorations where the CSS does', () => {
   const find = (theme, target, s) => recipes.find((r) => r.theme === theme && r.target === target && (r.style || '').indexOf(s) >= 0);
-  // A 300×210 tile: the cobweb hangs 6 px past its top-right corner.
-  assert.deepStrictEqual(outsetBox(find('halloween', 'tile', 'width:76px'), 300, 210), { x: 230, y: -6, width: 76, height: 76 });
-  // A 600×800 panel: the spider hangs from the top, 56 px out past the right edge.
-  assert.deepStrictEqual(outsetBox(find('halloween', 'panel', 'height:170px'), 600, 800), { x: 612, y: 0, width: 44, height: 170 });
+  // A 300×210 tile: the cobweb straddles its top-right corner, 20 px out.
+  assert.deepStrictEqual(outsetBox(find('halloween', 'tile', 'width:44px'), 300, 210), { x: 276, y: -20, width: 44, height: 44 });
+  // A 600×800 panel: the spider hangs from the top, 8 px out past the right edge.
+  assert.deepStrictEqual(outsetBox(find('halloween', 'panel', 'height:170px'), 600, 800), { x: 608, y: 0, width: 44, height: 170 });
+  // The graveyard and the snowbank fill the bottom overscan strip under a 1728-wide ribbon, edge to edge.
+  assert.deepStrictEqual(outsetBox(find('halloween', 'ribbon', 'height:54px'), 1728, 400), { x: -96, y: 400, width: 1920, height: 54 });
+  assert.deepStrictEqual(outsetBox(find('winter', 'ribbon', 'height:54px'), 1728, 400), { x: -96, y: 400, width: 1920, height: 54 });
   // Winter's focus flake: top-left, 20 px out.
   assert.deepStrictEqual(outsetBox(find('winter', '*', 'width:36px'), 300, 210), { x: -20, y: -20, width: 36, height: 36 });
   // Icicles: the screen's top 44 px, full width.
@@ -83,19 +86,54 @@ test('the QML Ring puts corner decorations where the CSS does', () => {
   assert.deepStrictEqual(outsetBox(find('halloween', 'thumb', ''), 40, 40), { x: -10, y: -10, width: 60, height: 60 });
 });
 
-// Recipes whose html the asset renderer can't draw yet (render-assets.mjs says why); the QML layer leaves them out.
-const NOT_DRAWABLE = ['halloween screen/back'];
+// Recipes the QML layer may leave to the HTML renderer, each with why. Empty: every theme draws whole in both.
+const HTML_ONLY = {};
+
+test('every recipe is drawable by the QML layer: it names an asset, a fill or a stroke', () => {
+  recipes.forEach((r) => {
+    const where = r.theme + ' ' + r.target + '/' + r.slot + ' ' + r.when;
+    if (HTML_ONLY[where]) assert.ok(!r.asset && !r.fill && !r.stroke, where + ' is listed as HTML-only but is drawable');
+    else assert.ok(r.asset || r.fill || r.stroke, where + ' has nothing the QML layer draws (no asset, fill or stroke)');
+  });
+});
+
+test('every recipe declares its cost, and the cost is what it draws', () => {
+  recipes.forEach((r) => {
+    const where = r.theme + ' ' + r.target + '/' + r.slot + ' ' + r.when;
+    assert.ok(['static', 'glow'].indexOf(r.cost) >= 0, where + ': cost ' + r.cost + ' (static or glow; nothing animates yet)');
+    assert.strictEqual(r.cost, r.fill && r.blur ? 'glow' : 'static', where + ': a blurred fill costs glow, everything else static');
+  });
+});
+
+test('every stroke is a colour or a style token, with a px width', () => {
+  recipes.filter((r) => r.stroke).forEach((r) => {
+    assert.ok(/^(#[0-9a-f]{3,8}|rgba?\()/i.test(r.stroke) || TP.TOKENS.indexOf(r.stroke) >= 0, r.theme + ': stroke ' + r.stroke);
+    assert.ok(r.strokeWidth > 0, r.theme + ' ' + r.target + ': stroke needs a strokeWidth');
+  });
+});
+
+test('every recipe radius is px or a radius token', () => {
+  recipes.filter((r) => r.radius !== undefined).forEach((r) => {
+    assert.ok(typeof r.radius === 'number' || (/^r-/.test(r.radius) && TP.TOKENS.indexOf(r.radius) >= 0), r.theme + ' ' + r.target + ': radius ' + r.radius);
+  });
+});
+
+test('recipes write only to the decoration targets DESIGN.md lists', () => {
+  const md = fs.readFileSync(path.join(dir, 'DESIGN.md'), 'utf8');
+  const contract = md.slice(md.indexOf('## Decoration contract'));
+  const targets = [...contract.matchAll(/^\| `([a-z]+)` \|/gm)].map((m) => m[1]);
+  assert.ok(targets.length >= 14, 'found the contract table');
+  recipes.forEach((r) => assert.ok(r.target === '*' || targets.indexOf(r.target) >= 0, r.theme + ': unknown target ' + r.target));
+});
 
 function pngSize(file) {
   const b = fs.readFileSync(file);
   return [b.readUInt32BE(16), b.readUInt32BE(20)];
 }
 
-test('every recipe with html names an asset, except the ones not drawable yet', () => {
+test('every recipe with html names an asset', () => {
   recipes.filter((r) => r.html).forEach((r) => {
-    const where = r.theme + ' ' + r.target + '/' + r.slot;
-    if (NOT_DRAWABLE.indexOf(where) >= 0) assert.ok(!r.asset, where + ' is listed as not drawable but names an asset');
-    else assert.ok(r.asset, where + ' has html but no asset; run render-assets.mjs and name one');
+    assert.ok(r.asset, r.theme + ' ' + r.target + '/' + r.slot + ' has html but no asset; run render-assets.mjs and name one');
   });
 });
 

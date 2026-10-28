@@ -60,13 +60,13 @@ ThemePack.register({
   kind: 'theme', id: 'winter', name: 'Winter',
   reads: ['focus'],             // tokens the recipes use; every style provides them
   recipes: [
-    { target: 'tile', slot: 'front', when: 'always', outset: [14, 8, 0, 8], style: '...', html: '' },
-    { target: 'screen', slot: 'back', when: 'always', outset: 0, style: '...', html: '<svg>...</svg>' }
+    { target: 'tile', slot: 'back', when: 'focused', outset: 24, cost: 'glow', style: '...', fill: '#9AD8FF', radius: 56, blur: 16 },
+    { target: 'screen', slot: 'back', when: 'always', outset: 0, cost: 'static', style: '...', html: '<svg>...</svg>', asset: 'snow.png' }
   ]
 });
 ```
 
-- `target` is a component type or `*`. `slot` is `back` or `front`.
+- `target` is a decoration target from DESIGN.md's decoration contract, or `*`. `slot` is `back` or `front`.
 - `when` is `always`, `focused`, `current` or `disabled`.
 - `outset` is a number or `[top, right, bottom, left]` in px, measured out from the origin. Negative values inset over the content.
 - `style` is inline CSS for the ring element. It may use `var(--tp-…)` tokens.
@@ -197,12 +197,16 @@ The compositor can't draw HTML, and has no SVG plugin. A recipe is drawn by the 
 
 - `asset`: a PNG in the theme's asset pack, `packs/assets/<theme id>/`, fitted into the ring box at its own aspect.
 - `fill` (a colour, or a token name such as `focus`), with optional `radius` and `blur` in px: a soft glow.
+- `stroke` (a colour or a token name) and `strokeWidth` in px, with optional `radius`: a crisp ring inside the ring box.
 
-`opacity` applies to both. Recipes with only `html`/`style` are drawn by the HTML renderer alone.
+`opacity` applies to all three. `radius` is px, or a radius token (`r-row`) grown by the outset, so the ring stays
+concentric with the component in every style. Every recipe must name one of the three (a test checks it); the HTML
+renderer draws the same recipe from its `html` and `style`. Every recipe also declares its `cost`: `static` or
+`glow` (a blurred fill). DESIGN.md's decoration contract has the rules and what each theme gives each target.
 
 The ring box is the outset box, as in CSS. The QML Ring also reads a recipe's placement from its `style`, so there is one source for both renderers (`ui/Look/place.js`): `width`/`height` in px size the ring, and `left:auto`/`top:auto` put it against the right/bottom edge (`right:auto`/`bottom:auto` against the left/top). Without a size it fills the box. Edges only take `auto`, since the outset sets them; the tests reject anything else.
 
-`node tools/theme-pack/render-assets.mjs` renders each `asset` from its recipe's html (needs `rsvg-convert`); the PNGs are committed, so building doesn't need it. The html must be one `<svg>`, or a field of `<svg>`s placed with `left`/`top` (sized from the style, or the 1920×1080 screen for a `screen` target). It renders at the CSS size ×2, at the svg's own aspect (`width="100%"`: 128 px on the longer side), and a screen-wide box at ×1. The ring's style `opacity` is baked in. It lists the recipes it can't draw: html with a `<div>` or a CSS background (Halloween's moon and bats, for now).
+`node tools/theme-pack/render-assets.mjs` renders each `asset` from its recipe's html (needs `rsvg-convert`); the PNGs are committed, so building doesn't need it. The html must be one `<svg>`, or a field of `<svg>`s placed with `left`/`top` (sized from the style, or the 1920×1080 screen for a `screen` target). It renders at the CSS size ×2, at the svg's own aspect (`width="100%"`: 128 px on the longer side), and a screen-wide box at ×1. The ring's style `opacity` is baked in. It lists html it can't draw (a `<div>`, a CSS background), which then fails the tests: draw gradients and glows inside the svg.
 
 ## Every boot
 

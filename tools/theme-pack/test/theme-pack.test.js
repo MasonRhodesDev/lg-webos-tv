@@ -148,3 +148,21 @@ test('with themes off the thumb is still a plain dot showing the value', () => {
   assert.strictEqual(slotBody(thumb, 'front'), '');
   assert.match(vol, /left:40%/);
 });
+
+test('the demo decorates its pieces as the contract targets the kit uses', () => {
+  const home = html(screens.home({ style: 'smoke', themes: ['halloween'] }), { themes: ['halloween'] });
+  const vol = home.slice(home.indexOf('data-tp="volume"'));
+  assert.match(slotBody(vol, 'front'), /data-tp-ring="halloween"/, 'the volume bar is a panel: it gets the spider');
+  const ribbon = home.slice(home.indexOf('data-tp="ribbon"'));
+  assert.match(slotBody(ribbon, 'back'), /data-tp-ring="halloween"/, 'the dock\'s ribbon gets the graveyard');
+  assert.match(home, /data-tp="badge"/, 'the Watching tag is a badge');
+  const look = html(screens.look({ style: 'smoke', themes: ['winter'] }), { themes: ['winter'] });
+  const settings = look.slice(look.indexOf('data-tp="settings"'));
+  assert.match(slotBody(settings, 'front'), /data-tp-ring="winter"/, 'Settings is a panel: it gets the snow');
+});
+
+test('decoration on a disabled component recedes with it', () => {
+  const m = html(tile({ disabled: true }), { themes: ['winter'] });
+  assert.match(m, /data-tp-slot="front" style="[^"]*opacity:0\.5/);
+  assert.doesNotMatch(html(tile({}), { themes: ['winter'] }), /data-tp-slot="front" style="[^"]*opacity/);
+});
