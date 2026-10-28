@@ -79,7 +79,9 @@ delete env.QT_QUICK_BACKEND;
 // A virtual display of our own; Xvfb picks a free number and writes it to -displayfd, so parallel workers can't race.
 const servers = [];
 const deadDisplays = [];
-process.on('exit', () => { for (const x of servers) x.kill('SIGKILL'); });
+const running = new Set();
+process.on('exit', () => { for (const x of servers) x.kill('SIGKILL'); for (const p of running) p.kill('SIGKILL'); });
+for (const sig of ['SIGINT', 'SIGTERM', 'SIGHUP']) process.on(sig, () => process.exit(128 + (os.constants.signals[sig] || 0)));
 function startDisplay() {
   return new Promise((resolve, reject) => {
     const x = spawn(xvfb, ['-displayfd', '3', '-screen', '0', '1920x1080x24', '-nolisten', 'tcp'],
@@ -100,13 +102,14 @@ function startDisplay() {
 function run(args, display) {
   return new Promise((resolve) => {
     const p = spawn(qml, [path.join(here, 'Shot.qml'), '--', ...args], { env: { ...env, DISPLAY: display }, stdio: ['ignore', 'pipe', 'pipe'] });
+    running.add(p);
     let log = '', timedOut = false;
     // Shot.qml gives up on its own well before this; this is for a qml that stops answering at all.
     const timer = setTimeout(() => { timedOut = true; p.kill('SIGKILL'); }, hangLimitMs);
     p.stdout.on('data', (d) => { log += d; });
     p.stderr.on('data', (d) => { log += d; });
     p.on('close', (code, signal) => {
-      clearTimeout(timer);
+      clearTimeout(timer); running.delete(p);
       if (timedOut) log += '\nshot: qml stopped answering and was killed after ' + hangLimitMs / 1000 + ' s';
       else if (signal) log += '\nshot: qml was killed by ' + signal + (signal === 'SIGSEGV' || signal === 'SIGABRT' ? ' (crashed)' : '');
       resolve({ code: code === null ? -1 : code, log });
