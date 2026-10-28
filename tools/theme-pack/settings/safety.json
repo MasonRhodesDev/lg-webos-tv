@@ -31,7 +31,7 @@
       ]
      },
      "domainSource": "description.json, default variant",
-     "confirm": "PIN entry (com.webos.notification/createPincodePrompt)",
+     "confirm": "the PIN (our PIN prompt, checked against lock.systemPin)",
      "notes": "every Safety page is behind the PIN prompt"
     },
     {
@@ -69,11 +69,35 @@
      "meaning": "Change the PIN",
      "tier": 2,
      "api": {
-      "service": "com.webos.notification",
-      "method": "createPincodePrompt"
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "lock",
+      "keys": [
+       "systemPin"
+      ]
      },
-     "type": "action",
-     "unknown": "PIN storage/verification is inside the notification manager prompt; no direct set API found"
+     "type": "form",
+     "notes": "LG's Settings reads lock.systemPin with getSystemSettings and writes it with setSystemSettings {category: \"lock\", settings: {systemPin, initialPinCode: false}} (its master-password reset, main.js); LG's own prompt (com.webos.notification/createPincodePrompt {promptType: \"set_match\"}) is how LG asks for it elsewhere. We ask for the PIN with our own prompt."
+    },
+    {
+     "id": "systemPin",
+     "meaning": "The PIN the locks ask for (four digits)",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.settingsservice",
+      "read": "getSystemSettings",
+      "write": "setSystemSettings",
+      "category": "lock",
+      "keys": [
+       "systemPin"
+      ]
+     },
+     "type": "info",
+     "domain": {
+      "runtime": true
+     },
+     "notes": "never shown; read to check an entered PIN. Default 0000 (1234 in FRA and NOR, LG's reset). Whether our bus identity may read it is a TV check."
     }
    ],
    "visibleWhen": "after PIN prompt success"

@@ -14,6 +14,8 @@ FocusScope {
     property int minLength: 0
     property bool secret: false
     property string doneLabel: "Done"
+    // The keys it opens on: letters, or symbols (digits first).
+    property string layout: "letters"
     property bool shown: true
     property bool pointer: true
     property alias keyboard: keys
@@ -23,7 +25,7 @@ FocusScope {
     anchors.fill: parent
 
     // Starts afresh each time it opens.
-    onShownChanged: if (shown) keys.reset()
+    onShownChanged: if (shown) { keys.reset(); keys.layout = layout; }
 
     Scrim { kind: "dim"; shown: prompt.shown }
     Scrim { kind: "bottom"; shown: prompt.shown }

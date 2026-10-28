@@ -40,6 +40,12 @@ FocusScope {
     function close() {
         if (!open) return;
         open = false;
+        confirming = null;
+        editing = null;
+        pinning = null;
+        // The PIN is asked again on the next visit.
+        store.unlocked = false;
+        store.changed();
         closed();
     }
     function push(entry) {
@@ -62,6 +68,38 @@ FocusScope {
     function focusArea() { if (area === "page") page.forceActiveFocus(); else cats.forceActiveFocus(); }
 
     property var confirming: null
+    readonly property var choice: Pages.choices(confirming, store)
+    // The keyboard's request (Pages.textRequest), and the PIN prompt's step: { mode: check|new|again, row, first }.
+    property var editing: null
+    property var pinning: null
+    property alias entry: entry
+    property alias pin: pin
+
+    function startEdit(req) {
+        entry.text = req.text;
+        editing = req;
+    }
+    function pinEntered(code) {
+        var p = pinning;
+        if (p.mode === "check") {
+            if (!store.pinKnown()) { pin.reject("The TV has not given us its PIN yet. Try again."); return; }
+            if (!store.pinMatches(code)) { pin.reject("Wrong PIN. Try again."); return; }
+            store.unlocked = true;
+            store.changed();
+            pinning = null;
+            page.activate(p.row);
+        } else if (p.mode === "new") {
+            pinning = { "mode": "again", "first": code };
+            pin.reset();
+        } else if (code === p.first) {
+            pinning = null;
+            store.set("Safety/systemPin", code);
+        } else {
+            pinning = { "mode": "new" };
+            pin.reset();
+            pin.error = "The two did not match. Choose a new PIN.";
+        }
+    }
 
     Keys.onPressed: {
         if (!open) return;
@@ -76,7 +114,8 @@ FocusScope {
     Panel {
         id: panel
         placement: "full"
-        shown: menu.open
+        // The keyboard and the PIN prompt take the screen, as their boards draw them: over the picture alone.
+        shown: menu.open && menu.editing === null && menu.pinning === null
         padding: Look.px("space-xl")
 
         Item {
@@ -141,19 +180,50 @@ FocusScope {
             onBack: menu.pop()
             onAllSettings: {}
             onConfirm: menu.confirming = row
+            onEdit: menu.startEdit(request)
+            onUnlock: menu.pinning = { "mode": "check", "row": row }
+            onChangePin: { menu.pinning = { "mode": "new" }; pin.reset(); }
         }
     }
 
     Dialog {
         id: dialog
-        shown: menu.confirming !== null
-        title: menu.confirming ? menu.confirming.label : ""
-        body: menu.confirming ? Pages.confirmation(menu.confirming, menu.store) : ""
-        icon: menu.confirming ? menu.confirming.icon : ""
+        shown: menu.choice !== null
+        title: menu.choice ? menu.choice.title : ""
+        body: menu.choice ? menu.choice.body : ""
+        icon: menu.choice ? menu.choice.icon : ""
         hue: menu.confirming ? menu.confirming.hue : -1
-        buttons: ["Cancel", "OK"]
+        buttons: menu.choice ? menu.choice.buttons : ["Cancel"]
         onShownChanged: if (shown) { currentIndex = 0; forceActiveFocus(); } else menu.focusArea()
-        onActivated: { var r = menu.confirming; menu.confirming = null; if (index === 1) page.run(r); }
+        onActivated: {
+            var r = menu.confirming, c = menu.choice;
+            menu.confirming = null;
+            if (c && c.ops[index]) page.perform(r, c.ops[index]);
+        }
         onBack: menu.confirming = null
+    }
+    TextPrompt {
+        id: entry
+        shown: menu.editing !== null
+        pointer: menu.pointer
+        label: menu.editing ? menu.editing.label : ""
+        minLength: menu.editing ? menu.editing.min : 0
+        maxLength: menu.editing ? menu.editing.max : 0
+        secret: menu.editing ? menu.editing.secret : false
+        doneLabel: menu.editing ? menu.editing.done : "Done"
+        layout: menu.editing ? menu.editing.layout : "letters"
+        onShownChanged: if (shown) forceActiveFocus(); else menu.focusArea()
+        onAccepted: { var e = menu.editing; menu.editing = null; page.finishEdit(e, text); }
+        onCancelled: menu.editing = null
+    }
+    PinPrompt {
+        id: pin
+        shown: menu.pinning !== null
+        pointer: menu.pointer
+        title: !menu.pinning || menu.pinning.mode === "check" ? "Enter PIN" : menu.pinning.mode === "new" ? "Choose a new PIN" : "Enter it again"
+        body: !menu.pinning || menu.pinning.mode === "check" ? "Settings are locked" : menu.pinning.mode === "new" ? "Four digits" : "To be sure"
+        onShownChanged: if (shown) forceActiveFocus(); else menu.focusArea()
+        onEntered: menu.pinEntered(pin)
+        onCancelled: menu.pinning = null
     }
 }

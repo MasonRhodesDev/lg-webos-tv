@@ -232,9 +232,9 @@ removed. Eight categories instead of LG's seven, with names a family member woul
 | Info page | About, TV information, network details | RowList of `info` rows (not focusable; the page scrolls by page) |
 | Network list | Wi-Fi | RowList of rows with signal Icon, lock and connected Badge; a Section "Saved" and "Nearby"; rescans on open |
 | Device list | Bluetooth, wireless keyboard, WiSA | RowList of device rows with Badge (connected/paired), a "Search" row while discovering |
-| Form | Wi-Fi password, IP/DNS, manual time | **gap in the kit**: a text field row that summons the compositor's keyboard (Maliit, `compositor.inputMethod`) |
+| Form | Wi-Fi password, IP/DNS, manual time | TextPrompt: our own TextField and Keyboard (the Keyboard board). Not Maliit: it is a separate process that only client apps' text inputs summon |
 | Busy / progress | scanning, connecting, updating | **gap in the kit**: an inline busy indicator on a row; long jobs show a progress row |
-| PIN | Safety pages, locks | LG's own PIN prompt (`com.webos.notification/createPincodePrompt`); it is LG's system UI, not reimplemented |
+| PIN | Safety pages, locks | our PinPrompt (the PIN prompt board), checked against `lock.systemPin` as LG's Settings does |
 | Feedback | "Saved", errors | LG toast via `createToast`, drawn by our toast part |
 
 ### 3.3 The data layer
@@ -348,5 +348,5 @@ picture-mode list switches to the HDR set); an error rollback toast.
   `Qt.Key_Back`/`Key_Escape` in QML (LG's QS listens for `Key_Escape` releases, `QuickSettings.qml:101`).
 - Kit gaps: text field with the system keyboard; busy indicator.
 - The owner decided (2026-10-28): our quick sheet replaces LG's Quick Settings (hook A), and the launch stub is in.
-- A few catalog rows are marked `unknown` (exact params for picture reset, picture test, sound test, app locks, PIN
-  change); they are tier 3 or go through LG's own prompt.
+- A few catalog rows are marked `unknown` (exact params for picture reset, picture test, sound test, app locks);
+  they are tier 3. The PIN change is resolved: LG's Settings writes `lock.systemPin` itself.

@@ -3,8 +3,10 @@ import QtQuick 2.4
 
 // The TV's settings services as the preview answers them (SETTINGS-PLAN.md section 4): a US TV (an OLED55B9) watching
 // HDMI 2 at 4K 120 Hz in Filmmaker mode, sound on the TV speakers, on a cable with the internet blocked, LG's data
-// agreements withdrawn, tools/telemetry-off in force (the boards' TV). Scenes and tests change `values`, `desc` and
-// `fail` before or while they run. Addresses are from the documentation ranges (RFC 5737).
+// agreements withdrawn, tools/telemetry-off in force, Wi-Fi off, one soundbar paired, the PIN 0000 (the boards'
+// TV). Scenes and tests change `values`, `desc` and
+// `fail` (or `silent`) before or while they run. Addresses are from the documentation ranges (RFC 5737, and RFC 7042
+// for the Bluetooth MACs).
 QtObject {
     id: fixture
 
@@ -23,7 +25,9 @@ QtObject {
         "": { "localeInfo": { "locales": { "UI": "en-US", "TV": "en-US", "FMT": "en-US", "NLP": "en-US" } },
               "eulaStatus": { "generalTermsAllowed": true, "networkAllowed": true, "acrOnAllowed": false, "acrAdAllowed": false,
                               "customAdAllowed": false, "additionalDataAllowed": false, "voiceAllowed": false, "voice2Allowed": false,
-                              "takeOnAllowed": false, "chpAllowed": false } }
+                              "takeOnAllowed": false, "chpAllowed": false } },
+        "lock": { "parentalControl": false, "systemPin": "0000" },
+        "network": { "deviceName": "Living room TV" }
     })
     // Description overrides by "category.key": { visible, active, values: [visible values] }. Anything else is
     // described from the catalog's domain, every value visible and active.
@@ -49,11 +53,27 @@ QtObject {
     property string telemetryKit: "active"
     // systemservice getPreferences.
     property var preferences: ({ "useNetworkTime": false, "timeZone": "America/New_York" })
-    // Keys ("category.key", "sleepTimer", "volume") whose next write fails, to show the rollback.
+    // Wi-Fi as com.webos.service.wifi answers it (off, as on the boards; its networks show once a scene turns it on). `password` is what each secured network takes.
+    property string wifiState: "serviceDisabled"
+    property var networks: [
+        { "ssid": "Home", "signalBars": 4, "availableSecurityTypes": ["psk"], "profileId": 1, "connectState": "ipConfigured", "password": "tea4two@" },
+        { "ssid": "Upstairs", "signalBars": 2, "availableSecurityTypes": ["psk"], "profileId": 2, "password": "stairs99" },
+        { "ssid": "Cafe Corner", "signalBars": 3, "availableSecurityTypes": ["none"] },
+        { "ssid": "Neighbour 5G", "signalBars": 1, "availableSecurityTypes": ["psk"], "password": "nextdoor" },
+        { "ssid": "Garage", "signalBars": 2, "availableSecurityTypes": ["psk"], "password": "wrench12" }
+    ]
+    property int nextProfile: 3
+    // Bluetooth audio as com.webos.service.btaudiosrc answers it; `nearby` is what a search finds.
+    property var btPaired: [
+        { "address": "00:00:5E:00:53:01", "name": "Living room soundbar", "state": "connected" }
+    ]
+    property var btNearby: [{ "address": "00:00:5E:00:53:03", "name": "Headphones", "type": "headset" }]
+    // Keys ("category.key", "sleepTimer", "volume", "wifi.connect", "wifi.forget", "wifi.state", "bt.connect",
+    // "bt.disconnect", "bt.forget", "bt.search") whose next write fails, to show the rollback.
     property var fail: ({})
     // Keys whose writes are never answered (a call the bus drops), to show the timeout rollback.
     property var silent: ({})
-    // Every call made, for tests: [{ uri, method, params }].
+    // Every call made, for tests: [{ uri, method, params }]. Toasts (com.webos.notification/createToast) are in it too.
     property var calls: []
     property var subs: []
 
@@ -89,10 +109,111 @@ QtObject {
             if (s.kind === "volume" && key === "volume") answer(s.svc, "/getVolume", { "returnValue": true, "volume": volume });
             if (s.kind === "signal" && key === "signal") answer(s.svc, "/getHDMIInfo", hdmi);
             if (s.kind === "prefs" && key === "prefs") answer(s.svc, "/getPreferences", { "returnValue": true, "useNetworkTime": preferences.useNetworkTime });
+            if (s.kind === "wifi" && key === "wifi") answer(s.svc, "/getstatus", { "returnValue": true, "status": wifiState });
+            if (s.kind === "networks" && key === "wifi") answer(s.svc, "/findnetworks", foundNetworks());
+            if (s.kind === "bt" && key === "bt") answer(s.svc, "/getDeviceStatus", { "returnValue": true, "listType": "paired", "state": "paired" });
         }
     }
     function cancel(svc) {
         for (var i = 0; i < subs.length; i++) if (subs[i].svc === svc) subs[i].cancelled = true;
+    }
+
+    function foundNetworks() {
+        var out = [];
+        if (wifiState === "serviceDisabled") return { "returnValue": true, "foundNetworks": [] };
+        for (var i = 0; i < networks.length; i++) {
+            var n = networks[i], info = { "ssid": n.ssid, "displayName": n.ssid, "signalBars": n.signalBars,
+                "availableSecurityTypes": n.availableSecurityTypes, "supported": true, "connectState": n.connectState || "notAssociated" };
+            if (n.profileId !== undefined) info.profileId = n.profileId;
+            out.push({ "networkInfo": info });
+        }
+        return { "returnValue": true, "foundNetworks": out };
+    }
+    function netNamed(ssid, profileId) {
+        for (var i = 0; i < networks.length; i++) if (networks[i].ssid === ssid || (profileId !== undefined && networks[i].profileId === profileId)) return networks[i];
+        return null;
+    }
+    function failing(key, svc, method, text, code) {
+        if (silent[key]) return true;
+        if (!fail[key]) return false;
+        delete fail[key];
+        answer(svc, method, { "returnValue": false, "errorCode": code || -1, "errorText": text || "Not allowed now" });
+        return true;
+    }
+    function device(address) {
+        for (var i = 0; i < btPaired.length; i++) if (btPaired[i].address === address) return btPaired[i];
+        return null;
+    }
+    function handleWifi(svc, method, p) {
+        if (method === "/getstatus") {
+            if (p.subscribe) subs.push({ "svc": svc, "kind": "wifi" });
+            answer(svc, method, { "returnValue": true, "status": wifiState });
+        } else if (method === "/findnetworks") {
+            if (p.subscribe) subs.push({ "svc": svc, "kind": "networks" });
+            answer(svc, method, foundNetworks());
+        } else if (method === "/setstate") {
+            if (failing("wifi.state", svc, method)) return;
+            wifiState = p.state === "disabled" ? "serviceDisabled" : "serviceEnabled";
+            answer(svc, method, { "returnValue": true });
+            notify("", "wifi");
+        } else if (method === "/connect") {
+            if (failing("wifi.connect", svc, method, "Could not establish a connection", 13)) return;
+            var n = netNamed(p.ssid, p.profileId);
+            if (!n) { answer(svc, method, { "returnValue": false, "errorCode": 102 }); return; }
+            var key = p.security && p.security.simpleSecurity ? p.security.simpleSecurity.passKey : undefined;
+            if (n.password && n.profileId === undefined && key !== n.password) { answer(svc, method, { "returnValue": false, "errorCode": 10 }); return; }
+            for (var i = 0; i < networks.length; i++) networks[i].connectState = "notAssociated";
+            n.connectState = "ipConfigured";
+            if (n.profileId === undefined) n.profileId = nextProfile++;
+            answer(svc, method, { "returnValue": true, "profileId": n.profileId });
+            notify("", "wifi");
+        } else if (method === "/deleteprofile") {
+            if (failing("wifi.forget", svc, method)) return;
+            var f = netNamed("", p.profileId);
+            if (f) { delete f.profileId; f.connectState = "notAssociated"; }
+            answer(svc, method, { "returnValue": true });
+            notify("", "wifi");
+        } else {
+            answer(svc, method, { "returnValue": true });
+        }
+    }
+    function handleBt(svc, method, p) {
+        var i, d;
+        if (method === "/getPairedDevices") {
+            answer(svc, method, { "returnValue": true, "count": btPaired.length, "devices": btPaired });
+        } else if (method === "/getDeviceStatus") {
+            if (p.subscribe) subs.push({ "svc": svc, "kind": "bt" });
+            answer(svc, method, { "returnValue": true, "subscribed": true });
+        } else if (method === "/startDiscovery") {
+            if (failing("bt.search", svc, method)) return;
+            answer(svc, method, { "returnValue": true, "timeOut": 60 });
+            for (i = 0; i < btNearby.length; i++) if (!device(btNearby[i].address)) answer(svc, method, { "returnValue": true, "state": "started", "device": btNearby[i] });
+        } else if (method === "/connect") {
+            if (failing("bt.connect", svc, method, "Pairing failed")) return;
+            d = device(p.address);
+            if (!d) {
+                for (i = 0; i < btNearby.length; i++) if (btNearby[i].address === p.address) d = { "address": p.address, "name": btNearby[i].name };
+                if (!d) { answer(svc, method, { "returnValue": false, "errorText": "No such device" }); return; }
+                btPaired.push(d);
+            }
+            for (i = 0; i < btPaired.length; i++) btPaired[i].state = "disconnected";
+            d.state = "connected";
+            answer(svc, method, { "returnValue": true });
+            notify("", "bt");
+        } else if (method === "/disconnect") {
+            if (failing("bt.disconnect", svc, method)) return;
+            d = device(p.address);
+            if (d) d.state = "disconnected";
+            answer(svc, method, { "returnValue": true });
+            notify("", "bt");
+        } else if (method === "/removePairedDevice") {
+            if (failing("bt.forget", svc, method)) return;
+            for (i = 0; i < btPaired.length; i++) if (btPaired[i].address === p.address) btPaired.splice(i, 1);
+            answer(svc, method, { "returnValue": true });
+            notify("", "bt");
+        } else {
+            answer(svc, method, { "returnValue": true });
+        }
     }
 
     // Returns false for calls that are not the settings services'.
@@ -101,7 +222,8 @@ QtObject {
         var service = uri.replace(/^(luna|palm):\/\//, "");
         if (["com.webos.settingsservice", "com.webos.service.tv.time", "com.webos.service.connectionmanager", "com.webos.audio",
              "com.webos.service.tv.display", "com.webos.service.tvpower", "com.webos.applicationManager",
-             "com.webos.service.tv.systemproperty", "com.palm.systemservice"].indexOf(service) < 0) return false;
+             "com.webos.service.tv.systemproperty", "com.palm.systemservice",
+             "com.webos.service.wifi", "com.webos.service.btaudiosrc", "com.webos.notification"].indexOf(service) < 0) return false;
         calls.push({ "uri": uri, "method": method, "params": p });
         var key;
         if (service === "com.webos.settingsservice") {
@@ -132,6 +254,10 @@ QtObject {
             } else {
                 answer(svc, method, { "returnValue": true, "sleepTimeMinute": sleepMinutes, "sleepTimeSecond": sleepMinutes * 60 });
             }
+        } else if (service === "com.webos.service.wifi") {
+            handleWifi(svc, method, p);
+        } else if (service === "com.webos.service.btaudiosrc") {
+            handleBt(svc, method, p);
         } else if (service === "com.webos.service.connectionmanager") {
             answer(svc, method, network);
         } else if (service === "com.webos.audio") {

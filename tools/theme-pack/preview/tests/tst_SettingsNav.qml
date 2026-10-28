@@ -40,6 +40,25 @@ Item {
                                       "themes": [], "settings": { "open": true, "target": target, "at": at } }));
     }
 
+    function toasted(text) {
+        for (var i = 0; i < TvSettings.calls.length; i++) {
+            var c = TvSettings.calls[i];
+            if (c.method === "/createToast" && c.params.message.indexOf(text) >= 0) return true;
+        }
+        return false;
+    }
+    function called(method, key, value) {
+        for (var i = TvSettings.calls.length - 1; i >= 0; i--) {
+            var c = TvSettings.calls[i];
+            if (c.method === method && (key === undefined || JSON.stringify(c.params).indexOf(key) >= 0)) return c.params;
+        }
+        return null;
+    }
+    function specNamed(label) {
+        var l = rows();
+        for (var i = 0; i < l.rows.length; i++) if (l.rows[i].label === label) return l.rows[i];
+        return null;
+    }
     function reported(kind, text) {
         for (var i = 0; i < Fixture.reports.length; i++) if (Fixture.reports[i].kind === kind && Fixture.reports[i].text.indexOf(text) >= 0) return true;
         return false;
@@ -48,6 +67,33 @@ Item {
     TestCase {
         name: "SettingsNav"
         when: windowShown
+
+        function down(label) {
+            for (var i = 0; i < 30 && focused() !== label; i++) keyClick(Qt.Key_Down);
+            for (i = 0; i < 30 && focused() !== label; i++) keyClick(Qt.Key_Up);
+        }
+        // Our keyboard, driven by the D-pad only: arrows to the key, then OK.
+        function goKey(label) {
+            var kb = part.menu.entry.keyboard, at = kb.locate(label);
+            for (var i = 0; i < 6 && kb.row !== at.row; i++) keyClick(kb.row < at.row ? Qt.Key_Down : Qt.Key_Up);
+            for (i = 0; i < 12 && kb.col !== at.col; i++) keyClick(kb.col < at.col ? Qt.Key_Right : Qt.Key_Left);
+            compare(kb.rows[kb.row][kb.col].label, label, "the D-pad reaches " + label);
+            keyClick(Qt.Key_Return);
+        }
+        function typeText(text) {
+            var kb = part.menu.entry.keyboard;
+            for (var i = 0; i < text.length; i++) {
+                if (!kb.locate(text.charAt(i))) goKey(kb.layout === "letters" ? "123" : "ABC");
+                goKey(text.charAt(i));
+            }
+        }
+        function padTo(digit) {
+            var pad = part.menu.pin.pad, at = pad.keys.indexOf(digit);
+            for (var i = 0; i < 4 && Math.floor(pad.currentIndex / 3) !== Math.floor(at / 3); i++) keyClick(pad.currentIndex < at ? Qt.Key_Down : Qt.Key_Up);
+            for (i = 0; i < 3 && pad.currentIndex !== at; i++) keyClick(pad.currentIndex < at ? Qt.Key_Right : Qt.Key_Left);
+            keyClick(Qt.Key_Return);
+        }
+
 
         function initTestCase() {
             var c = Qt.createComponent(Qt.resolvedUrl("../../ui/Look/parts/Settings.qml"));
@@ -365,6 +411,234 @@ Item {
             delete TvSettings.silent["picture.energySaving"];
             keyClick(Qt.Key_Escape);
             verify(!part.quick.open);
+        }
+
+        function test_8a_wifi_password_and_join() {
+            // The boards' TV: Wi-Fi off, one device paired; Bluetooth surround greys only with none paired.
+            openSettings("connection", 9);
+            compare(specNamed("Wi-Fi").value, "Off", "Connection's Wi-Fi row reads Wi-Fi's own state");
+            compare(specNamed("Bluetooth devices").value, "1 paired", "and Bluetooth devices the paired count");
+            // These steps need Wi-Fi on, with the home network joined.
+            TvSettings.wifiState = "serviceEnabled";
+            openSettings("wifi", 10);
+            compare(topId(), "Wifi", "the wifi page id opens our Wi-Fi page");
+            compare(part.menu.stack[0].id, "Network");
+            verify(called("/findnetworks") !== null, "the page scans while it shows");
+            compare(specNamed("Home").value, "Connected");
+            compare(part.store.state("wifiEnabled").label, "On", "Wi-Fi's state, for other pages");
+            down("Garage");
+            keyClick(Qt.Key_Return);
+            verify(part.menu.editing !== null, "OK on a secured network asks for its password");
+            wait(50);
+            compare(part.menu.entry.keyboard.rows[3][2].label, "Join", "the keyboard's finishing key says Join");
+            var calls = TvSettings.calls.length;
+            goKey("Join");
+            verify(part.menu.editing !== null, "Join waits for 8 characters");
+            typeText("wrench1");
+            goKey("Join");
+            verify(part.menu.editing !== null, "and 7 are not enough");
+            typeText("3");
+            compare(part.menu.entry.text, "wrench13", "typed with the D-pad");
+            compare(part.menu.entry.field.shown, "\u2022\u2022\u2022\u2022\u2022\u2022\u20223", "shown as dots but the last");
+            compare(TvSettings.calls.length, calls, "typing calls nothing");
+            goKey("Delete");
+            typeText("a");
+            goKey("Delete");
+            typeText("3");
+            goKey("Join");
+            verify(part.menu.editing === null, "Join closes the keyboard");
+            compare(called("/connect").security.simpleSecurity.passKey, "wrench13", "and joins with the password");
+            compare(specNamed("Garage").value, "", "a wrong password is rolled back");
+            compare(specNamed("Home").value, "Connected", "and the network the TV was on stays");
+            verify(toasted("Not joined Garage: the password is wrong"), "with a toast that says why");
+            wait(50);
+            compare(focused(), "Garage", "focus stays on the network");
+            keyClick(Qt.Key_Return);
+            wait(50);
+            compare(part.menu.entry.text, "", "the keyboard opens empty again");
+            typeText("wrench12");
+            goKey("Join");
+            compare(specNamed("Garage").value, "Connected", "the right password joins");
+            verify(specNamed("Garage").current, "and marks it current");
+            compare(specNamed("Home").value, "Saved", "the old network is saved, not connected");
+            verify(toasted("Joined Garage"));
+            wait(50);
+            // Back out of the keyboard: nothing is sent.
+            down("Neighbour 5G");
+            keyClick(Qt.Key_Return);
+            wait(50);
+            typeText("abc");
+            calls = TvSettings.calls.length;
+            keyClick(Qt.Key_Escape);
+            verify(part.menu.editing === null, "Back closes the keyboard");
+            compare(TvSettings.calls.length, calls, "and joins nothing");
+            wait(50);
+            compare(focused(), "Neighbour 5G");
+        }
+
+        function test_8b_wifi_confirm_timeout_and_forget() {
+            part.store.joinTimeout = 300;
+            down("Upstairs");
+            keyClick(Qt.Key_Return);
+            compare(part.menu.dialog.buttons.join(), "Cancel,Forget,Join", "a saved network asks: forget or join");
+            compare(part.menu.dialog.currentIndex, 0, "the safe button has focus");
+            wait(50);
+            TvSettings.silent["wifi.connect"] = true;
+            keyClick(Qt.Key_Right);
+            keyClick(Qt.Key_Right);
+            keyClick(Qt.Key_Return);
+            compare(specNamed("Upstairs").value, "Joining", "joining shows at once");
+            verify(specNamed("Upstairs").busy, "with the busy ring");
+            wait(700);
+            compare(specNamed("Upstairs").value, "Saved", "no answer: rolled back");
+            compare(specNamed("Garage").value, "Connected", "the current network is back too");
+            verify(toasted("Not joined Upstairs: the TV did not answer"));
+            delete TvSettings.silent["wifi.connect"];
+            part.store.joinTimeout = 30000;
+            down("Garage");
+            keyClick(Qt.Key_Return);
+            compare(part.menu.dialog.buttons.join(), "Cancel,Forget");
+            wait(50);
+            keyClick(Qt.Key_Return);
+            compare(called("/deleteprofile"), null, "Cancel forgets nothing");
+            keyClick(Qt.Key_Return);
+            wait(50);
+            keyClick(Qt.Key_Right);
+            keyClick(Qt.Key_Return);
+            verify(called("/deleteprofile") !== null, "Forget deletes its profile");
+            compare(specNamed("Garage").value, "", "and it moves to Nearby");
+            // Wi-Fi off asks first.
+            down("Wi-Fi");
+            keyClick(Qt.Key_Return);
+            compare(part.menu.dialog.title, "Wi-Fi", "turning Wi-Fi off asks first");
+            wait(50);
+            keyClick(Qt.Key_Escape);
+            compare(TvSettings.wifiState, "serviceEnabled", "Back keeps it on");
+            keyClick(Qt.Key_Escape);
+            compare(topId(), "Network", "Back leaves the Wi-Fi page");
+        }
+
+        function test_8c_bluetooth_pair_and_disconnect() {
+            TvSettings.btPaired.push({ "address": "00:00:5E:00:53:02", "name": "Kitchen speaker", "state": "disconnected" });
+            openSettings("bluetooth", 11);
+            compare(topId(), "Bluetooth");
+            compare(part.menu.stack[0].id, "Network", "under Connection, as the board has it");
+            compare(specNamed("Living room soundbar").value, "Connected");
+            compare(part.store.state("btPairedCount").label, "2 paired", "the paired count, for other pages");
+            compare(called("/startDiscovery"), null, "no search until asked");
+            down("Search for devices");
+            keyClick(Qt.Key_Return);
+            verify(called("/startDiscovery") !== null, "OK searches");
+            verify(specNamed("Headphones") !== null, "and what it finds is listed under Nearby");
+            verify(specNamed("Searching for devices").busy);
+            down("Headphones");
+            keyClick(Qt.Key_Return);
+            compare(part.menu.dialog.title, "Pair Headphones?", "pairing asks first");
+            wait(50);
+            TvSettings.fail["bt.connect"] = true;
+            keyClick(Qt.Key_Right);
+            keyClick(Qt.Key_Return);
+            verify(toasted("Not paired with Headphones: Pairing failed"), "a refused pairing says so");
+            compare(specNamed("Headphones").value, "", "and is rolled back");
+            wait(50);
+            down("Headphones");
+            keyClick(Qt.Key_Return);
+            wait(50);
+            keyClick(Qt.Key_Right);
+            keyClick(Qt.Key_Return);
+            compare(called("/connect").address, "00:00:5E:00:53:03");
+            compare(specNamed("Headphones").value, "Connected", "paired and connected");
+            compare(specNamed("Living room soundbar").value, "Not connected", "the soundbar lets go");
+            verify(toasted("Paired Headphones"));
+            compare(part.store.values.btPairedCount, 3);
+            wait(50);
+            down("Headphones");
+            keyClick(Qt.Key_Return);
+            compare(part.menu.dialog.buttons.join(), "Cancel,Forget,Disconnect");
+            wait(50);
+            keyClick(Qt.Key_Right);
+            keyClick(Qt.Key_Right);
+            keyClick(Qt.Key_Return);
+            compare(called("/disconnect").address, "00:00:5E:00:53:03");
+            compare(specNamed("Headphones").value, "Not connected", "disconnected");
+            keyClick(Qt.Key_Escape);
+            compare(topId(), "Network", "Back leaves the page");
+            keyClick(Qt.Key_Escape);
+            keyClick(Qt.Key_Escape);
+            verify(!part.menu.open);
+            compare(part.store.busy("btDevices"), false, "closing stops the search");
+        }
+
+        function test_8d_pin_wrong_right_and_change() {
+            openSettings("pin", 12);
+            compare(topId(), "Safety");
+            compare(focused(), "Locks");
+            keyClick(Qt.Key_Return);
+            verify(part.menu.pinning !== null, "a locked row asks for the PIN");
+            wait(50);
+            keyClick(Qt.Key_1); keyClick(Qt.Key_2); keyClick(Qt.Key_3); keyClick(Qt.Key_4);
+            compare(part.menu.pin.error, "Wrong PIN. Try again.", "a wrong PIN says so");
+            compare(part.menu.pin.pin, "", "and clears");
+            compare(TvSettings.values.lock.parentalControl, false, "and changes nothing");
+            for (var i = 0; i < 4; i++) padTo("0");
+            verify(part.menu.pinning === null, "the right PIN, by the D-pad, closes the prompt");
+            compare(TvSettings.values.lock.parentalControl, true, "and does what was asked");
+            wait(50);
+            down("Change PIN");
+            keyClick(Qt.Key_Return);
+            compare(part.menu.pinning.mode, "new", "unlocked: no PIN asked again, straight to a new one");
+            wait(50);
+            keyClick(Qt.Key_1); keyClick(Qt.Key_1); keyClick(Qt.Key_1); keyClick(Qt.Key_1);
+            compare(part.menu.pinning.mode, "again");
+            keyClick(Qt.Key_2); keyClick(Qt.Key_2); keyClick(Qt.Key_2); keyClick(Qt.Key_2);
+            compare(part.menu.pinning.mode, "new", "two that differ start again");
+            verify(part.menu.pin.error.length > 0);
+            keyClick(Qt.Key_Escape);
+            verify(part.menu.pinning === null, "Back leaves the PIN prompt");
+            compare(TvSettings.values.lock.systemPin, "0000", "and the PIN is unchanged");
+            wait(50);
+            keyClick(Qt.Key_Return);
+            wait(50);
+            keyClick(Qt.Key_1); keyClick(Qt.Key_3); keyClick(Qt.Key_5); keyClick(Qt.Key_7);
+            keyClick(Qt.Key_1); keyClick(Qt.Key_3); keyClick(Qt.Key_5); keyClick(Qt.Key_7);
+            verify(part.menu.pinning === null);
+            compare(TvSettings.values.lock.systemPin, "1357", "the new PIN is written");
+            compare(called("/setSystemSettings", "systemPin").settings.initialPinCode, false, "as the household's own");
+            keyClick(Qt.Key_Escape);
+            keyClick(Qt.Key_Escape);
+            keyClick(Qt.Key_Escape);
+            verify(!part.menu.open);
+            verify(!part.store.unlocked, "closing locks it again");
+            openSettings("pin", 13);
+            verify(specNamed("Locks").locked, "the next visit asks again");
+            keyClick(Qt.Key_Return);
+            wait(50);
+            keyClick(Qt.Key_Escape);
+            verify(part.menu.pinning === null);
+            compare(TvSettings.values.lock.parentalControl, true, "Back out of the PIN changes nothing");
+        }
+
+        function test_8e_text_entry() {
+            openSettings("keyboard-input", 14);
+            compare(topId(), "KeyboardInput");
+            compare(specNamed("TV name").value, "Living room TV");
+            verify(specNamed("Keyboard languages").disabled, "an unbuilt row is disabled, with its reason");
+            down("TV name");
+            keyClick(Qt.Key_Return);
+            wait(50);
+            compare(part.menu.entry.text, "Living room TV", "the keyboard starts from the name");
+            goKey("Delete");
+            goKey("Delete");
+            goKey("Shift");
+            typeText("Den");
+            compare(part.menu.entry.text, "Living room Den", "Shift gives one capital");
+            goKey("Done");
+            compare(TvSettings.values.network.deviceName, "Living room Den", "Done writes it");
+            compare(specNamed("TV name").value, "Living room Den");
+            keyClick(Qt.Key_Escape);
+            keyClick(Qt.Key_Escape);
+            keyClick(Qt.Key_Escape);
+            verify(!part.menu.open);
         }
 
         function test_9_no_host_hands_the_gear_to_lg() {

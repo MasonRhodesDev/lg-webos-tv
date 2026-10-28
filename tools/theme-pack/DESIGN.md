@@ -154,8 +154,12 @@ weights its font files carry (a test checks this). Every kit text is a **Label**
 | `body` | dialog text, toast messages |
 | `caption` | hint lines, subtitles, tile sub lines |
 | `heading` | section headers and breadcrumbs (`type-heading-case`: Smoke uppercase, Bubble as written) |
-| `key` | the names on key caps |
+| `key` | the names on key hints' caps |
 | `numeral` | big numbers (the volume level) |
+| `entry` | the text being typed in a TextField |
+| `cap`, `cap-word` | an on-screen keyboard's characters, and its word keys (Shift, Delete, Space, Done) |
+| `pad` | a PIN keypad's keys |
+| `prompt` | a text prompt's label and a field's count |
 
 ## Spacing
 
@@ -239,6 +243,30 @@ lift), so positioners lay out only origins and nothing clips. Each layer follows
 opacity through bindings, so an idle screen runs no script; scrolling or a focus scale re-evaluates only the
 components that move. Rotation and `transform` lists are not followed: move and grow components with x, y and scale.
 A Decor outside any Passes keeps its layers to itself, in the same order.
+
+## Text entry and the PIN (the Keyboard and PIN prompt boards)
+
+Both take the whole screen over a `dim` scrim, with nothing of the menu behind them (the menu's panel leaves while
+they show).
+
+- **Key**: one key cap, `key-w` by `key-h`, an edged `inner` Plate of radius `r-key`, its name in `cap`, `cap-word` or
+  `pad`. Focus is the one focus treatment; the key that finishes (Done, Join) carries the `current` bar. Decorated as
+  `button`.
+- **Keyboard**: four rows of Keys `key-gap` apart, each row centred: letters (Shift for one capital), and "123" for
+  digits and symbols (Shift there for more). Wide keys keep the board's proportions (Shift, Delete and 123 230/132 of a
+  key, Space 760/132, Done 300/132). Up/Down go to the nearest key in the next row. Ours, not LG's Maliit keyboard:
+  Maliit is a separate process with a Wayland surface of its own, summoned only by client apps' text inputs.
+- **TextField**: a `surface` box `field-h` tall, radius `r-row`, `space-lx` in, the text in `entry` with a caret
+  (`focus`, `focus-w` wide) after it; while it takes the keys its edge is `active-w` in `focus-edge`. A count
+  ("9 / 20", `prompt`, `ink-3`) sits `space-ml` to its right when there is a limit. Secret text shows dots but the last
+  character.
+- **TextPrompt**: the `prompt` label `space-xs` × 2 over the TextField, centred in the space above the Keyboard, which
+  sits on a `ribbon` panel (`space-lx` padding).
+- **PinPad**: 1-9, Clear, 0, Delete in three columns `pad-w` wide, `space-xs` × 2 apart, `pad-key-h` tall.
+- **PinPrompt**: a centred panel `pin-w` wide (`space-xxl` padding, `space-lx` between parts, decorated as `dialog`):
+  a **Well** with the lock, the title, the reason (or, in `critical`, why the last PIN was refused), a slot per digit
+  (`slot-w` by `slot-h`, `inner`, the next one with the `active-w` edge, filled ones a `slot-dot` dot), the PinPad.
+- **Well**: an icon `well` across in a ring of its hue over a faint wash of it (dialogs and prompts).
 
 ## Decoration contract
 

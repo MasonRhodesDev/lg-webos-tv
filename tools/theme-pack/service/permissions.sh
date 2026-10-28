@@ -25,7 +25,12 @@ com.webos.audio/getVolume com.webos.audio/setVolume com.webos.service.tvpower/po
 com.webos.notification/createToast com.webos.applicationManager/launch
 com.webos.service.tv.display/getHDMIInfo com.webos.service.tv.systemproperty/getSystemInfo
 com.palm.systemservice/osInfo/query com.palm.systemservice/getPreferences com.palm.systemservice/setPreferences
-com.webos.service.tv.systemproperty/doUserDefault'
+com.webos.service.tv.systemproperty/doUserDefault
+com.webos.service.wifi/getstatus com.webos.service.wifi/setstate com.webos.service.wifi/findnetworks
+com.webos.service.wifi/connect com.webos.service.wifi/deleteprofile
+com.webos.service.btaudiosrc/getPairedDevices com.webos.service.btaudiosrc/getDeviceStatus
+com.webos.service.btaudiosrc/startDiscovery com.webos.service.btaudiosrc/connect com.webos.service.btaudiosrc/disconnect
+com.webos.service.btaudiosrc/removePairedDevice'
 node -e '
 var fs = require("fs"), path = require("path"), out = [process.argv[1] + ".group"], methods = process.argv[2].split(/\s+/);
 function covers(pattern, m) { return pattern === m || (/\*$/.test(pattern) && m.indexOf(pattern.slice(0, -1)) === 0); }

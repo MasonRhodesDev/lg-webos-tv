@@ -56,7 +56,7 @@ FocusScope {
     height: implicitHeight
 
     // Where a key is, by its name: { row, col } or null.
-    function find(label) {
+    function locate(label) {
         for (var r = 0; r < rows.length; r++) for (var c = 0; c < rows[r].length; c++) if (rows[r][c].label === label) return { "row": r, "col": c };
         return null;
     }

@@ -22,6 +22,13 @@
 // TV greys the row (its description says inactive), and `activeWhen` greys it by a rule of ours (a store condition,
 // see Store.holds); `then` on an enum row adds a link at the foot of its picker ({ page, label } with %s for the
 // chosen value's label). Item refs are catalog item ids (or "Page/id"), or ids in `extra` below.
+// Lists and forms:
+//   { list: ref }                    a live list from the store (wifiNetworks, btDevices): a row per network or device,
+//                                    in sections; OK asks what to do with it (join, forget, pair, ...) in a Dialog.
+//   { text: ref, label, icon }       a line of text (`texts` below): OK opens the keyboard (TextPrompt), Done writes it.
+//   { changePin: true, label, icon } choose a new PIN, twice, on the PIN prompt.
+//   `pin: true` on a row asks for the PIN first (PinPrompt), once per visit to Settings.
+//   `confirmOff` on a toggle asks before turning it off.
 
 var categories = [
     { id: "picture", label: "Picture", icon: "screen", page: "Picture" },
@@ -55,14 +62,15 @@ var pages = {
         { item: "avSync", label: "AV sync adjustment", icon: "clock", as: "value" },
         { item: "soundOutputDigital", label: "Digital sound output", icon: "plug" },
         { item: "autoVolume", label: "Auto volume", icon: "sliders" },
-        { page: "Bluetooth", label: "Bluetooth surround", icon: "bt", value: "btSoundOut" },
+        { page: "Bluetooth", label: "Bluetooth surround", icon: "bt", value: "btSoundOut",
+          activeWhen: { ref: "btPairedCount", not: [0] }, why: "Pair a Bluetooth speaker first" },
         { more: "sound" }
     ] },
     "Network": { category: "connection", title: "Connection", sub: { from: "internet" }, rows: [
         { page: "Wired", label: "Wired connection", icon: "plug", value: "wiredStatus" },
-        { page: "Wifi", label: "Wi-Fi", icon: "wifi", value: "wifiStatus" },
+        { page: "Wifi", label: "Wi-Fi", icon: "wifi", value: "wifiSummary" },
         { item: "networkStatus", label: "Internet", icon: "globe" },
-        { page: "Bluetooth", label: "Bluetooth devices", icon: "bt" },
+        { page: "Bluetooth", label: "Bluetooth devices", icon: "bt", value: "btPairedCount" },
         { item: "simplinkEnable", label: "HDMI device control", hint: "Turn connected devices on and off with the TV", icon: "link" },
         { page: "ScreenShare", label: "Screen Share", icon: "cast" },
         { action: "deviceConnector", label: "Device connector", icon: "grid", drill: true },
@@ -118,7 +126,51 @@ var pages = {
         { page: "TimerPowerOn", label: "Power on timer", icon: "power" },
         { page: "TimerPowerOff", label: "Power off timer", icon: "power" }
     ] },
-    "Look": { category: "general", title: "Look", sub: "One style, any themes", rows: [] }
+    "Look": { category: "general", title: "Look", sub: "One style, any themes", rows: [] },
+    // Lists, forms and the PIN (page ids `wifi`, `bluetooth`, `pin`, `keyboard-input`; see `aliases`).
+    "Wifi": { category: "connection", title: "Wi-Fi", sub: { from: "wifiStatus" }, rows: [
+        { item: "wifiEnabled", label: "Wi-Fi", icon: "wifi", confirmOff: "Turn off Wi-Fi? Apps that need the internet go offline." },
+        { list: "wifiNetworks" },
+        { section: "More" },
+        { page: "WifiAdd", label: "Add a hidden network", icon: "plus" },
+        { page: "WifiAdvanced", label: "IP and DNS", icon: "sliders" }
+    ] },
+    "Bluetooth": { category: "connection", title: "Bluetooth devices", sub: "Speakers and headphones", rows: [
+        { list: "btDevices" },
+        { section: "More" },
+        { page: "EasyPairing", label: "LG speaker quick pairing", icon: "speaker" }
+    ] },
+    "Safety": { category: "general", title: "Safety", sub: "Locks need the PIN", rows: [
+        { item: "parentalControl", label: "Locks", hint: "Ask for the PIN before locked programmes, apps and inputs", icon: "lock", pin: true },
+        { page: "RatingLocks", label: "Rating locks", icon: "shield", pin: true },
+        { page: "ApplicationLocks", label: "App locks", icon: "grid", pin: true },
+        { page: "InputLocks", label: "Input locks", icon: "port", pin: true },
+        { changePin: true, label: "Change PIN", icon: "lock", pin: true }
+    ] },
+    "InputLocks": { category: "general", title: "Input locks", rows: [
+        { item: "inputBlock", label: "Locked inputs", icon: "port",
+          missing: "Not built yet: a bit per input in LG's lockable-input list, whose service is unchecked" }
+    ] },
+    "ApplicationLocks": { category: "general", title: "App locks", rows: [
+        { item: "appLocks", label: "Locked apps", icon: "grid",
+          missing: "Not built yet: LG's app-lock call is unchecked on the TV" }
+    ] },
+    "KeyboardInput": { category: "general", title: "Keyboard and text", rows: [
+        { text: "Network/deviceName", label: "TV name", hint: "Shown to phones and casting apps", icon: "cast" },
+        { item: "keyboardLanguages", label: "Keyboard languages", icon: "lang",
+          missing: "Not built yet: it rewrites the TV's whole locale, unchecked on the TV" },
+        { page: "WirelessKeyboard", label: "LG wireless keyboard", icon: "keyboard" }
+    ] }
+};
+
+// The page ids other pages and the content lane link to, for the pages above that stand in for LG's.
+var aliases = { "wifi": "Wifi", "bluetooth": "Bluetooth", "pin": "Safety", "keyboard-input": "KeyboardInput" };
+
+// Lines of text the keyboard edits, by item id: their limits and the keys they open on. A ZIP is 5 digits (LG's rule
+// for the USA); a TV name is 1 to 32 characters (ours: LG's limit is not in its Settings).
+var texts = {
+    "deviceName": { min: 1, max: 32 },
+    "zipcode": { min: 5, max: 5, layout: "symbols" }
 };
 
 // Settings that are not in LG's catalog: the volume, screen off, the input picker, our own Look, and what the TV
@@ -156,7 +208,11 @@ var extra = {
     "agreements": { id: "agreements", tier: 3, type: "info", from: "eulaStatus" },
     "btSoundOut": { id: "btSoundOut", tier: 3, type: "info", from: "soundOutput" },
     "updates": { id: "updates", tier: 3, type: "info", from: "automaticUpdate" },
-    "look.style": { id: "look.style", tier: 1, type: "enum", api: { look: "style" } }
+    "look.style": { id: "look.style", tier: 1, type: "enum", api: { look: "style" } },
+    // Connection's Wi-Fi value: Off, or the network it is on (Store.state).
+    "wifiSummary": { id: "wifiSummary", tier: 2, type: "info", api: { service: "com.webos.service.wifi", read: "getstatus" } },
+    // How many Bluetooth audio devices are paired (the Connection board's "1 paired"; 0 greys Bluetooth surround).
+    "btPairedCount": { id: "btPairedCount", tier: 2, type: "info", api: { service: "com.webos.service.btaudiosrc", read: "getPairedDevices" } }
 };
 
 // The agreements tools/telemetry-off withdraws (its EULA_KEYS): all false means LG's data collection is refused.
@@ -222,6 +278,7 @@ var labels = {
     soundOutputDigital: { pcm: "PCM", auto: "Auto", passThrough: "Pass through" },
     sleepTimer: { off: "Off", "10": "10 min", "20": "20 min", "30": "30 min", "60": "1 hr", "90": "1 hr 30 min",
                   "120": "2 hr", "180": "3 hr", "240": "4 hr" },
+    wifiEnabled: { enabled: "On", disabled: "Off" },
     energySaving: { auto: "Auto", off: "Off", min: "Minimum", med: "Medium", max: "Maximum", screen_off: "Screen off" },
     truMotionMode: { off: "Off", smooth: "Smooth", clear: "Clear", user: "Custom" },
     avSync: { on: "On", off: "Off" },
@@ -244,6 +301,7 @@ function signalLabel(v) {
 // Range values that read better as words.
 function rangeLabel(id, v) {
     if (id === "colorTemperature") return v === 0 ? "Neutral" : (v > 0 ? "Warm " : "Cool ") + Math.abs(v);
+    if (id === "btPairedCount") return v ? v + " paired" : "None paired";
     // Short: a slider's number has room for three characters.
     if (id === "audioBalance") return v === 0 ? "0" : (v < 0 ? "L " : "R ") + Math.abs(v);
     return String(v);

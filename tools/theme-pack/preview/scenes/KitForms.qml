@@ -42,7 +42,7 @@ Item {
             x: Look.px("safe-x")
             y: Look.px("safe-y")
             width: 1920 - 2 * x
-            spacing: Look.px("space-l")
+            spacing: Look.px("space-s")
 
             Label { role: "heading"; text: "Fields: active · idle · secret · empty"; color: Look.color("ink-3") }
             TextField { width: 900; text: "Living room TV"; maxLength: 32 }
@@ -62,11 +62,8 @@ Item {
                         Key { label: "w"; focused: true }
                         Key { label: "Done"; role: "cap-word"; current: true; width: Look.px("key-w") * 300 / 132 }
                         Key { label: "Join"; role: "cap-word"; current: true; disabled: true; width: Look.px("key-w") * 300 / 132 }
-                        Key { label: "Space"; role: "cap-word"; width: Look.px("key-w") * 760 / 132 }
+                        Key { label: "Space"; role: "cap-word"; width: Look.px("key-w") * 2 }
                     }
-                }
-                Column {
-                    spacing: Look.px("space-m")
                     Label { role: "heading"; text: "Wells and the new icons"; color: Look.color("ink-3") }
                     Row {
                         spacing: Look.px("space-m")

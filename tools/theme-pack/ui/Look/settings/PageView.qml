@@ -5,7 +5,8 @@ import "pages.js" as Pages
 // One settings page as the kit draws it (DESIGN.md, a page): a Header above a RowList of the page's rows, live from
 // the store. The page framework (pages.js) turns the entry into rows; this does what OK and Left/Right mean on them
 // and says when the page wants another: open(entry) for a link or a picker, done() after a picker's choice,
-// allSettings(), confirm(row) for an action that asks first. Watches the store for its items while it shows them.
+// allSettings(), confirm(row) for a row that asks first (Pages.choices), edit(request) for text (the keyboard),
+// unlock(row) for a row behind the PIN, changePin(). Watches the store for its items while it shows them.
 FocusScope {
     id: view
     property var store
@@ -22,6 +23,9 @@ FocusScope {
     signal allSettings()
     signal confirm(var row)
     signal acted(string ref)
+    signal edit(var request)
+    signal unlock(var row)
+    signal changePin()
     signal back()
 
     // Subscribed only while shown: a closed sheet or Settings holds nothing open on the bus.
@@ -57,8 +61,11 @@ FocusScope {
         // Not landed yet: land, unless the user has already moved.
         if (!landed) { if (landIndex < 0 || list.currentIndex === landIndex) land(); else landed = true; return; }
         if (list.currentIndex < rows.length && rows[list.currentIndex].label === focusLabel) return;
-        for (var i = 0; i < rows.length; i++) if (rows[i].label === focusLabel) { list.currentIndex = i; return; }
-        list.currentIndex = Pages.landing(entry, rows);
+        // The list may still hold the old rows while this runs, so the label is set here, not read back from it.
+        for (var i = 0; i < rows.length; i++) if (rows[i].label === focusLabel) { list.currentIndex = i; focusLabel = rows[i].label; return; }
+        var at = Pages.landing(entry, rows);
+        list.currentIndex = at;
+        focusLabel = rows[at] && rows[at].label ? rows[at].label : "";
     }
 
     // OK on a row.
@@ -76,7 +83,34 @@ FocusScope {
         } else if (r.kind === "item") {
             if (r.variant === "toggle") store.set(r.ref, Pages.flipped(r));
             else if (r.variant === "value") open(Pages.drill(r, Pages.title(entry)));
+        } else if (r.kind === "network" || r.kind === "text") {
+            var req = Pages.textRequest(r);
+            if (req) edit(req);
+        } else if (r.kind === "search") store.btSearch();
+        else if (r.kind === "changePin") changePin();
+    }
+    // OK on a row once it is unlocked: ask first if it asks, else do it.
+    function activate(r) {
+        if (Pages.choices(r, store)) confirm(r);
+        else run(r);
+    }
+    // A Dialog button's op (Pages.choices) on a row.
+    function perform(r, op) {
+        if (op === "run") run(r);
+        else if (r.kind === "network") {
+            if (op === "join") store.wifiConnect(r.net);
+            else if (op === "forget") store.wifiForget(r.net);
+        } else if (r.kind === "device") {
+            if (op === "pair") store.btPair(r.dev);
+            else if (op === "connect") store.btConnect(r.dev);
+            else if (op === "disconnect") store.btDisconnect(r.dev);
+            else if (op === "forget") store.btForget(r.dev);
         }
+    }
+    // The keyboard's Done on a text request (Pages.textRequest).
+    function finishEdit(req, text) {
+        if (req.op === "join") store.wifiConnect(req.row.net, text);
+        else if (req.op === "set" && text !== req.text) store.set(req.row.ref, text);
     }
 
     Header {
@@ -99,8 +133,8 @@ FocusScope {
         model: view.rows.length
         onCurrentIndexChanged: { var r = spec(currentIndex); view.focusLabel = r && r.label ? r.label : ""; }
         onActivated: {
-            if (Pages.confirmation(row, view.store)) view.confirm(row);
-            else view.run(row);
+            if (row.locked) view.unlock(row);
+            else view.activate(row);
         }
         onAdjusted: {
             var r = spec(index);

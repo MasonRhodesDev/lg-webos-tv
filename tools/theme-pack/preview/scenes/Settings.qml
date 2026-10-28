@@ -38,6 +38,50 @@ Item {
             l.currentIndex = rowOf(l, "Reset picture mode");
             p.menu.confirming = l.rows[l.currentIndex];
         } } },
-        State { name: "stub-page"; StateChangeScript { script: p.settings("Channels") } }
+        State { name: "stub-page"; StateChangeScript { script: p.settings("Channels") } },
+        // Lists, forms and the PIN.
+        State { name: "wifi"; StateChangeScript { script: { TvSettings.wifiState = "serviceEnabled"; p.settings("wifi"); focusOn("Cafe Corner"); } } },
+        State { name: "wifi-password"; StateChangeScript { script: {
+            TvSettings.wifiState = "serviceEnabled"; p.settings("wifi");
+            focusOn("Garage");
+            p.menu.page.run(p.menu.page.focusedRow);
+            p.menu.entry.text = "wrench1";
+            var at = p.menu.entry.keyboard.locate("2");
+            p.menu.entry.keyboard.layout = "symbols";
+            at = p.menu.entry.keyboard.locate("2");
+            p.menu.entry.keyboard.row = at.row;
+            p.menu.entry.keyboard.col = at.col;
+        } } },
+        State { name: "wifi-forget"; StateChangeScript { script: { TvSettings.wifiState = "serviceEnabled"; p.settings("wifi"); focusOn("Home"); p.menu.confirming = p.menu.page.focusedRow; } } },
+        State { name: "bluetooth"; StateChangeScript { script: { p.settings("bluetooth"); p.store.btSearch(); focusOn("Headphones"); } } },
+        State { name: "bluetooth-pair"; StateChangeScript { script: {
+            p.settings("bluetooth");
+            p.store.btSearch();
+            focusOn("Headphones");
+            p.menu.confirming = p.menu.page.focusedRow;
+        } } },
+        State { name: "pin"; StateChangeScript { script: { p.settings("pin"); focusOn("Change PIN"); } } },
+        State { name: "pin-prompt"; StateChangeScript { script: {
+            p.settings("pin");
+            focusOn("Locks");
+            p.menu.pinning = { "mode": "check", "row": p.menu.page.focusedRow };
+            p.menu.pin.pin = "12";
+            p.menu.pin.pad.currentIndex = 4;
+        } } },
+        State { name: "pin-wrong"; StateChangeScript { script: {
+            p.settings("pin");
+            focusOn("Locks");
+            p.menu.pinning = { "mode": "check", "row": p.menu.page.focusedRow };
+            p.menu.pinEntered("1234");
+        } } },
+        State { name: "keyboard-input"; StateChangeScript { script: p.settings("keyboard-input") } },
+        State { name: "tv-name"; StateChangeScript { script: {
+            p.settings("keyboard-input");
+            focusOn("TV name");
+            p.menu.page.run(p.menu.page.focusedRow);
+            p.menu.entry.keyboard.row = 2;
+            p.menu.entry.keyboard.col = 8;
+        } } }
     ]
+    function focusOn(label) { p.menu.page.list.currentIndex = rowOf(p.menu.page.list, label); }
 }

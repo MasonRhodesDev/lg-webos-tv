@@ -92,6 +92,27 @@ Hook A (the gear opens our quick sheet)
 - [ ] A write the TV never answers (e.g. before `permissions.sh` ran) rolls back after 5 s with a toast; the
       reports say `settings: <ref> not saved: the TV did not answer`.
 
+Lists, forms and the PIN (all unverified on the TV; the shapes are read from LG's Settings bundle)
+- [ ] `com.webos.service.wifi/findnetworks {subscribe}` answers `foundNetworks[].networkInfo` with `ssid`,
+      `signalBars` (1-4?), `connectState` (`ipConfigured` when joined) and `availableSecurityTypes`; our Wi-Fi page
+      lists the networks and marks the joined one current. `getstatus` says `serviceEnabled`/`serviceDisabled`.
+- [ ] A join with a wrong password answers `errorCode` 10 (toast "the password is wrong"); how long a good join takes
+      to answer (our timeout is 30 s, `Store.joinTimeout`).
+- [ ] Our bus identity holds the wifi and btaudiosrc groups (`permissions.sh` lists them).
+- [ ] `com.webos.service.btaudiosrc`: `getPairedDevices` gives `devices [{address, name, state}]`; `startDiscovery
+      {subscribe}` sends `{state: "started", device}` per device and `{state: "stopped"}`; `connect {address}` pairs a
+      new device (LG's code does no separate pair call) and answers only once paired or refused.
+- [ ] `getSystemSettings {category: "lock", keys: ["systemPin"]}` is readable by our identity (it is not in
+      `settingsservice.allow`). If it is not, our PIN prompt refuses every PIN ("has not given us its PIN") and the
+      locked rows stay closed; record it.
+- [ ] Writing `lock.systemPin` with `initialPinCode: false` changes the PIN LG's own prompts ask for.
+- [ ] Input locks: `lock.inputBlock` is a bitmask, bit `1 << i` for the i-th entry of LG's lockable input list
+      (`getFinalLockableInputList`, built from `getExternalInputStatusList`); record that list's service and order
+      before our Input locks page is built.
+- [ ] App locks: the method that locks an app (the catalog guesses `com.webos.applicationManager lockApp {id, lock}`)
+      before our App locks page is built.
+- [ ] `network.deviceName` is a plain string, written as typed (phones show the new name).
+
 Focus and Back (SETTINGS-PLAN.md 3.4)
 - [ ] With the sheet or Settings open, Up/Down/OK reach our rows (LG's focus chain at layer 7), and focus returns to
       the app underneath on close (the live TV channel keys work again at once).
@@ -126,14 +147,13 @@ Board content: the adapters behind the designed pages (UNVERIFIED reads, from LG
 Known gaps against the Settings boards (every row that differs from its board, and why)
 - Picture: Pixel refresher shows no "At power off": no LG setting backs it (LG runs the refresh by itself).
 - Sound: Balance's number is "0" / "L 2" / "R 2", not the board's position percent (the slider's number has room for
-  three characters). Bluetooth surround is not greyed with "Pair a Bluetooth speaker first": it waits on the
-  Bluetooth page's paired count (`btPairedCount`, pages-lists lane); once both are merged its row takes
-  `activeWhen: { ref: "btPairedCount", not: [0] }` and `why: "Pair a Bluetooth speaker first"`.
+  three characters). Bluetooth surround greys with "Pair a Bluetooth speaker first" only while nothing is
+  paired (`btPairedCount`); the boards disagree here (Sound greys it, Connection shows "1 paired"), and the mock
+  follows Connection, so the Sound shot shows it live.
 - Connection: the subtitle is the live "Offline"/"Online", not "Offline by design" (the TV cannot know it is by
-  design). Internet has no "Blocked at the firewall by choice" hint, for the same reason. Wi-Fi reads "Not connected"
-  rather than "Off", and Bluetooth devices has no "1 paired": both come with the Wi-Fi and Bluetooth pages' data
-  (pages-lists lane). Screen Share is a link to its page, not a switch: LG 4.5 has no Screen Share on/off, only
-  "Delete pairing history" (`miracast/deletePairedDeviceList`).
+  design). Internet has no "Blocked at the firewall by choice" hint, for the same reason. Screen Share is a link to
+  its page, not a switch: LG 4.5 has no Screen Share on/off, only "Delete pairing history"
+  (`miracast/deletePairedDeviceList`).
 - General: the subtitle is "webOS 4.10.0 · 05.40.45" and About this TV "OLED55B9PUA": what the TV reports
   (`core_os_release`, `modelName`); "webOS 4.5" and "OLED55B9" are LG's product names (see the sdkVersion check
   above). Home dashboard has no "Inputs first" (no such LG setting). Screen saver reads "On" with an On/Off picker,

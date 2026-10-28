@@ -95,12 +95,23 @@ FocusScope {
                    JSON.stringify({ "sourceId": "dev.themepack.look", "message": "Not changed: " + text }));
         Look.report("warning", "settings: " + ref + " not saved: " + text);
     }
+    // A network or pairing action: what happened, in a whole sentence, with LG's toast.
+    function say(text) {
+        toast.call("luna://com.webos.notification", "/createToast", JSON.stringify({ "sourceId": "dev.themepack.look", "message": text }));
+    }
+    function actionDone(ref, text) { say(text); }
+    function actionRefused(ref, text) {
+        say(text);
+        Look.report("warning", "settings: " + ref + ": " + text);
+    }
 
     Component.onCompleted: {
         Look.settingsRequested.connect(part.settings);
         SettingsBus.quickSettingsRequested.connect(part.quickSettings);
         store.systemUiRequested.connect(part.launchSystemUi);
         store.failed.connect(part.writeFailed);
+        store.refused.connect(part.actionRefused);
+        store.succeeded.connect(part.actionDone);
         if (host && host.keyFilter && host.keyFilter.backReleased) host.keyFilter.backReleased.connect(part.closeAll);
         SettingsBus.ready = true;
         if (host) {

@@ -208,6 +208,13 @@ Once live it reports `ready` "settings: host ready"; the boot hook mounts the Se
   means the host and the hook are both live. Unverified on the TV; see TV-CHECKS.md. Hook B (our own key
   policy for the Option and accessibility keys) is not built: reloading LG's key filters cancels its timers and
   re-runs every policy's init, which is not clean enough to do blind.
+- Lists, forms and the PIN: Wi-Fi (`wifi`: on/off, the networks in the air, join with a password on our keyboard,
+  forget), Bluetooth devices (`bluetooth`: paired and nearby, search, pair, connect, disconnect, forget), Safety (`pin`:
+  locks behind our PIN prompt, change the PIN) and Keyboard and text (`keyboard-input`: the TV's name). Those ids are
+  `menu.js` `aliases` of the pages that stand in for LG's (`Wifi`, `Bluetooth`, `Safety`, `KeyboardInput`). Every
+  network and pairing action asks first (a Dialog, or the password prompt's Join), shows at once, and is rolled back
+  with a toast when the TV refuses it or does not answer (30 s for a join or a pairing, 5 s otherwise). The PIN is
+  checked against `lock.systemPin`, as LG's Settings does, and asked once per visit.
 - The store's adapters beside settingsservice: the sleep timer, the network, the volume, the current input's signal
   (`tv.display getHDMIInfo`, for "HDMI 2 · 4K · 120 Hz"), the model and versions (`tv.systemproperty getSystemInfo`,
   `systemservice osInfo/query`) and network time (`systemservice getPreferences`). The Settings footer is the board's
