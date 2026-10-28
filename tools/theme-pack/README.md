@@ -141,16 +141,18 @@ Current limits: the Look button reuses the Picture icon; with eight categories t
 The volume bar, the input picker and the rest of the system UI are QML inside the compositor (`surface-manager-starfish`). Instead of editing LG's files, `ui/` is a QML module tree that the compositor finds first on its import path:
 
 - `ui/YSM` defines the compositor's root type, `YSM`, as LG's own `YSM.qml` with our layer added on top. LG's root loads it through `import YSM 1.0`, so no LG file is edited or mounted over.
-- `ui/Look/Layer.qml` is our layer. For each component it draws, it finds LG's item and makes it invisible, but leaves it running. LG keeps deciding *when* (timeouts, the volume OSD setting, audio guidance); our component decides *how it looks*. If LG's item isn't found, LG's stays on screen and the gap is reported.
+- `ui/Look/Layer.qml` is our layer. Each part in `ui/Look/parts/` draws one component and names the LG item it replaces with `claims(item)`. The layer finds that item and makes it invisible, but leaves it running; the part reads it through `lg`. LG keeps deciding *when* (timeouts, the volume OSD setting, audio guidance); our component decides *how it looks*. If LG's item isn't found, LG's stays on screen and the gap is reported.
 - `ui/Look/Look.qml` is the active style's tokens and themes, live from the Look service. `Decor.qml` is the layer model (back rings, origin, front rings) and `Ring.qml` draws one recipe.
-- Our components are written from scratch on those three (today: `VolumeBar.qml`), so a style and its themes reach every pixel they draw.
+- Parts are written from scratch on those three, so a style and its themes reach every pixel they draw. To add one, add its file to `parts` in `Layer.qml`.
 
 ```sh
 TV_HOST=<tv address> sh tools/theme-pack/webos/own-layer-tv.sh apply    # copy ui/, restart the compositor with it
 TV_HOST=<tv address> sh tools/theme-pack/webos/own-layer-tv.sh revert   # restart the compositor on stock
+TV_HOST=<tv address> sh tools/theme-pack/webos/own-layer-tv.sh reports  # what the layer reported
+TV_HOST=<tv address> sh tools/theme-pack/webos/own-layer-tv.sh capture out.png  # the on-screen UI, without the video
 ```
 
-`own-layer.sh` passes `QML2_IMPORT_PATH` to the compositor job only, so a plain restart is stock again. The root reports to the Look service as soon as it loads; if it doesn't within 60 s, the compositor is restarted on stock. Our layer is created separately from the root, so a broken layer leaves LG's UI running and reports its error. Read the reports with `luna-send -n 1 luna://dev.themepack.look.service/getReports '{}'` (the compositor's own QML warnings go nowhere). The compositor's QML calls the bus as `com.webos.surfacemanager.systemui`, a name in no permission group, so `service/permissions.sh` grants it the service's group.
+`apply` and `revert` take a lock on the TV, so several working copies can test in turn. `own-layer.sh` passes `QML2_IMPORT_PATH` to the compositor job only, so a plain restart is stock again. The root reports to the Look service as soon as it loads; if it doesn't within 60 s, the compositor is restarted on stock. Our layer is created separately from the root, so a broken layer leaves LG's UI running and reports its error. Read the reports with `luna-send -n 1 luna://dev.themepack.look.service/getReports '{}'` (the compositor's own QML warnings go nowhere). The compositor's QML calls the bus as `com.webos.surfacemanager.systemui`, a name in no permission group, so `service/permissions.sh` grants it the service's group.
 
 ### Recipes the QML layer draws
 

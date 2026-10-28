@@ -6,6 +6,7 @@ import Look 1.0
 Item {
     id: bar
     property Item lg: null
+    function claims(item) { return item.audioService !== undefined && item.volumeMaxLevel !== undefined; }
     readonly property var audio: lg ? lg.audioService : null
     readonly property int level: audio ? audio.volume : 0
     readonly property bool muted: audio ? audio.muted : false
@@ -14,6 +15,9 @@ Item {
 
     width: 112
     height: 560
+    anchors.right: parent.right
+    anchors.rightMargin: 64
+    anchors.verticalCenter: parent.verticalCenter
     opacity: shown ? 1 : 0
     visible: opacity > 0
     Behavior on opacity { NumberAnimation { duration: 160 } }
