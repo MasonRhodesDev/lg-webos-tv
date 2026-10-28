@@ -132,4 +132,30 @@ How it works:
 - The app normally runs from a V8 snapshot of the stock `main.js` (`snapshot_blob.bin`), which would ignore the edit. Each `index*.html` is changed to always load `main.js`.
 - `apply` copies the patched app to RAM and bind-mounts it over the stock directory, then relaunches Settings. Nothing persists: `revert` or a reboot restores the stock app.
 
-Current limits: the choice is saved in the Settings app's own storage, so nothing else reads it yet; the Look button reuses the Picture icon; with eight categories the last one (Accessibility) sits below the bottom edge.
+- The choice goes to the Look service (`dev.themepack.look.service`, installed with the Look package), which keeps it and tells every subscriber. Focus colours in Settings are CSS variables whose defaults are LG's, so Settings stays stock when the service is missing.
+
+Current limits: the Look button reuses the Picture icon; with eight categories the last one (Accessibility) sits below the bottom edge.
+
+## Look in the compositor (volume, inputs)
+
+The volume bar, the input picker and the rest of the system UI are QML inside the compositor (`surface-manager-starfish`). `webos/compositor-look.mjs` builds a copy of the stock `SystemUIAssets` module and `InputPicker/Style.qml` from your own copy of the QML, adds a `ThemePack` singleton that subscribes to the Look service, and binds the stock style properties to it. Every `ThemePack` property starts at LG's value, so the UI is stock until the service answers.
+
+```sh
+ssh root@"$TV_HOST" 'tar -C /usr/lib/qt5 -cf - qml' | tar -C /tmp/stock -xf -
+node tools/theme-pack/webos/compositor-look.mjs --qml /tmp/stock/qml --out /tmp/compositor-look
+TV_HOST=<tv address> sh tools/theme-pack/webos/compositor-look-tv.sh apply /tmp/compositor-look
+TV_HOST=<tv address> sh tools/theme-pack/webos/compositor-look-tv.sh revert
+```
+
+`apply` checks the TV's stock files against the ones the build was made from, bind-mounts the build and restarts the compositor, which blanks the on-screen UI for a moment. If the compositor cannot render a frame within 40 s it unmounts and restarts on stock. The compositor's QML calls the bus as `com.webos.surfacemanager.systemui`, a name in no permission group, so `service/permissions.sh` grants it the service's group; a client takes its groups when it connects, which is one more reason the compositor restarts.
+
+## Every boot
+
+The read-only system and the boot snapshot undo mounts and bus permissions at each power-on. `webos/60-themepack` is a Homebrew Channel boot hook that puts them back: bus permissions and a rescan, the compositor Look, the patched Settings (only over the exact stock build it was made from), then a hidden warm-up launch of Settings so its first open is instant. It logs to `/tmp/themepack.log`.
+
+```sh
+TV_HOST=<tv address> sh tools/theme-pack/webos/install-boot.sh install /tmp/settings-look
+TV_HOST=<tv address> sh tools/theme-pack/webos/install-boot.sh remove
+```
+
+The compositor step runs when a build was applied with `compositor-look-tv.sh`, which leaves it on the TV.

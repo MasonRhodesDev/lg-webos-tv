@@ -62,17 +62,34 @@ QtObject {
         }
     }
 
-    function subscribe() {
-        service.call("luna://dev.themepack.look.service", "/getLook", JSON.stringify({ "subscribe": true }));
+    // Online while the Look service is registered on the bus. Its subscription ends when the service restarts, so
+    // each time it reappears the singleton subscribes once, fresh.
+    property bool online: false
+
+    property var status: Service {
+        appId: "com.webos.surfacemanager.systemui"
+        onResponse: {
+            try {
+                var m = JSON.parse(payload);
+                if (m.serviceName !== "dev.themepack.look.service") return;
+                tp.online = m.connected;
+                if (m.connected) tp.service.call("luna://dev.themepack.look.service", "/getLook",
+                                                 JSON.stringify({ "subscribe": true }));
+            } catch (e) {
+                console.warn("ThemePack: unreadable bus status: " + e);
+            }
+        }
+        Component.onCompleted: call("palm://com.palm.bus", "/signal/registerServerStatus",
+                                    JSON.stringify({ "serviceName": "dev.themepack.look.service", "subscribe": true }))
     }
 
-    // A cold service drops the call that starts it, so keep asking until the first answer.
-    property var retry: Timer {
+    // The service starts on demand and exits when idle. While it is away, a plain call starts it; the status above
+    // then subscribes.
+    property var wake: Timer {
         interval: 5000
         repeat: true
-        running: !tp.ready
-        onTriggered: tp.subscribe()
+        triggeredOnStart: true
+        running: !tp.online
+        onTriggered: tp.service.call("luna://dev.themepack.look.service", "/getLook", "{}")
     }
-
-    Component.onCompleted: subscribe()
 }

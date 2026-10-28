@@ -22,7 +22,7 @@ cp "$here/demo/app.js" "$app/app.js"
 # The Look service and the package manifest that ties it to the app.
 svc="$work/data/usr/palm/services/$id.service"
 mkdir -p "$svc" "$work/data/usr/palm/packages/$id"
-cp "$here/service/service.js" "$here/service/services.json" "$here/service/package.json" "$svc/"
+cp "$here/service/service.js" "$here/service/services.json" "$here/service/package.json" "$here/service/permissions.sh" "$svc/"
 node "$here/export-json.mjs" "$svc/packs" >/dev/null
 mkdir -p "$svc/data" && chmod 0777 "$svc/data"
 cp "$here/tv/packageinfo.json" "$work/data/usr/palm/packages/$id/"

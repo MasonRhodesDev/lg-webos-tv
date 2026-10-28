@@ -13,17 +13,24 @@ PKG=dev.themepack.look
 SVC=$PKG.service
 DEV=/var/luna-service2-dev
 
-# 1. The bus resumes from the boot snapshot without the Look service's public permissions.
+# 1. The bus resumes from the boot snapshot without the Look service's permissions.
+# Its methods are public, and the compositor's QML calls as com.webos.surfacemanager.systemui, which belongs to no
+# group until it is granted one; without that the service drops its calls unanswered.
 if [ -d /media/developer/apps/usr/palm/services/$SVC ]; then
-  printf '{"public":["%s/*"]}' $SVC > $DEV/api-permissions.d/$SVC.api.public.json
-  node -e 'var f=process.argv[1],p=process.argv[2],fs=require("fs"),m=JSON.parse(fs.readFileSync(f));if(m.apiPermissionFiles.indexOf(p)<0){m.apiPermissionFiles.push(p);fs.writeFileSync(f,JSON.stringify(m))}' \
-    $DEV/manifests.d/$PKG.json $DEV/api-permissions.d/$SVC.api.public.json && echo "service permissions set"
+  sh /media/developer/apps/usr/palm/services/$SVC/permissions.sh && echo "service permissions set"
   timeout -t 60 ls-control scan-services >/dev/null && echo "bus rescanned"
 else
   echo "Look service not installed; skipping permissions"
 fi
 
-# 2. Patched Settings, only over the exact stock build it was made from.
+# 2. Compositor Look. A client takes its bus groups when it connects, so the restart also picks up step 1.
+if [ -f "$ROOT/qml/compositor-look.sh" ]; then
+  sh "$ROOT/qml/compositor-look.sh" apply && echo "compositor look applied (see /tmp/compositor-look.log)"
+else
+  echo "compositor left stock (no build)"
+fi
+
+# 3. Patched Settings, only over the exact stock build it was made from.
 if mount | grep -q " $APP "; then
   echo "settings already mounted"
 elif [ -f "$ROOT/settings/main.js" ] && [ -f "$ROOT/settings/.stock-main.md5" ] &&
@@ -33,7 +40,7 @@ else
   echo "settings left stock (patch missing, or firmware differs from the patch)"
 fi
 
-# 3. Warm Settings up out of sight once the system has settled, so the first open is instant.
+# 4. Warm Settings up out of sight once the system has settled, so the first open is instant.
 # Skipped when Settings is already resident: a launch would then bring it on screen.
 warm() {
   sleep 30
