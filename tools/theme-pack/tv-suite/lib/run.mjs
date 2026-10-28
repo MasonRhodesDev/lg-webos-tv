@@ -10,8 +10,9 @@ import { settingKey } from './expect.mjs';
 const SVC = 'luna://dev.themepack.look.service';
 const SS = 'luna://com.webos.settingsservice';
 
-// What a scenario must leave as it found it. Only the volume and the Look are changed on purpose (and put back).
-const WATCHED = ['pictureMode', 'energySaving', 'soundOutput', 'soundMode', 'deviceName', 'parentalControl'];
+// What a scenario must leave as it found it. The volume, the Look and the write scenarios' settings are changed on
+// purpose, and put back by the scenario; anything still different afterwards fails it and is restored here.
+const WATCHED = ['pictureMode', 'energySaving', 'soundOutput', 'soundMode', 'deviceName', 'parentalControl', 'quickStartMode'];
 
 export class Refused extends Error {}
 export class Skip extends Error {}

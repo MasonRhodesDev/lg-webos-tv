@@ -277,6 +277,8 @@ against TV-CHECKS.md. It needs root SSH to the TV (Homebrew Channel), Python on 
 ```sh
 export TV_HOST=<tv address>
 node tools/theme-pack/tv-suite/tv-suite.mjs deploy OUT_DIR      # Look package, our layer, boot hook and stub; checked step by step
+node tools/theme-pack/tv-suite/tv-suite.mjs coldboot OUT_DIR    # reboot, wait for ssh and the boot hook, then the after-boot checks
+node tools/theme-pack/tv-suite/tv-suite.mjs manual OUT_DIR      # the checks that need a person, in one pass (--print to list them)
 node tools/theme-pack/tv-suite/tv-suite.mjs run OUT_DIR         # every scenario (--scenario ID to pick, --list to list them)
 node tools/theme-pack/tv-suite/tv-suite.mjs report OUT_DIR --boards CANVAS_DIR [--preview RENDER_DIR]
 node tools/theme-pack/tv-suite/tv-suite.mjs rollback            # prints the undo commands, newest step first
@@ -292,9 +294,25 @@ node tools/theme-pack/tv-suite/tv-suite.mjs rollback            # prints the und
   guard (`lib/keys.mjs`) that reads where focus is first: no key that could change a setting, switch the input, pair,
   join or reset is ever sent; the scenario fails instead. Around each scenario the suite snapshots the settings it
   could touch, fails the scenario if any changed, and puts them back; the Look is restored at the end.
+- Four scenarios make one reversible write each through our own UI and undo it the same way, checked on the TV: the
+  TV name with our keyboard, Quick Start+ (it changes only how the TV wakes from standby), Picture mode with the
+  picker, and a step of the quick sheet's Volume row. A write the TV refuses fails with the store's exact report. The
+  guard never lets through a reset, a PIN change, a network join or forget, a Bluetooth pair, connect or forget, an
+  input switch or a channel scan.
+- **coldboot** reboots the TV, waits (bounded) for ssh and for the boot hook's last line, then checks in this order:
+  the stub mounted, no stock Settings resident, the `redirect` scenario, the host-ready report (and that the stub came
+  after it), the telemetry state and Hook A's report. It writes `coldboot.json` with the boot timings (seconds after
+  power-on to ssh, hook done, layer and host ready). It can run again.
+- **manual** walks a person through what only a person can check (the Home tile and its icon, the picture, EXIT and
+  HOME, the held gear, the hotkeys, the pointer, Screen off, an app that refuses Back, LG's apps the Settings rows
+  open), each with what to press, what to look for and what passes. Meanwhile the suite logs what the probes, the
+  system UI and SAM show, and checks what it can. It drives the fallbacks itself: it deploys a copy of the layer
+  broken on purpose (Layer.qml failing, or without our Settings part), checks the boot hook's verdict and that the
+  gear opens LG's Quick Settings, and puts the good layer and the stub back. Verdicts go to `manual.json`.
 - The state comes from the parts themselves: each part of our layer publishes a small `probe` (what it shows, the
   open pages, the focused row and its kind) to the Look service (`getProbe`), next to the reports.
-- **report** writes `OUT_DIR/index.html`: each capture beside its board, rendered from the canvas's saved `.dc.html`
+- **report** writes `OUT_DIR/index.html` (with the cold boot and the manual pass when they ran into the same
+  directory): each capture beside its board, rendered from the canvas's saved `.dc.html`
   sources, or beside the matching preview shot; the assertions; and every TV-CHECKS item as automated, partly, manual
   or not covered (`lib/coverage.mjs`, which a test keeps in step with TV-CHECKS.md).
 - `--dry-run` runs any of these against a fake TV (`tv-suite/fake/`: `ssh` and `scp` first on `PATH`, state in a JSON

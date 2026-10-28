@@ -1,7 +1,9 @@
 // The scenarios, in the order they run. Each is one sequence: preconditions, guarded keys with polled waits,
 // captures beside their board (canvas board name) or preview scene, assertions, and its own cleanup (the runner also
-// closes everything and restores the snapshot). No scenario changes a setting, switches the input, pairs, joins a
-// network or resets anything: the guard refuses the keys that could (keys.mjs).
+// closes everything and restores the snapshot). The write-* scenarios make one reversible write each through our UI
+// (the TV name, Quick Start+, Picture mode, the Volume row) and undo it the same way, checked on the TV. Nothing else
+// is written, and nothing ever resets, changes the PIN, joins or forgets a network, pairs, connects or forgets a
+// Bluetooth device, switches the input or scans channels: the guard refuses the keys that could (keys.mjs).
 import { landing, stubTarget, categories, catalog, locked } from './expect.mjs';
 
 const SVC = 'luna://dev.themepack.look.service';
@@ -46,6 +48,46 @@ async function toRow(ctx, which, label, first = 'DOWN') {
     }
   }
   throw new Error('no row "' + label + '" in ' + which);
+}
+
+// Walks the keyboard's focus to `label` with the D-pad (each press must move it) and presses it.
+async function typeKey(ctx, label) {
+  for (let i = 0; i < 40; i++) {
+    const e = (await ctx.settings()).menu.editing;
+    if (!e) throw new Error('the keyboard closed before ' + label);
+    let at = null;
+    e.keys.forEach((r, ri) => r.forEach((k, ci) => { if (k === label && !at) at = { row: ri, col: ci }; }));
+    if (!at) throw new Error('no key "' + label + '" on the keyboard (' + e.keys.map((r) => r.join('')).join(' / ') + ')');
+    if (e.row === at.row && e.col === at.col) { await ctx.key('ENTER', { type: true }); return; }
+    const dir = e.row !== at.row ? (e.row < at.row ? 'DOWN' : 'UP') : (e.col < at.col ? 'RIGHT' : 'LEFT');
+    await ctx.key(dir, { type: true });
+    await own(ctx, 'menu', (w) => w.editing && (w.editing.row !== e.row || w.editing.col !== e.col), 'the keyboard focus to move ' + dir, { timeout: 2000 });
+  }
+  throw new Error('could not reach key ' + label);
+}
+
+// Waits for a write to land on the TV. If it does not, the finding is what our Settings reported about it (the
+// store reports "settings: <ref> not saved: <why>" when the TV refuses or never answers).
+async function written(ctx, what, ref, pred, t0) {
+  const ok = await ctx.wait(what, pred, { timeout: 8000 }).catch(() => null);
+  if (ok) { ctx.check(what, true); return true; }
+  const r = (await ctx.tv.reports(t0)).filter((x) => x.text.indexOf('settings: ') === 0 && x.text.indexOf(ref) >= 0);
+  ctx.must(what, false, r.length ? 'the TV refused: ' + r.map((x) => x.text).join('; ') : 'not written, and nothing reported');
+  return false;
+}
+
+// Moves a picker's focus to the choice `want`, Down then Up.
+async function toChoice(ctx, which, pred, what) {
+  for (const dir of ['DOWN', 'UP']) {
+    for (let i = 0; i < 40; i++) {
+      const v = (await ctx.settings())[which];
+      if (v.focus && pred(v.focus)) return v;
+      await ctx.key(dir);
+      const moved = await own(ctx, which, (w) => w.focus && w.focus.index !== v.focus.index, 'focus to move', { timeout: 2000 }).catch(() => null);
+      if (!moved) break;
+    }
+  }
+  throw new Error('no choice ' + what);
 }
 
 async function gear(ctx) {
@@ -328,6 +370,106 @@ export const SCENARIOS = [
       v = await own(ctx, 'menu', (w) => !w.pin, 'Back to close the prompt');
       ctx.check('Back left the locked page', !locked(top(v)), top(v));
       await backOut(ctx, 'menu');
+    }
+  },
+  // Reversible writes through our own UI, each undone the same way and the undo checked (the runner's snapshot also
+  // restores them if a step fails).
+  {
+    id: 'write-name',
+    title: 'Rename the TV with our keyboard, then back',
+    tvChecks: ['host-reads', 'device-name', 'ls-hubd-refuses'],
+    writes: true,
+    async run(ctx) {
+      const name = await ctx.setting('deviceName');
+      if (typeof name !== 'string') ctx.skip('the TV name is unreadable: ' + JSON.stringify(name));
+      if (name.length >= 32) ctx.skip('the TV name is at its 32-character limit');
+      const t0 = await ctx.tv.now();
+      await openSettings(ctx, 'KeyboardInput');
+      await toRow(ctx, 'menu', 'TV name');
+      await ctx.key('ENTER', { text: true });
+      let e = (await own(ctx, 'menu', (w) => !!w.editing, 'the keyboard')).editing;
+      ctx.check('the keyboard opens on the TV\'s name', e.text === name, JSON.stringify(e.text) + ' vs ' + JSON.stringify(name));
+      await typeKey(ctx, 'x');
+      await own(ctx, 'menu', (w) => w.editing && w.editing.length === e.length + 1, 'the x typed');
+      await ctx.capture('name-typed', { board: 'SmokeKeyboard', scene: 'KitForms' });
+      await typeKey(ctx, 'Done');
+      await own(ctx, 'menu', (w) => !w.editing, 'Done to close the keyboard');
+      await written(ctx, 'the TV name is written as typed', 'deviceName', async () => (await ctx.setting('deviceName')) === name + 'x', t0);
+      await toRow(ctx, 'menu', 'TV name');
+      await ctx.key('ENTER', { text: true });
+      e = (await own(ctx, 'menu', (w) => !!w.editing, 'the keyboard again')).editing;
+      await typeKey(ctx, 'Delete');
+      await own(ctx, 'menu', (w) => w.editing && w.editing.length === e.length - 1, 'the x erased');
+      await typeKey(ctx, 'Done');
+      await written(ctx, 'the TV name is back', 'deviceName', async () => (await ctx.setting('deviceName')) === name, t0);
+      await backOut(ctx, 'menu');
+    }
+  },
+  {
+    // Quick Start+ only changes how the TV powers on from standby: while it is on, nothing on screen or in the sound
+    // changes, and it goes back with the same press. (Auto volume would change the loudness of whatever plays.)
+    id: 'write-toggle',
+    title: 'Flip Quick Start+ in General, then back',
+    tvChecks: ['host-reads', 'ls-hubd-refuses'],
+    writes: true,
+    async run(ctx) {
+      const v0 = await ctx.setting('quickStartMode');
+      if (v0 === undefined || v0 === 'unreadable') ctx.skip('Quick Start+ is unreadable');
+      const t0 = await ctx.tv.now();
+      await openSettings(ctx, 'General');
+      await toRow(ctx, 'menu', 'Quick Start+');
+      await ctx.key('ENTER', { write: { ref: 'quickStartMode' } });
+      await written(ctx, 'Quick Start+ is flipped on the TV', 'quickStartMode', async () => (await ctx.setting('quickStartMode')) !== v0, t0);
+      await ctx.capture('quick-start-flipped', { board: 'SmokeSettingsGeneral', scene: 'Settings' });
+      await ctx.key('ENTER', { write: { ref: 'quickStartMode' } });
+      await written(ctx, 'Quick Start+ is back', 'quickStartMode', async () => (await ctx.setting('quickStartMode')) === v0, t0);
+      await backOut(ctx, 'menu');
+    }
+  },
+  {
+    id: 'write-picture-mode',
+    title: 'Change Picture mode with the quick sheet\'s picker, then back',
+    tvChecks: ['host-reads', 'ls-hubd-refuses'],
+    writes: true,
+    async run(ctx) {
+      const pm = await ctx.setting('pictureMode');
+      const t0 = await ctx.tv.now();
+      await gear(ctx);
+      await toRow(ctx, 'quick', 'Picture mode', 'UP');
+      await ctx.key('ENTER');
+      await own(ctx, 'quick', (v) => top(v) === 'pick:pictureMode', 'the Picture mode picker');
+      const other = await toChoice(ctx, 'quick', (f) => f.kind === 'choose' && f.choice !== String(pm), 'other than ' + pm);
+      await ctx.key('ENTER', { write: { ref: 'pictureMode' } });
+      await written(ctx, 'Picture mode is ' + other.focus.choice + ' on the TV', 'pictureMode', async () => String(await ctx.setting('pictureMode')) === other.focus.choice, t0);
+      await ctx.capture('picture-mode-changed', { board: 'SmokeQuickSettings', scene: 'QuickSheet' });
+      await own(ctx, 'quick', (v) => top(v) === 'quick', 'the sheet after choosing');
+      await ctx.key('ENTER');
+      await own(ctx, 'quick', (v) => top(v) === 'pick:pictureMode', 'the picker again');
+      await toChoice(ctx, 'quick', (f) => f.kind === 'choose' && f.choice === String(pm), String(pm));
+      await ctx.key('ENTER', { write: { ref: 'pictureMode' } });
+      await written(ctx, 'Picture mode is back', 'pictureMode', async () => (await ctx.setting('pictureMode')) === pm, t0);
+      await backOut(ctx, 'quick');
+    }
+  },
+  {
+    id: 'write-volume-row',
+    title: 'Step the quick sheet\'s Volume row, then back',
+    tvChecks: ['volume-calls', 'ls-hubd-refuses'],
+    writes: true,
+    async run(ctx) {
+      const v0 = await ctx.volume();
+      if (v0.muted) ctx.skip('the TV is muted');
+      const t0 = await ctx.tv.now();
+      const [there, back] = v0.volume >= 100 ? ['LEFT', 'RIGHT'] : ['RIGHT', 'LEFT'];
+      const d = there === 'RIGHT' ? 1 : -1;
+      await gear(ctx);
+      await toRow(ctx, 'quick', 'Volume');
+      await ctx.key(there, { write: { ref: 'volume' } });
+      await written(ctx, 'the Volume row steps the TV\'s volume', 'volume', async () => (await ctx.volume()).volume === v0.volume + d, t0);
+      await ctx.capture('volume-row', { board: 'SmokeQuickSettings', scene: 'QuickSheet' });
+      await ctx.key(back, { write: { ref: 'volume' } });
+      await written(ctx, 'the volume is back', 'volume', async () => (await ctx.volume()).volume === v0.volume, t0);
+      await backOut(ctx, 'quick');
     }
   },
   {

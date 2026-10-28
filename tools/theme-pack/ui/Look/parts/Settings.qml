@@ -32,6 +32,17 @@ FocusScope {
         return { "index": i, "label": r.label || "", "kind": r.kind || "", "variant": r.variant || "", "ref": r.ref || "",
                  "choice": r.choice === undefined ? "" : String(r.choice), "category": r.category || "", "locked": !!r.locked };
     }
+    // The keyboard: the text (never a secret one), the focused key and the grid, so the suite can walk to a key.
+    function probeKeyboard() {
+        var kb = menu.entry.keyboard, grid = [];
+        for (var r = 0; r < kb.rows.length; r++) {
+            var row = [];
+            for (var c = 0; c < kb.rows[r].length; c++) row.push(kb.rows[r][c].label);
+            grid.push(row);
+        }
+        return { "label": menu.editing.label || "", "length": menu.entry.text.length, "text": menu.editing.secret ? "" : menu.entry.text,
+                 "row": kb.row, "col": kb.col, "keys": grid };
+    }
     function probeIds(stack) { var out = []; for (var i = 0; i < stack.length; i++) out.push(stack[i].id); return out; }
     readonly property var probe: ({
         "quick": { "open": quick.open, "stack": probeIds(quick.stack), "dialog": quick.confirming !== null,
@@ -40,7 +51,7 @@ FocusScope {
                   "dialog": menu.confirming !== null,
                   "focus": menu.area === "categories" ? probeRow(menu.categories.spec(menu.categories.currentIndex), menu.categories.currentIndex)
                                                       : probeRow(menu.page.focusedRow, menu.page.list.currentIndex),
-                  "editing": menu.editing ? { "label": menu.editing.label || "", "length": menu.entry.text.length } : null,
+                  "editing": menu.editing ? probeKeyboard() : null,
                   "pin": menu.pinning ? { "mode": menu.pinning.mode, "length": menu.pin.pin.length, "error": menu.pin.error,
                                           "pad": menu.pin.pad.currentIndex } : null }
     })

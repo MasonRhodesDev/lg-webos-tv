@@ -22,7 +22,8 @@ function previewShot(dir, scene, look) {
 }
 
 export async function writeReport(out, { boards, preview, say = () => {} } = {}) {
-  const results = JSON.parse(fs.readFileSync(path.join(out, 'results.json'), 'utf8'));
+  const rf = path.join(out, 'results.json');
+  const results = fs.existsSync(rf) ? JSON.parse(fs.readFileSync(rf, 'utf8')) : { started: '', finished: '', runs: [], end: [] };
   const deployFile = path.join(out, 'deploy.json');
   const deployed = fs.existsSync(deployFile) ? JSON.parse(fs.readFileSync(deployFile, 'utf8')) : null;
   const boardDir = path.join(out, 'boards');
@@ -39,9 +40,13 @@ export async function writeReport(out, { boards, preview, say = () => {} } = {})
     return { file: null, label: c.board ? 'board ' + c.board + (boards ? ' (' + (why[c.board] || 'not rendered') + ')' : ' (no --boards)') : 'no board for this screen' + (c.scene && !preview ? ' (no --preview)' : '') };
   }
 
+  const read = (f) => fs.existsSync(path.join(out, f)) ? JSON.parse(fs.readFileSync(path.join(out, f), 'utf8')) : null;
+  const boot = read('coldboot.json'), man = read('manual.json');
   const status = {};
   for (const r of results.runs) for (const id of r.tvChecks || []) (status[id] = status[id] || []).push(r.id + ' ' + r.status);
   if (deployed) for (const s of deployed.steps || []) status['deploy ' + s.id] = [s.ok ? 'pass' : 'fail'];
+  for (const it of (man && man.items) || []) for (const id of it.covers || []) (status[id] = status[id] || []).push('manual ' + it.id + ' ' + it.verdict);
+  if (boot) for (const id of ['stub-mounted', 'stub-resident', 'hook-order', 'telemetry']) (status[id] = status[id] || []).push('coldboot ' + (boot.ok ? 'pass' : 'fail'));
 
   const sec = results.runs.map((r) => {
     const checks = r.checks.map((c) => '<li class="' + (c.ok ? 'ok' : 'bad') + '">' + (c.ok ? 'ok' : 'FAIL') + ' ' + esc(c.name) + (c.detail ? ' <small>' + esc(c.detail) + '</small>' : '') + '</li>').join('');
@@ -61,6 +66,11 @@ export async function writeReport(out, { boards, preview, say = () => {} } = {})
   }).join('');
   const end = (results.end || []).map((c) => '<li class="' + (c.ok ? 'ok' : 'bad') + '">' + (c.ok ? 'ok' : 'FAIL') + ' ' + esc(c.name) + ' <small>' + esc(c.detail) + '</small></li>').join('');
   const dep = deployed ? '<h2>Deploy</h2><ul>' + deployed.steps.map((s) => '<li class="' + (s.ok ? 'ok' : 'bad') + '">' + esc(s.id) + (s.reason ? ': ' + esc(s.reason) : '') + '</li>').join('') + '</ul>' : '';
+  const li = (c) => '<li class="' + (c.ok ? 'ok' : 'bad') + '">' + (c.ok ? 'ok' : 'FAIL') + ' ' + esc(c.name) + (c.detail ? ' <small>' + esc(c.detail) + '</small>' : '') + '</li>';
+  const bootSec = boot ? '<h2>Cold boot</h2><p>seconds since power-on: ' + esc(JSON.stringify(boot.timings)) + '; telemetry ' + esc(boot.telemetry) + '</p><ul>' + boot.checks.map(li).join('') + '</ul>' : '';
+  const manSec = man ? '<h2>Manual pass</h2><table><tr><th>Item</th><th>Verdict</th><th>Note</th><th>The suite saw</th><th>Its checks</th></tr>' + man.items.map((it) =>
+    '<tr><td>' + esc(it.id) + '</td><td>' + esc(it.verdict) + '</td><td>' + esc(it.note) + '</td><td><small>' + it.saw.map((x) => esc(x.t + ' s ' + x.what)).join('<br>') +
+    '</small></td><td><ul>' + it.checks.map(li).join('') + '</ul></td></tr>').join('') + '</table>' : '';
   const nav = results.runs.map((r) => '<a class="' + r.status + '" href="#' + esc(r.id) + '">' + esc(r.id) + '</a>').join(' ');
 
   const html = '<!doctype html><html><head><meta charset="utf-8"><title>TV suite run</title><style>' +
@@ -69,7 +79,7 @@ export async function writeReport(out, { boards, preview, say = () => {} } = {})
     'figure{margin:8px 0 16px}.pair{display:grid;grid-template-columns:1fr 1fr;gap:6px}.pair img{width:100%;background:#000;display:block}.pair i{color:var(--dim)}' +
     'figcaption{color:var(--dim)}table{border-collapse:collapse;width:100%}td,th{border:1px solid #333;padding:4px;vertical-align:top;text-align:left}.keys{color:var(--dim)}' +
     'a{margin-right:8px}</style></head><body><h1>TV suite run' + (results.dry ? ' (dry run, fake TV)' : '') + '</h1><p>' + esc(results.started) + ' to ' + esc(results.finished) + '</p>' +
-    '<p>' + nav + '</p>' + dep + '<h2>End of run</h2><ul>' + end + '</ul>' + sec +
+    '<p>' + nav + '</p>' + dep + bootSec + manSec + '<h2>End of run</h2><ul>' + end + '</ul>' + sec +
     '<h2>TV-CHECKS coverage</h2><table><tr><th>Item</th><th>How</th><th>By</th><th>This run</th><th>Why / what is left</th></tr>' + cov + '</table></body></html>';
   const file = path.join(out, 'index.html');
   fs.writeFileSync(file, html);

@@ -21,13 +21,13 @@ export function initialState(over = {}) {
     volume: { volume: 12, muted: false, barUntil: 0, muteUntil: 0 },
     look: { style: 'smoke', themes: ['halloween'] },
     settings: { pictureMode: 'expert1', energySaving: 'auto', soundOutput: 'tv_speaker', soundMode: 'standard',
-                deviceName: 'Living room', parentalControl: false, systemPin: '0000' },
+                deviceName: 'Living room', parentalControl: false, systemPin: '0000', quickStartMode: 'on' },
     fg: 'com.webos.app.hdmi2', picker: { shown: false, focus: 1 }, toast: { message: '', until: 0 },
     quick: { open: false, stack: [], index: 0, dialog: false },
     menu: { open: false, stack: [], area: 'categories', cat: 0, index: 0, editing: null, pin: null, dialog: false },
     reports: [], ownLayerLog: '', themepackLog: '',
     installed: false, layerFiles: false, layer: false, stub: false, hook: false, mounted: false, lgQs: false,
-    files: {}, events: [], unknown: [], keys: []
+    files: {}, events: [], writes: [], unknown: [], keys: [], bootAt: Date.now() - 3600e3, down: 0, boots: 0, broken: null, settingsHost: false
   }, over);
 }
 
@@ -80,7 +80,7 @@ function probes(s) {
     quick: { open: q.open, stack: q.stack.map((e) => e.id), dialog: !!q.dialog, focus: q.open ? probeRow(qr[q.index], q.index) : null },
     menu: { open: m.open, stack: m.stack.map((e) => e.id), area: m.area, category: m.stack.length ? P.categoryFor(m.stack[0].id) : 'picture',
             dialog: !!m.dialog, focus: m.area === 'categories' ? probeRow(cats()[m.cat], m.cat) : probeRow(mr[m.index], m.index),
-            editing: m.editing ? { label: m.editing.label, length: m.editing.text.length } : null,
+            editing: m.editing ? { label: m.editing.label, length: m.editing.text.length, text: m.editing.text, row: m.editing.row, col: m.editing.col, keys: KEYBOARD } : null,
             pin: m.pin ? { mode: m.pin.mode, length: m.pin.pin.length, error: m.pin.error, pad: m.pin.pad } : null }
   };
   if (s.faults.noProbe) return {};
@@ -99,6 +99,22 @@ function landOn(s, v) {
   v.index = topOf(v).index !== undefined ? topOf(v).index : P.landing(topOf(v), r);
 }
 function event(s, what) { s.events.push(what); }
+const KEYBOARD = [['q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p'], ['a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l'],
+  ['Shift', 'z', 'x', 'c', 'v', 'b', 'n', 'm', 'Delete'], ['123', 'Space', 'Done']];
+// A write through our UI: refused (and reported, as the store does) under the writeRefused fault.
+function write(s, ref, apply) {
+  if (s.faults.writeRefused) {
+    s.reports.push({ at: iso(), from: 'ui', kind: 'warning', text: 'settings: ' + ref + ' not saved: Permission denied' });
+    return;
+  }
+  apply();
+  s.writes.push(ref);
+}
+const idOf = (ref) => (C.items[ref] ? C.items[ref].id : String(ref).split('/').pop());
+function other(ref, cur) {
+  const it = C.items[ref] || C.items[idOf(ref)], vals = (it && it.domain && it.domain.values) || ['on', 'off'];
+  return cur === 'off' ? (vals.includes('on') ? 'on' : vals[0]) : 'off';
+}
 
 function openAt(s, target) {
   const m = s.menu, want = landing(target);
@@ -132,11 +148,11 @@ function run(s, v, r) {
   if (r.kind === 'page') push(s, v, { id: r.entry.id });
   else if (r.kind === 'settings') openAt(s, '');
   else if (r.kind === 'item' && r.variant === 'value') push(s, v, P.drill(r, ''));
-  else if (r.kind === 'choose') { s.settings[C.items[r.ref] ? C.items[r.ref].id : r.ref] = r.choice; event(s, 'changed ' + r.ref); pop(s, v); }
-  else if (r.kind === 'item' && r.variant === 'toggle') { event(s, 'changed ' + r.ref); const id = C.items[r.ref] ? C.items[r.ref].id : r.ref; s.settings[id] = s.settings[id] === 'off' ? 'auto' : 'off'; }
+  else if (r.kind === 'choose') { write(s, r.ref, () => { s.settings[idOf(r.ref)] = r.choice; }); pop(s, v); }
+  else if (r.kind === 'item' && r.variant === 'toggle') { const id = idOf(r.ref); write(s, r.ref, () => { s.settings[id] = other(r.ref, s.settings[id]); }); }
   else if (r.kind === 'style') s.look = { style: r.choice, themes: s.look.themes };
   else if (r.kind === 'theme') { const t = s.look.themes.slice(), i = t.indexOf(r.choice); if (i >= 0) t.splice(i, 1); else t.push(r.choice); s.look = { style: s.look.style, themes: t }; }
-  else if (r.kind === 'text') s.menu.editing = { label: r.label, text: '' };
+  else if (r.kind === 'text') s.menu.editing = { label: r.label, ref: r.ref, text: String(s.settings[idOf(r.ref)] || ''), row: 0, col: 0 };
   else if (r.kind === 'changePin') s.menu.pin = { mode: 'new', pin: '', error: '', pad: 0 };
   else event(s, which + ': ran ' + (r.kind || '?') + ' ' + (r.ref || r.label));
 }
@@ -154,7 +170,7 @@ function key(s, k) {
   }
   if (k === 'MUTE') { s.volume.muted = !s.volume.muted; s.volume.muteUntil = s.volume.muted ? now + 60000 : 0; s.volume.barUntil = now + SHOW_MS; return; }
   if (k === 'QMENU') {
-    if (s.faults.lgQuickSettings) { s.lgQs = !s.lgQs; return; }
+    if (s.faults.lgQuickSettings || !s.settingsHost) { s.lgQs = !s.lgQs; return; }
     if (q.open || m.open) { q.open = false; closeMenu(s); return; }
     q.open = true; q.stack = [{ id: 'quick' }]; landOn(s, q); return;
   }
@@ -171,8 +187,17 @@ function key(s, k) {
     return;
   }
   if (own === m && m.editing) {
-    if (k === 'BACK') { if (s.faults.backIsBackspace) { m.editing.text = m.editing.text.slice(0, -1); } else m.editing = null; }
-    else if (k === 'ENTER') m.editing.text += 'a';
+    const e = m.editing;
+    if (k === 'BACK') { if (s.faults.backIsBackspace) { e.text = e.text.slice(0, -1); } else m.editing = null; }
+    else if (k === 'UP' || k === 'DOWN') { e.row = Math.max(0, Math.min(3, e.row + (k === 'DOWN' ? 1 : -1))); e.col = Math.min(e.col, KEYBOARD[e.row].length - 1); }
+    else if (k === 'LEFT' || k === 'RIGHT') e.col = Math.max(0, Math.min(KEYBOARD[e.row].length - 1, e.col + (k === 'RIGHT' ? 1 : -1)));
+    else if (k === 'ENTER') {
+      const key = KEYBOARD[e.row][e.col];
+      if (key === 'Delete') e.text = e.text.slice(0, -1);
+      else if (key === 'Done') { m.editing = null; write(s, e.ref, () => { s.settings[idOf(e.ref)] = e.text; }); }
+      else if (key === 'Space') e.text += ' ';
+      else if (key.length === 1) e.text += key;
+    }
     return;
   }
   if (own === m && m.pin) {
@@ -215,7 +240,8 @@ function key(s, k) {
   else if (k === 'ENTER') run(s, own, r);
   else if (k === 'BACK') pop(s, own);
   else if (k === 'LEFT' || k === 'RIGHT') {
-    if (r && (r.variant === 'slider' || r.variant === 'stepper')) event(s, 'changed ' + r.ref + ' (' + k + ')');
+    if (r && r.variant === 'slider' && r.ref === 'volume') write(s, 'volume', () => { s.volume.volume = Math.max(0, Math.min(100, s.volume.volume + (k === 'RIGHT' ? 1 : -1))); });
+    else if (r && (r.variant === 'slider' || r.variant === 'stepper')) event(s, 'changed ' + r.ref + ' (' + k + ')');
     else if (own === m && k === 'LEFT') pop(s, own);
   }
 }
@@ -223,9 +249,17 @@ function key(s, k) {
 // ---- LG's side ----
 
 function layerUp(s) {
+  s.settingsHost = false;
   if (!s.installed || s.faults.layerFails) return false;
   const at = iso();
-  s.reports.push({ at, from: 'ui', kind: 'root', text: 'own layer root loaded' }, { at, from: 'ui', kind: 'ready', text: 'layer created' });
+  s.reports.push({ at, from: 'ui', kind: 'root', text: 'own layer root loaded' });
+  if (s.broken === 'layer') {
+    s.reports.push({ at, from: 'ui', kind: 'error', text: 'file:///media/developer/themepack/layer/ui/Look/Layer.qml: Syntax error' }, { at, from: 'ui', kind: 'error', text: 'layer could not be created' });
+    return true;
+  }
+  s.reports.push({ at, from: 'ui', kind: 'ready', text: 'layer created' });
+  if (s.broken === 'part') return true;
+  s.settingsHost = true;
   if (s.faults.hookA) s.reports.push({ at, from: 'ui', kind: 'gap', text: "settings: host up, but Hook A is not applied; not reporting ready" });
   else s.reports.push({ at, from: 'ui', kind: 'ok', text: 'settings: the gear opens our quick sheet (system UI table)' }, { at, from: 'ui', kind: 'ready', text: 'settings: host ready' });
   return true;
@@ -241,7 +275,7 @@ function hook(s) {
   if (s.installed) log.push('service permissions set', 'bus rescanned'); else log.push('Look service not installed; skipping permissions');
   if (s.layerFiles) { applyLayer(s, 'apply'); log.push(s.layer ? 'UI layer started (see /tmp/own-layer.log)' : 'UI layer did not load (see /tmp/own-layer.log)'); }
   else log.push('compositor left stock (no layer installed)');
-  const ready = s.layer && !s.faults.hookA;
+  const ready = s.layer && s.settingsHost && !s.faults.hookA;
   if (s.mounted) log.push('settings already mounted');
   else if (!s.stub) log.push('settings left stock (no stub installed)');
   else if (!s.layer || !s.installed) log.push('settings left stock (the stub needs our layer and the Look service)');
@@ -250,8 +284,18 @@ function hook(s) {
   s.themepackLog += log.join('\n') + '\n';
 }
 
+// A reboot: everything the boot undoes goes (mounts, the layer, reports, /tmp), ssh is down for a few polls, then
+// the boot hook runs.
+function reboot(s) {
+  s.boots++;
+  Object.assign(s, { mounted: false, layer: false, settingsHost: false, reports: [], themepackLog: '', ownLayerLog: '', files: {}, lgQs: false,
+                     down: s.faults.slowBoot ? 6 : 2, bootAt: Date.now() });
+  s.quick.open = false; closeMenu(s); s.picker.shown = false;
+  if (s.hook) hook(s);
+}
+
 function launchSettings(s, params) {
-  if (!s.mounted) { s.fg = 'com.palm.app.settings'; event(s, "LG's Settings opened"); return; }
+  if (!s.mounted) { if (s.allowLgSettings) { s.lgSettingsOpened = (s.lgSettingsOpened || 0) + 1; return; } s.fg = 'com.palm.app.settings'; event(s, "LG's Settings opened"); return; }
   const t = params && typeof params.target === 'string' ? params.target : undefined;
   const page = stubTarget(t);
   if (s.menu.open && JSON.stringify(s.menu.stack.map((e) => e.id)) === JSON.stringify(landing(page).stack)) return;
@@ -265,13 +309,13 @@ function luna(s, uri, p) {
   if (m.startsWith(look) && !s.installed) return { returnValue: false, errorText: 'Service does not exist: dev.themepack.look.service.' };
   switch (m) {
     case look + 'getReports': return ok({ reports: s.reports });
-    case look + 'getProbe': return ok({ probes: s.layer ? probes(s) : {} });
+    case look + 'getProbe': { const p = s.layer && s.broken !== 'layer' ? probes(s) : {}; if (!s.settingsHost) delete p['parts/Settings.qml']; return ok({ probes: p }); }
     case look + 'getLook': return ok({ look: s.look, available: { styles: STYLES, themes: THEMES } });
     case look + 'setLook':
       if (p.style !== undefined && !STYLES.some((x) => x.id === p.style)) return { returnValue: false, errorText: 'unknown style ' + p.style };
       s.look = { style: p.style !== undefined ? p.style : s.look.style, themes: p.themes !== undefined ? p.themes : s.look.themes };
       return ok({ look: s.look });
-    case look + 'openSettings': if (s.layer) openAt(s, p.target || ''); return ok({});
+    case look + 'openSettings': if (s.settingsHost) openAt(s, p.target || ''); return ok({});
     case look + 'closeSettings': return ok({});
     case 'com.webos.audio/getVolume': return ok({ volume: s.volume.volume, muted: s.volume.muted, volumeMax: 100 });
     case 'com.webos.audio/setVolume': s.volume.volume = p.volume; return ok({});
@@ -385,6 +429,12 @@ export function ssh(s, cmd, stdin) {
     return r('sent\n');
   }
   if (cmd.includes('tv-suite-burst')) return r(burst(s, cmd));
+  if (cmd === '') return r(); // ssh -O exit: the control connection
+  if (s.down > 0) { s.down--; return r('', 255); }
+  if (cmd === 'date -u +%s; cut -d" " -f1 /proc/uptime') return r(Math.floor(Date.now() / 1000) + '\n' + ((Date.now() - s.bootAt) / 1000).toFixed(2) + '\n');
+  if (/^\(sleep 1; reboot\)/.test(cmd)) { reboot(s); return r(); }
+  if (cmd === 'tail -1 /tmp/themepack.log 2>/dev/null') return r(s.themepackLog.trim().split('\n').pop() + '\n');
+  if (/^\/var\/lib\/webosbrew\/init\.d\/60-themepack; tail -8 \/tmp\/themepack\.log$/.test(cmd)) { if (s.hook) hook(s); return r(s.themepackLog.trim().split('\n').slice(-8).join('\n') + '\n'); }
   if (/^date -u /.test(cmd)) return r(iso().slice(0, 19) + '\n');
   if (cmd === 'true') return r();
   if (cmd === 'mount') return r('/dev/root on / type squashfs (ro)\n' + (s.mounted ? '/dev/mmcblk0p1 on /usr/palm/applications/com.palm.app.settings type ext4 (rw)\n' : ''));
@@ -394,7 +444,10 @@ export function ssh(s, cmd, stdin) {
   if (/^\(sh \S+\/own-layer\.sh (apply|revert);/.test(cmd)) { applyLayer(s, cmd.match(/own-layer\.sh (\w+)/)[1]); return r(); }
   if (/^sed -n .* \/tmp\/own-layer\.log$/.test(cmd)) return r(s.ownLayerLog);
   if (/^rm -rf \S+\/layer\.new && mkdir -p/.test(cmd)) return r();
-  if (/^tar -C \S+\/layer\.new -mxf -$/.test(cmd)) return r();
+  if (/^tar -C \S+\/layer\.new -mxf -$/.test(cmd)) {
+    s.broken = stdin.includes('tv-suite: broken on purpose (layer)') ? 'layer' : stdin.includes('tv-suite: broken on purpose (no Settings part)') ? 'part' : null;
+    return r();
+  }
   if (/^rm -rf \S+\/layer && mv \S+\/layer\.new \S+\/layer$/.test(cmd)) { s.layerFiles = true; return r(); }
   if (/^tar -C \S+\/settings-stub\.new -mxf - && /.test(cmd)) { s.stub = true; return r(); }
   if (/^rm -rf \S+\/settings \S+\/settings-stub\.new && mkdir -p/.test(cmd)) return r();
@@ -447,7 +500,7 @@ export function scp(s, args) {
 // ssh's arguments: options, the host, then the command.
 function command(argv) {
   const args = argv.slice();
-  while (args.length && args[0].startsWith('-')) { const o = args.shift(); if (['-o', '-i', '-p', '-l'].includes(o)) args.shift(); }
+  while (args.length && args[0].startsWith('-')) { const o = args.shift(); if (['-o', '-i', '-p', '-l', '-O'].includes(o)) args.shift(); }
   args.shift();
   return args.join(' ');
 }
@@ -466,6 +519,14 @@ export function main(kind, argv, stdin) {
   }
   save(f, s);
   return status;
+}
+
+// The same fake in this process, on the state file (so it agrees with the repo scripts run through the PATH shims).
+export function fileBacked(f) {
+  return async (cmd, argv, opts = {}) => {
+    const s = load(f);
+    try { return await inProcess(s)(cmd, argv, opts); } finally { save(f, s); }
+  };
 }
 
 // The same fake in this process, on a state object: an `exec` for lib/tv.mjs, so a test runs fast.

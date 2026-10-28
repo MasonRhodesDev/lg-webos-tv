@@ -785,6 +785,9 @@ Item {
             compare(part.probe.menu.focus.kind, "text");
             keyClick(Qt.Key_Return);
             compare(part.probe.menu.editing.label, "TV name", "the keyboard is up");
+            compare(part.probe.menu.editing.keys[0][0], "q", "with its grid");
+            compare(part.probe.menu.editing.row, 0);
+            compare(part.probe.menu.editing.text, part.menu.entry.text, "and its text");
             keyClick(Qt.Key_Escape);
             compare(part.probe.menu.editing, null, "Back closed it");
             openSettings("RatingLocks", 42);

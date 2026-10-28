@@ -35,8 +35,10 @@ export function makeTv({ host = process.env.TV_HOST, log = () => {}, python = pr
     '-o', 'ControlPersist=120', '-o', 'ConnectTimeout=10', '-o', 'BatchMode=yes'];
   const target = user + '@' + host;
 
-  async function sh(command, { input, tty = false, timeout } = {}) {
-    const r = await exec('ssh', [...control, ...(tty ? ['-tt'] : []), target, command], { input, timeout });
+  // `fresh` skips the shared connection: across a reboot its socket is stale.
+  async function sh(command, { input, tty = false, timeout, fresh = false } = {}) {
+    const opts = fresh ? ['-o', 'ControlMaster=no', '-o', 'ControlPath=none', '-o', 'ConnectTimeout=5', '-o', 'BatchMode=yes'] : control;
+    const r = await exec('ssh', [...opts, ...(tty ? ['-tt'] : []), target, command], { input, timeout });
     log('ssh', command, r.status);
     return r;
   }
@@ -80,5 +82,13 @@ export function makeTv({ host = process.env.TV_HOST, log = () => {}, python = pr
     for (const [k, v] of Object.entries(a.probes || {})) out[k.replace(/^parts\//, '').replace(/\.qml$/, '')] = v.state;
     return out;
   }
-  return { host, target, sh, luna, pull, keys, capture, now, reports, probes };
+  // Closes the shared connection (before a reboot).
+  async function disconnect() { await exec('ssh', [...control, '-O', 'exit', target], { timeout: 10000 }); }
+  // The TV's clock and its uptime, read together: { now (epoch s), up (s since boot) }, or null when it is down.
+  async function clock() {
+    const r = await sh('date -u +%s; cut -d" " -f1 /proc/uptime', { fresh: true, timeout: 15000 });
+    const [now, up] = r.stdout.trim().split(/\s+/).map(Number);
+    return r.status === 0 && now > 0 && up >= 0 ? { now, up } : null;
+  }
+  return { host, target, sh, luna, pull, keys, capture, now, reports, probes, disconnect, clock };
 }

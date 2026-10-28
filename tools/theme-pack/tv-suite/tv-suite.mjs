@@ -5,6 +5,8 @@
 //   TV_HOST=<address> node tv-suite.mjs deploy [OUT_DIR] [--from STEP] [--only STEP] [--check]
 //   TV_HOST=<address> node tv-suite.mjs run [OUT_DIR] [--scenario ID]... [--list]
 //   node tv-suite.mjs report OUT_DIR [--boards CANVAS_DIR] [--preview RENDER_DIR]
+//   TV_HOST=<address> node tv-suite.mjs coldboot [OUT_DIR]      reboot, then the checks that count only after a boot
+//   TV_HOST=<address> node tv-suite.mjs manual [OUT_DIR] [--item ID]... [--print] [--no-later]
 //   TV_HOST=<address> node tv-suite.mjs rollback
 //   ... --dry-run    against a fake TV (fake/), no TV needed
 import fs from 'node:fs';
@@ -16,6 +18,9 @@ import { deploy, STEPS } from './lib/deploy.mjs';
 import { makeCtx, runScenarios } from './lib/run.mjs';
 import { SCENARIOS } from './lib/scenarios.mjs';
 import { writeReport } from './lib/report.mjs';
+import { coldboot } from './lib/coldboot.mjs';
+import { manual, printChecklist } from './lib/manual.mjs';
+import readline from 'node:readline';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
@@ -33,6 +38,9 @@ export function parse(argv) {
     else if (a === '--preview') o.preview = argv[++i];
     else if (a === '--fake-state') o.fakeState = argv[++i];
     else if (a === '--poll') o.poll = Number(argv[++i]);
+    else if (a === '--item') (o.items = o.items || []).push(argv[++i]);
+    else if (a === '--print') o.print = true;
+    else if (a === '--no-later') o.noLater = true;
     else if (a.startsWith('--')) throw new Error('unknown option ' + a);
     else o.pos.push(a);
   }
@@ -58,19 +66,19 @@ export async function main(argv, say = console.log) {
     for (const s of SCENARIOS) say(s.id.padEnd(20) + s.title);
     return 0;
   }
+  if (o.cmd === 'manual' && o.print) { printChecklist(say); return 0; }
   if (o.cmd === 'report') {
     if (!o.pos[0]) throw new Error('usage: tv-suite.mjs report OUT_DIR [--boards DIR] [--preview DIR]');
     const file = await writeReport(o.pos[0], { boards: o.boards, preview: o.preview, say });
     say(file);
     return 0;
   }
-  // A dry run's scenarios talk to the fake in this process (deploy runs the real scripts, through the PATH shims), with
-  // its waits shortened.
-  let exec, sleep, fakeTv = null;
-  if (o.dry && o.cmd === 'run') {
+  // A dry run talks to the fake in this process, on its state file (the repo scripts reach the same file through the
+  // PATH shims), with its waits shortened.
+  let exec, sleep;
+  if (o.dry) {
     const f = await import('./fake/tv.mjs');
-    fakeTv = JSON.parse(fs.readFileSync(process.env.TV_SUITE_FAKE, 'utf8'));
-    exec = f.inProcess(fakeTv);
+    exec = f.fileBacked(process.env.TV_SUITE_FAKE);
     sleep = (ms) => new Promise((r) => setTimeout(r, Math.min(ms, 50)));
   }
   const tv = makeTv(exec ? { exec } : {});
@@ -97,13 +105,35 @@ export async function main(argv, say = console.log) {
     const r = await runScenarios(ctx, pick);
     const results = { started, finished: new Date().toISOString(), host: o.dry ? 'fake' : 'TV', dry: !!o.dry, runs: r.runs, end: r.end, notes: r.notes };
     fs.writeFileSync(path.join(out, 'results.json'), JSON.stringify(results, null, 1));
-    if (fakeTv) fs.writeFileSync(process.env.TV_SUITE_FAKE, JSON.stringify(fakeTv, null, 1));
     const failed = r.runs.filter((x) => x.status === 'fail').length + r.end.filter((c) => !c.ok).length;
     say('\n' + r.runs.map((x) => x.status.toUpperCase().padEnd(5) + x.id + (x.reason ? ': ' + x.reason : '')).join('\n'));
     say('results: ' + path.join(out, 'results.json') + '  (contact sheet: node ' + path.relative(process.cwd(), path.join(here, 'tv-suite.mjs')) + ' report ' + out + ')');
     return failed ? 1 : 0;
   }
-  throw new Error('usage: tv-suite.mjs deploy | run | report | rollback [--dry-run]');
+  const outDir = () => { const d = path.resolve(o.pos[0] || fs.mkdtempSync(path.join(os.tmpdir(), 'tv-suite-' + o.cmd + '-'))); fs.mkdirSync(d, { recursive: true }); return d; };
+  if (o.cmd === 'coldboot') {
+    ctx.out = outDir();
+    const r = await coldboot(ctx, o.dry ? { upTimeout: 30, hookTimeout: 30 } : {});
+    fs.writeFileSync(path.join(ctx.out, 'coldboot.json'), JSON.stringify(r, null, 1));
+    say('\n' + (r.ok ? 'PASS' : 'FAIL') + ' coldboot: ' + JSON.stringify(r.timings) + '  (' + path.join(ctx.out, 'coldboot.json') + ')');
+    return r.ok ? 0 : 1;
+  }
+  if (o.cmd === 'manual') {
+    ctx.out = outDir();
+    const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+    const lines = [];
+    let waiting = null, closed = false;
+    rl.on('line', (l) => { if (waiting) { const w = waiting; waiting = null; w(l); } else lines.push(l); });
+    rl.on('close', () => { closed = true; if (waiting) { const w = waiting; waiting = null; w('s'); } });
+    const answer = (q) => { process.stdout.write(q); if (lines.length) return Promise.resolve(lines.shift()); if (closed) return Promise.resolve('s'); return new Promise((r) => { waiting = r; }); };
+    const r = await manual(ctx, { answer, only: o.items, includeLater: !o.noLater });
+    rl.close();
+    fs.writeFileSync(path.join(ctx.out, 'manual.json'), JSON.stringify({ items: r, notes: ctx.notes }, null, 1));
+    say('\n' + r.map((x) => x.verdict.toUpperCase().padEnd(5) + x.id + (x.note ? ': ' + x.note : '')).join('\n'));
+    say('recorded: ' + path.join(ctx.out, 'manual.json'));
+    return r.some((x) => x.verdict === 'fail') ? 1 : 0;
+  }
+  throw new Error('usage: tv-suite.mjs deploy | run | coldboot | manual | report | rollback [--dry-run]');
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

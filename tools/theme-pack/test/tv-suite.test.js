@@ -64,6 +64,20 @@ test('the guard lets through only keys that change nothing', async () => {
   assert.match(guard('LEFT', Object.assign({}, none, { systemUi: 'com.webos.app.quicksettings' })), /set a mode/, "never Left/Right on LG's Quick Settings");
   for (const k of ['HOME', 'EXIT', 'INPUT_HUB', 'POWER', 'CHANNELUP', '0']) assert.match(guard(k, none), /never pressed/, k);
   assert.match(guard('VOLUMEUP', none), /volume scenarios/);
+  // Reversible writes: only the named setting, only its toggle or picker choice; actions never.
+  const toggle = Object.assign(row('item', 'toggle', 'Quick Start+'), { ref: 'quickStartMode' });
+  assert.strictEqual(guard('ENTER', menu(toggle), { write: { ref: 'quickStartMode' } }), null);
+  assert.match(guard('ENTER', menu(toggle), { write: { ref: 'autoVolume' } }), /would change/);
+  assert.strictEqual(guard('ENTER', menu(Object.assign(row('choose', 'choice'), { ref: 'pictureMode' })), { write: { ref: 'pictureMode' } }), null);
+  assert.match(guard('ENTER', menu(Object.assign(row('action', 'nav'), { ref: 'resetToInitial' })), { write: { ref: 'resetToInitial' } }), /would change/);
+  assert.match(guard('ENTER', menu(Object.assign(row('changePin', 'nav'), { ref: 'systemPin' })), { write: { ref: 'systemPin' } }), /would change/);
+  const vol = Object.assign(row('item', 'slider', 'Volume'), { ref: 'volume' });
+  assert.strictEqual(guard('RIGHT', quick(vol), { write: { ref: 'volume' } }), null);
+  assert.match(guard('RIGHT', quick(vol)), /volume/);
+  const kb = (label) => menu(null, { editing: { label, length: 3 } });
+  assert.strictEqual(guard('LEFT', kb('TV name'), { type: true }), null);
+  assert.strictEqual(guard('ENTER', kb('TV name'), { type: true }), null);
+  assert.match(guard('ENTER', kb('Password for Home'), { type: true }), /password/);
   assert.strictEqual(guard('VOLUMEUP', none, { volume: true }), null);
   assert.match(guard('NOSUCHKEY', none), /unknown/);
   assert.ok(Object.keys(KEYS).every((k) => ['proven', 'table', 'unverified'].includes(KEYS[k].from)));
@@ -83,11 +97,19 @@ test('every TV-CHECKS item has exactly one coverage entry, and the scenarios nam
   }
   for (const s of SCENARIOS) for (const id of s.tvChecks) assert.ok(COVERAGE.some((e) => e.id === id), s.id + ' names ' + id);
   const ids = SCENARIOS.map((s) => s.id);
+  const { CHECKLIST } = await imp('lib/manual.mjs');
+  const manual = CHECKLIST.flatMap((g) => g.items);
   for (const e of COVERAGE.filter((x) => x.by)) {
     for (const by of e.by.split(/,\s*/)) {
-      const name = by.split(' ')[0];
-      if (!['deploy', 'every'].includes(name)) assert.ok(ids.includes(name), e.id + ' is covered by ' + name + ', which is no scenario');
+      const [name, item] = by.split(' ');
+      if (name === 'manual') assert.ok(manual.some((m) => m.id === item && m.covers.includes(e.id)), e.id + ': manual ' + item + ' does not cover it');
+      else if (!['deploy', 'every', 'coldboot'].includes(name)) assert.ok(ids.includes(name), e.id + ' is covered by ' + name + ', which is no scenario');
     }
+    if (e.how === 'manual') assert.match(e.by, /manual /, e.id + ' is manual: it needs a step in the manual pass');
+  }
+  for (const m of manual) {
+    for (const id of m.covers) assert.ok(COVERAGE.some((e) => e.id === id), 'manual ' + m.id + ' covers unknown ' + id);
+    assert.ok(m.press && m.look && m.pass, m.id + ' says what to press, look for and count as a pass');
   }
 });
 
@@ -148,6 +170,10 @@ test('dry run: every scenario passes against the fake TV and leaves it as it was
   for (const x of r.runs) assert.strictEqual(x.status, 'pass', x.id + ': ' + x.reason + '\n' + lines.join('\n'));
   for (const c of r.end) assert.ok(c.ok, c.name + ': ' + c.detail);
   assert.deepStrictEqual(state.events, [], 'nothing changed, switched, joined, paired or reached the app underneath');
+  assert.deepStrictEqual(state.writes.slice().sort(), ['Network/deviceName', 'Network/deviceName', 'pictureMode', 'pictureMode', 'quickStartMode', 'quickStartMode', 'volume', 'volume'],
+    'the four reversible writes, each made and undone through our UI');
+  const initial = (await imp('fake/tv.mjs')).initialState();
+  assert.deepStrictEqual(state.settings, initial.settings, 'every setting is as it was');
   assert.deepStrictEqual(state.unknown, []);
   assert.deepStrictEqual(state.look, { style: 'smoke', themes: ['halloween'] }, "the owner's look is back");
   assert.strictEqual(state.volume.volume, 12);
@@ -219,4 +245,61 @@ test('dry run from the command line: run writes its captures and results into OU
   assert.strictEqual(rep.status, 0, rep.stderr);
   assert.ok(fs.existsSync(path.join(out, 'index.html')));
   assert.match(go('run', '--list').stdout, /redirect-all/);
+});
+
+test('dry run: a refused write fails its scenario with the exact refusal, and changes nothing', async () => {
+  const { r, state, run } = await dryRun({ faults: { writeRefused: true } }, ['write-name', 'write-toggle', 'write-picture-mode', 'write-volume-row']);
+  for (const x of r.runs) assert.strictEqual(x.status, 'fail', x.id);
+  assert.match(run('write-name').reason, /the TV refused: settings: Network\/deviceName not saved: Permission denied/);
+  assert.match(run('write-toggle').reason, /quickStartMode not saved: Permission denied/);
+  assert.deepStrictEqual(state.settings, (await imp('fake/tv.mjs')).initialState().settings);
+});
+
+test('dry run: coldboot reboots, waits for ssh and the hook, then checks in order, and can run again', () => {
+  const cli = path.join(dir, 'tv-suite.mjs'), f = path.join(tmp('boot-state'), 'tv.json');
+  const go = (...a) => spawnSync(process.execPath, [cli, ...a, '--dry-run', '--fake-state', f], { encoding: 'utf8', timeout: 120000 });
+  assert.strictEqual(go('deploy').status, 0);
+  for (let i = 1; i <= 2; i++) {
+    const out = tmp('boot');
+    const r = go('coldboot', out);
+    assert.strictEqual(r.status, 0, r.stdout + r.stderr);
+    const b = JSON.parse(fs.readFileSync(path.join(out, 'coldboot.json'), 'utf8'));
+    for (const k of ['sshUp', 'hookDone', 'layerReady', 'hostReady']) assert.strictEqual(typeof b.timings[k], 'number', k);
+    const names = b.checks.map((c) => c.name);
+    assert.deepStrictEqual(names.slice(0, 4), ['the hook mounted the stub', "mount lists the bind over LG's Settings", 'no stock Settings is resident after boot', 'redirect, first after the boot']);
+    assert.ok(b.checks.every((c) => c.ok), JSON.stringify(b.checks));
+    assert.strictEqual(JSON.parse(fs.readFileSync(f, 'utf8')).boots, i);
+  }
+  const s = JSON.parse(fs.readFileSync(f, 'utf8'));
+  assert.deepStrictEqual(s.unknown, []);
+  s.faults = { hookA: true };
+  fs.writeFileSync(f, JSON.stringify(s));
+  const bad = go('coldboot', tmp('boot'));
+  assert.strictEqual(bad.status, 1);
+  assert.match(bad.stdout, /FAIL the hook mounted the stub: settings left stock \(our Settings host never reported ready\)/);
+});
+
+test('dry run: the manual pass prints its checklist, breaks the layer on purpose, records verdicts and puts the layer back', () => {
+  const cli = path.join(dir, 'tv-suite.mjs'), f = path.join(tmp('man-state'), 'tv.json'), out = tmp('man');
+  const go = (input, ...a) => spawnSync(process.execPath, [cli, ...a, '--dry-run', '--fake-state', f], { encoding: 'utf8', timeout: 180000, input });
+  const list = go('', 'manual', '--print');
+  for (const id of ['home-tile', 'pointer', 'exit', 'home', 'gear-held', 'picture-blink', 'back-refusing-app', 'layer-broken', 'part-removed']) assert.match(list.stdout, new RegExp('\\[' + id + '\\]'));
+  assert.strictEqual(go('', 'deploy').status, 0);
+  const r = go('p\np\np looks fine\nf the tile opened nothing\n', 'manual', out, '--item', 'layer-broken', '--item', 'part-removed', '--item', 'stub-removed', '--item', 'exit');
+  const m = JSON.parse(fs.readFileSync(path.join(out, 'manual.json'), 'utf8'));
+  assert.deepStrictEqual(m.items.map((x) => x.id), ['exit', 'layer-broken', 'part-removed', 'stub-removed']);
+  const by = (id) => m.items.find((x) => x.id === id);
+  assert.strictEqual(by('layer-broken').verdict, 'pass', JSON.stringify(by('layer-broken')));
+  assert.ok(by('layer-broken').checks.some((c) => c.ok && /hook leaves LG's Settings/.test(c.name)));
+  assert.ok(by('part-removed').checks.some((c) => c.ok && /opens LG's Quick Settings/.test(c.name)));
+  assert.strictEqual(by('part-removed').note, 'looks fine');
+  assert.strictEqual(by('stub-removed').verdict, 'fail');
+  assert.strictEqual(by('stub-removed').note, 'the tile opened nothing');
+  assert.strictEqual(r.status, 1, 'a failed verdict fails the pass');
+  const s = JSON.parse(fs.readFileSync(f, 'utf8'));
+  assert.ok(s.mounted && s.settingsHost && s.broken === null, 'the good layer and the stub are back');
+  assert.deepStrictEqual(s.unknown, []);
+  assert.deepStrictEqual(s.events, []);
+  assert.strictEqual(go('', 'report', out).status, 0);
+  assert.match(fs.readFileSync(path.join(out, 'index.html'), 'utf8'), /Manual pass/);
 });

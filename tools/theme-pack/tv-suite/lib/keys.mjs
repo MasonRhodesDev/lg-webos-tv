@@ -25,9 +25,18 @@ const STILL = new Set(['nav', 'value', 'choice', 'toggle', 'action', 'category',
 // What OK on a row does, from its kind and variant (pages.js, PageView.run): only these open something without
 // changing anything. `allow` widens it for one press: text (open the keyboard), look (a Look page style or theme row,
 // restored by the run), pin (a digit on a locked page's PIN pad).
+// A write the scenario will undo (allow.write = { ref }): OK on that setting's toggle, or on a choice in its picker.
+// Actions (reset, screen off), networks, devices, the PIN and locked rows never pass, whatever is allowed.
+const sameRef = (a, b) => !!a && !!b && (a === b || a.split('/').pop() === b);
+function writeOk(f, allow) {
+  return !!(allow.write && sameRef(f.ref, allow.write.ref) &&
+    ((f.kind === 'item' && f.variant === 'toggle') || f.kind === 'choose'));
+}
+
 function enterSafe(f, allow) {
   if (!f) return 'no row has focus';
   if (f.locked) return 'a locked row asks for the PIN and then acts';
+  if (writeOk(f, allow)) return null;
   if (f.variant === 'category') return null;
   if (f.kind === 'page' || f.kind === 'settings') return null;
   if (f.kind === 'item' && f.variant === 'value') return null;
@@ -57,7 +66,11 @@ export function guard(key, state, allow = {}) {
   const v = s[own];
   if (key === 'BACK') return null;
   if (v.dialog) return 'a dialog is up: only BACK';
-  if (v.editing) return 'the keyboard is up: only BACK (nothing is typed)';
+  if (v.editing) {
+    if (!allow.type) return 'the keyboard is up: only BACK (nothing is typed)';
+    if (/^Password/.test(v.editing.label)) return 'never type into a password';
+    return MOVES.has(key) || key === 'ENTER' ? null : 'no rule for ' + key + ' on the keyboard';
+  }
   if (v.pin) {
     if (v.pin.mode !== 'page') return 'the PIN prompt is ' + v.pin.mode + ': only BACK';
     if (MOVES.has(key)) return null;
@@ -66,6 +79,7 @@ export function guard(key, state, allow = {}) {
   const f = v.focus;
   if (key === 'UP' || key === 'DOWN') return null;
   if (key === 'LEFT' || key === 'RIGHT') {
+    if (f && f.variant === 'slider' && allow.write && sameRef(f.ref, allow.write.ref)) return null;
     if (own === 'quick') return 'Left/Right in the quick sheet change the volume';
     if (v.area === 'categories') return key === 'RIGHT' ? null : 'Left in the categories does nothing we test';
     if (key === 'RIGHT') return 'Right in a page steps a slider';
