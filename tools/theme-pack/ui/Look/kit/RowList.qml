@@ -52,9 +52,10 @@ ListView {
         return isFinite(best) ? best : to;
     }
     // Scroll only as far as keeps the focused row, and a row's worth beyond it, inside the list, starting from `from`.
-    // Moving focus starts from where the list is. A change of size starts from the top: where the list opens then
-    // depends only on the focused row and the final size, not on the sizes it passed through while being laid out.
+    // Moving focus starts from where the list is (the default). A change of size starts from the top: where the list
+    // opens then depends only on the focused row and the final size, not on the sizes it passed through while laid out.
     function reveal(animated, from) {
+        if (from === undefined) from = contentY;
         var item = currentItem;
         if (!item) return;
         var margin = Look.px("row-h") / 2, to = from;

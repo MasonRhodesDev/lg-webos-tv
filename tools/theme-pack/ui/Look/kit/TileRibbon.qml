@@ -40,6 +40,7 @@ ListView {
     // Scroll only as far as keeps the focused tile, and part of the next, inside the ribbon, starting from `from`: where
     // it is when focus moves, its start when its size changes (as RowList).
     function reveal(animated, from) {
+        if (from === undefined) from = contentX;
         var item = currentItem;
         if (!item || !follows) return;
         var margin = Look.px("tile-w") / 2, to = from;

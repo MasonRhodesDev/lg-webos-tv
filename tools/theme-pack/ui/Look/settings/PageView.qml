@@ -48,7 +48,8 @@ FocusScope {
     function land() {
         if (!entry || !rows.length) return;
         list.currentIndex = landIndex = entry.index !== undefined ? entry.index : Pages.landing(entry, rows);
-        list.reveal(false);
+        // Landing opens the page: placed from its top, wherever the last page left the list.
+        list.reveal(false, list.originY);
         // A picker lands again once the current value is known (the store's first answer may come later).
         landed = entry.id.indexOf("pick:") !== 0 || rows[list.currentIndex].checked === true;
     }
