@@ -7,6 +7,8 @@ Item {
     id: badge
     property string text
     property string tone: "neutral"
+    // As an attachment: the point of the origin it is centred on, [x%, y%], or null to place it yourself (Decor).
+    property var anchor: null
     readonly property string fillToken: tone === "neutral" ? "ink" : tone
     readonly property string inkToken: tone === "neutral" ? "focus-ink" : tone === "current" ? "current-ink" : tone + "-ink"
     height: Look.px("type-caption") + 2 * Look.px("space-xs")

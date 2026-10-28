@@ -44,3 +44,12 @@ test('the input picker keeps LG\'s hit areas: our tiles and add-on button sit ov
   assert.ok(/input picker hits: all passed/.test(out), out);
   assert.ok(!/FAIL /.test(out), out);
 });
+
+test('components paint in passes, the focused one lifted, attachments last, children inside their parent\'s origin', { skip: !haveQml && QML + ' not found' }, () => {
+  const r = runScene('Passes.qml');
+  const out = r.stdout + r.stderr;
+  assert.strictEqual(r.status, 0, out);
+  assert.ok(/passes: all passed/.test(out), out);
+  assert.ok(!/FAIL /.test(out), out);
+  assert.ok(!/\.qml:\d+/.test(out), 'QML warnings:\n' + out);
+});

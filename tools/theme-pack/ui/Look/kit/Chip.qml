@@ -7,6 +7,8 @@ Item {
     id: chip
     property string text
     property string tone: "attention"
+    // As an attachment: the point of the origin it is centred on, [x%, y%] (Decor).
+    property var anchor: [100, 0]
     readonly property string fillToken: tone === "critical" ? "critical" : tone === "neutral" ? "ink" : "attention"
     readonly property string inkToken: tone === "critical" ? "critical-ink" : tone === "neutral" ? "focus-ink" : "attention-ink"
     height: Look.px("type-label") + 2 * Look.px("space-s")

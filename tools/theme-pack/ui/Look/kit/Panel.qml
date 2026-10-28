@@ -2,7 +2,8 @@ import QtQuick 2.4
 import Look 1.0
 
 // A panel: the surface material, decorated as `target`, placed by the placement grammar (DESIGN.md, Placement) and
-// entering and leaving with the style's motion. Its children are the content, inset by `padding`.
+// entering and leaving with the style's motion. Its children are the content, inset by `padding`; they paint in the
+// panel's passes (DESIGN.md, Layers).
 //   side-left, side-right  the full safe height at a side edge, panel-w wide (Quick Settings, sub-menus)
 //   bar                    a pill at the top-right of the safe area, volume-w by volume-h (the volume bar)
 //   ribbon                 the full safe width at the bottom (the input picker; usually `bare`)
@@ -21,8 +22,8 @@ Item {
     property bool bare: false
     property real padding: Look.px("space-l")
     property real radius: Look.px("r-panel")
-    default property alias content: body.data
-    readonly property Item body: body
+    default property alias content: passes.content
+    readonly property Item body: passes.contentItem
 
     readonly property real safeX: Look.px("safe-x")
     readonly property real safeY: Look.px("safe-y")
@@ -31,7 +32,7 @@ Item {
 
     implicitWidth: placement === "center" ? Look.px("dialog-w") : placement === "toast" ? Look.px("toast-w")
                  : placement === "bar" ? Look.px("volume-w") : Look.px("panel-w")
-    implicitHeight: body.childrenRect.height + 2 * padding
+    implicitHeight: passes.contentItem.childrenRect.height + 2 * padding
     width: placement === "ribbon" || placement === "full" ? areaW - 2 * safeX : implicitWidth
     height: placement === "side-left" || placement === "side-right" || placement === "full" ? areaH - 2 * safeY
           : placement === "bar" ? Look.px("volume-h") : implicitHeight
@@ -70,11 +71,10 @@ Item {
         // Hidden here, not on the root: the Layer owns a part root's `visible`.
         visible: panel.enter > 0.001
         opacity: Math.min(1, panel.enter)
-        transform: [
-            Translate { x: panel.fromX * (1 - panel.enter); y: panel.fromY * (1 - panel.enter) },
-            Scale { origin.x: decor.width / 2; origin.y: decor.height / 2
-                    xScale: panel.grows ? 0.96 + 0.04 * panel.enter : 1; yScale: xScale }
-        ]
+        // Moved and grown with x, y and scale, which the passes carry to the panel's decoration (passes.js).
+        x: panel.fromX * (1 - panel.enter)
+        y: panel.fromY * (1 - panel.enter)
+        scale: panel.grows ? 0.96 + 0.04 * panel.enter : 1
 
         Surface {
             visible: !panel.bare
@@ -83,8 +83,9 @@ Item {
             elevated: panel.elevated
             radius: Math.min(panel.radius, panel.height / 2)
         }
-        Item {
-            id: body
+        // The panel's rows and tiles paint in its own passes, over its surface, and may reach into its padding.
+        Passes {
+            id: passes
             anchors.fill: parent
             anchors.margins: panel.padding
         }

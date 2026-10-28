@@ -28,3 +28,14 @@ function rect(p, w, h) {
         "height": rh
     };
 }
+
+// A recipe's outset as [top, right, bottom, left] for the component's state. It is a number, four numbers, or per
+// state: { rest, focused, current, disabled }, each a number or four; the first of focused, current, disabled that
+// the component is in and the recipe names wins, else rest.
+function sides(o) { return typeof o === "number" ? [o, o, o, o] : (o || [0, 0, 0, 0]); }
+function outset(o, focused, current, disabled) {
+    if (o === null || typeof o !== "object" || o.length !== undefined) return sides(o);
+    var v = focused && o.focused !== undefined ? o.focused : current && o.current !== undefined ? o.current
+          : disabled && o.disabled !== undefined ? o.disabled : o.rest;
+    return sides(v);
+}

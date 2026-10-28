@@ -14,8 +14,8 @@ import Look 1.0
 //   action   the value text, if any, and nothing after it: OK does it (Screen off)
 //   category a category in a side list: no trailing control, a little shorter, no plate at rest unless current
 //   info     the value text only; not focusable
-// `busy` puts a Busy spinner before the value (scanning, connecting).
-// Decoratable as `row`; the trailing controls are decoratable too (knob, thumb, radio, check).
+// `busy` puts a Busy spinner before the value (scanning, connecting). An optional `chip` is attached at the top-right
+// corner. Decoratable as `row`; the trailing controls are decoratable too (knob, thumb, radio, check).
 Item {
     id: row
     property string variant: "nav"
@@ -30,6 +30,9 @@ Item {
     property string valueText
     property var options: []
     property int index: 0
+    // A count or alert chip attached at the row's top-right corner ("3", "!").
+    property string chip
+    property string chipTone: "attention"
     property bool focused: false
     property bool current: false
     property bool disabled: false
@@ -87,6 +90,10 @@ Item {
                            : row.variant === "slider" ? slider : row.variant === "stepper" ? stepper : row.variant === "choice" ? tick
                            : row.variant === "category" ? null : valueAndChevron
         }
+
+        attachments: [
+            Chip { visible: !!row.chip; text: row.chip; tone: row.chipTone; anchor: [100, 0] }
+        ]
     }
 
     Component {

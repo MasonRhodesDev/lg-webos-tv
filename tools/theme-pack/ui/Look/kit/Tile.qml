@@ -2,7 +2,7 @@ import QtQuick 2.4
 import Look 1.0
 
 // The one tile anatomy (DESIGN.md, Tile): icon (or picture) at the top left, an optional badge at the top right, the
-// name and a sub line at the bottom; an optional chip pinned to the top-right corner. Tiles float on the picture,
+// name and a sub line at the bottom; an optional chip centred on the top-right corner. Badge and chip are attachments. Tiles float on the picture,
 // so their plate is the surface. Decoratable as `tile`; focus is the one focus treatment (Plate).
 Item {
     id: tile
@@ -60,14 +60,6 @@ Item {
             opacity: tile.disabled ? 0.5 : 1
             smooth: true
         }
-        Badge {
-            visible: !!tile.badge
-            text: tile.badge
-            tone: tile.badgeTone
-            anchors.right: parent.right
-            anchors.rightMargin: tile.pad - 4
-            y: tile.pad - 2
-        }
         Column {
             x: tile.pad
             width: tile.width - 2 * tile.pad
@@ -76,13 +68,24 @@ Item {
             Label { role: "tile"; text: tile.label; color: plate.ink; width: parent.width }
             Label { visible: !!tile.sub; role: "caption"; text: tile.sub; color: plate.ink; opacity: tile.disabled ? 1 : 0.85; width: parent.width }
         }
-    }
-    // An attachment: above the tile's front decoration, so a theme never covers it.
-    Chip {
-        visible: !!tile.chip
-        text: tile.chip
-        tone: tile.chipTone
-        x: tile.width - width * 0.7
-        y: -height * 0.3
+
+        // Attachments paint after every +1 in the passes, so no theme covers them. The chip is centred on the
+        // top-right corner (board 4, Attention).
+        attachments: [
+            Badge {
+                visible: !!tile.badge
+                text: tile.badge
+                tone: tile.badgeTone
+                anchors.right: parent.right
+                anchors.rightMargin: tile.pad - 4
+                y: tile.pad - 2
+            },
+            Chip {
+                visible: !!tile.chip
+                text: tile.chip
+                tone: tile.chipTone
+                anchor: [100, 0]
+            }
+        ]
     }
 }

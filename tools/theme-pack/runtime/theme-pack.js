@@ -92,7 +92,13 @@
 
   // ---- layer model ----------------------------------------------------------
 
-  function outsetCss(o) {
+  // An outset is a number, [top, right, bottom, left], or per state ({ rest, focused, current, disabled }), as in
+  // the QML Ring (ui/Look/place.js outset()).
+  function outsetCss(o, state) {
+    if (o && typeof o === 'object' && o.length === undefined) {
+      o = state.focused && o.focused !== undefined ? o.focused : state.current && o.current !== undefined ? o.current
+        : state.disabled && o.disabled !== undefined ? o.disabled : o.rest;
+    }
     var v = typeof o === 'number' ? [o, o, o, o] : (o || [0, 0, 0, 0]);
     return 'top:' + (-v[0]) + 'px;right:' + (-v[1]) + 'px;bottom:' + (-v[2]) + 'px;left:' + (-v[3]) + 'px';
   }
@@ -118,7 +124,7 @@
     themes.forEach(function (theme) {
       theme.recipes.forEach(function (r) {
         if (r.slot !== slot || !matches(r, type, state)) return;
-        out += '<div data-tp-ring="' + esc(theme.id) + '" style="position:absolute;' + outsetCss(r.outset) + ';' + (r.style || '') + '">' + (r.html || '') + '</div>';
+        out += '<div data-tp-ring="' + esc(theme.id) + '" style="position:absolute;' + outsetCss(r.outset, state) + ';' + (r.style || '') + '">' + (r.html || '') + '</div>';
       });
     });
     return out;

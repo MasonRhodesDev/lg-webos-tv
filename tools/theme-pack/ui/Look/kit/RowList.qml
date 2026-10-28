@@ -4,7 +4,7 @@ import "keys.js" as KeyMap
 
 // A focusable vertical list of rows and section headers. `model` is a list of row specs: { section: "Title" } for a
 // header, or a ListRow's properties ({ variant, label, hint, value, icon, hue, on, checked, fraction, valueText,
-// options, index, current, disabled }). Data in, events out: the list never changes its model.
+// options, index, chip, chipTone, current, disabled }). Data in, events out: the list never changes its model.
 //
 // An LG-mirrored surface sets currentIndex from LG. Our own menus give the list focus and it handles the keys:
 // Up/Down move over focusable rows, OK is activated(), Left/Right step a slider or stepper row (adjusted()), and
@@ -123,6 +123,8 @@ ListView {
             valueText: slot.r.valueText !== undefined ? String(slot.r.valueText) : ""
             options: slot.r.options || []
             index: slot.r.index || 0
+            chip: slot.r.chip !== undefined ? String(slot.r.chip) : ""
+            chipTone: slot.r.chipTone || "attention"
             current: !!slot.r.current
             disabled: !!slot.r.disabled
             busy: !!slot.r.busy

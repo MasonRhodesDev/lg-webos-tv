@@ -3,10 +3,10 @@ import Look 1.0
 import "keys.js" as KeyMap
 
 // A horizontal ribbon of tiles; focus scrolls into view. `model` is a list of tile specs ({ label, sub, icon, image,
-// hue, badge, chip, current, disabled, width, lead, heading }) or { separator: true, width }. `heading` starts a group:
-// its name sits above the tile, `lead` px of extra space before it. An LG-mirrored surface (the input picker) sets
-// currentIndex from LG and, with `follows: false`, places the ribbon itself so its tiles stay over LG's; our own menus
-// give it focus and it moves with Left/Right (wrapping if `wraps`).
+// hue, badge, badgeTone, chip, chipTone, current, disabled, width, lead, heading }) or { separator: true, width }.
+// `heading` starts a group: its name sits above the tile, `lead` px of extra space before it. An LG-mirrored surface
+// (the input picker) sets currentIndex from LG and, with `follows: false`, places the ribbon itself so its tiles stay
+// over LG's; our own menus give it focus and it moves with Left/Right (wrapping if `wraps`).
 ListView {
     id: ribbon
     property bool focusShown: true
@@ -110,6 +110,7 @@ ListView {
             badge: slot.t.badge || ""
             badgeTone: slot.t.badgeTone || "neutral"
             chip: slot.t.chip || ""
+            chipTone: slot.t.chipTone || "attention"
             current: !!slot.t.current
             disabled: !!slot.t.disabled
             focused: ribbon.focusShown && slot.at === ribbon.currentIndex
