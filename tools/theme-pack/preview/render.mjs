@@ -1,0 +1,169 @@
+// Renders every preview scene in every style, with no theme and with each theme alone, in each state the scene
+// declares, and writes the PNGs and a contact sheet (index.html) into an output directory.
+//
+//   node preview/render.mjs [OUT_DIR] [--scene NAME]... [--jobs N]
+//
+// OUT_DIR defaults to a new directory under the OS temp dir. Needs Qt 5's `qml` with QtQuick and QtGraphicalEffects;
+// set QML to its path if it isn't `qml-qt5` or `qml` on PATH. Exits non-zero if any shot fails, with its QML errors.
+import { spawn, spawnSync } from 'node:child_process';
+import { createRequire } from 'node:module';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const require = createRequire(import.meta.url);
+const here = path.dirname(fileURLToPath(import.meta.url));
+const root = path.join(here, '..');
+const packsDir = path.join(root, 'packs');
+
+const argv = process.argv.slice(2);
+let outDir = null, jobs = Math.max(1, Math.floor(os.cpus().length / 2));
+const only = [];
+for (let i = 0; i < argv.length; i++) {
+  if (argv[i] === '--scene') only.push(argv[++i].replace(/\.qml$/, ''));
+  else if (argv[i] === '--jobs') jobs = Math.max(1, Number(argv[++i]) || 1);
+  else if (argv[i].startsWith('--')) { console.error('unknown option ' + argv[i]); process.exit(2); }
+  else outDir = path.resolve(argv[i]);
+}
+outDir = outDir || fs.mkdtempSync(path.join(os.tmpdir(), 'theme-pack-preview-'));
+fs.mkdirSync(outDir, { recursive: true });
+
+function findQml() {
+  if (process.env.QML) return process.env.QML;
+  for (const name of ['qml-qt5', 'qml']) {
+    if (spawnSync(name, ['--help'], { stdio: 'ignore' }).error === undefined) return name;
+  }
+  console.error('no Qt 5 qml binary found: install it, or set QML to its path');
+  process.exit(2);
+}
+const qml = findQml();
+
+const packs = (kind) => fs.readdirSync(path.join(packsDir, kind)).filter((f) => f.endsWith('.js')).sort()
+  .map((f) => require(path.join(packsDir, kind, f)));
+const styles = packs('styles'), themes = packs('themes');
+
+// The Look service's answer, as service/service.js's payload() builds it.
+function payload(style, active) {
+  return {
+    returnValue: true,
+    look: { style: style.id, themes: active.map((t) => t.id) },
+    subscribers: 0,
+    lastLoadMs: null,
+    picker: { open: false, at: 0 },
+    assets: 'file://' + path.join(packsDir, 'assets') + '/',
+    fonts: 'file://' + path.join(packsDir, 'fonts') + '/',
+    style,
+    themes: active,
+    available: {
+      styles: styles.map((s) => ({ id: s.id, name: s.name })),
+      themes: themes.map((t) => ({ id: t.id, name: t.name, description: t.description || '' }))
+    }
+  };
+}
+
+const env = {
+  ...process.env,
+  QT_FORCE_STDERR_LOGGING: '1', QT_QPA_PLATFORM: 'offscreen', QT_QUICK_BACKEND: 'software',
+  QML2_IMPORT_PATH: path.join(here, 'mocks') + path.delimiter + path.join(root, 'ui')
+};
+
+function run(args) {
+  return new Promise((resolve) => {
+    const p = spawn(qml, [path.join(here, 'Shot.qml'), '--', ...args], { env, stdio: ['ignore', 'pipe', 'pipe'] });
+    let log = '';
+    p.stdout.on('data', (d) => { log += d; });
+    p.stderr.on('data', (d) => { log += d; });
+    p.on('close', (code) => resolve({ code, log }));
+    p.on('error', (e) => resolve({ code: -1, log: String(e) }));
+  });
+}
+
+// What counts as a QML error in a run's log: QML warnings carry a file:line, Shot's own failures say "shot:", and the
+// layer's reports of kind "error".
+function errorsIn(log) {
+  return log.split('\n').filter((l) => /\.(qml|js):\d+/.test(l) || /\bshot: /.test(l) ||
+    /(TypeError|ReferenceError|SyntaxError|RangeError)/.test(l) || /"kind":"error"/.test(l));
+}
+
+const sceneDir = path.join(here, 'scenes');
+const scenes = fs.readdirSync(sceneDir).filter((f) => f.endsWith('.qml')).map((f) => f.replace(/\.qml$/, ''))
+  .filter((n) => !only.length || only.includes(n)).sort();
+if (!scenes.length) { console.error('no scenes' + (only.length ? ' named ' + only.join(', ') : '')); process.exit(2); }
+
+const failures = [];
+const info = {};
+const plain = JSON.stringify(payload(styles[0], []));
+for (const s of scenes) {
+  const r = await run([path.join(sceneDir, s + '.qml'), plain, '--states']);
+  const m = /SHOT-INFO (.*)/.exec(r.log);
+  if (r.code !== 0 || !m) { failures.push({ shot: s, errors: errorsIn(r.log).length ? errorsIn(r.log) : [r.log.trim() || 'exit ' + r.code] }); continue; }
+  info[s] = JSON.parse(m[1]);
+}
+
+const themeSets = [[]].concat(themes.map((t) => [t]));
+const shots = [];
+for (const s of Object.keys(info)) {
+  const states = info[s].states.length ? info[s].states : [''];
+  for (const st of states) for (const style of styles) for (const set of themeSets) {
+    const theme = set.length ? set[0].id : 'none';
+    shots.push({ scene: s, state: st, style: style.id, theme, file: [s, st || 'base', style.id, theme].join('-') + '.png',
+                 payload: JSON.stringify(payload(style, set)) });
+  }
+}
+
+let next = 0, done = 0;
+async function worker() {
+  while (next < shots.length) {
+    const shot = shots[next++];
+    const out = path.join(outDir, shot.file);
+    fs.rmSync(out, { force: true });
+    const args = [path.join(sceneDir, shot.scene + '.qml'), shot.payload, out];
+    if (shot.state) args.push(shot.state);
+    const r = await run(args);
+    const errors = errorsIn(r.log);
+    if (r.code !== 0 || errors.length || !fs.existsSync(out)) {
+      shot.failed = true;
+      failures.push({ shot: shot.file, errors: errors.length ? errors : [r.log.trim() || 'exit ' + r.code + ', no image'] });
+    }
+    process.stderr.write('\r' + (++done) + '/' + shots.length);
+  }
+}
+const started = Date.now();
+await Promise.all(Array.from({ length: Math.min(jobs, shots.length) }, worker));
+process.stderr.write('\n');
+
+const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+// A scene's `frame` (x, y, width, height in the 1920x1080 shot) is what the contact sheet shows of it.
+function thumb(shot) {
+  const f = info[shot.scene].frame || { x: 0, y: 0, width: 1920, height: 1080 };
+  const w = 320, scale = w / f.width, h = Math.round(f.height * scale);
+  const img = shot.failed ? '<div class="miss">failed</div>'
+    : '<img src="' + esc(shot.file) + '" style="width:' + 1920 * scale + 'px;left:' + -f.x * scale + 'px;top:' + -f.y * scale + 'px">';
+  return '<a class="shot" href="' + esc(shot.file) + '"><div class="frame" style="width:' + w + 'px;height:' + h + 'px">' + img +
+    '</div><span>' + esc(shot.style) + ' · ' + esc(shot.theme) + '</span></a>';
+}
+let body = '';
+for (const s of Object.keys(info)) {
+  body += '<h2>' + esc(s) + '</h2>';
+  const states = info[s].states.length ? info[s].states : [''];
+  for (const st of states) {
+    body += '<h3>' + esc(st || 'base state') + '</h3><div class="row">' +
+      shots.filter((x) => x.scene === s && x.state === st).map(thumb).join('') + '</div>';
+  }
+}
+if (failures.length) body = '<h2 class="bad">' + failures.length + ' failed</h2><pre>' +
+  esc(failures.map((f) => f.shot + '\n  ' + f.errors.join('\n  ')).join('\n')) + '</pre>' + body;
+fs.writeFileSync(path.join(outDir, 'index.html'), '<!doctype html><meta charset="utf-8"><title>Preview matrix</title>' +
+  '<style>body{background:#111;color:#ddd;font:14px system-ui,sans-serif;margin:16px}h2{margin:28px 0 4px}h3{margin:12px 0 6px;' +
+  'font-weight:500;color:#aaa}.row{display:flex;flex-wrap:wrap;gap:10px}.shot{color:inherit;text-decoration:none}' +
+  '.frame{position:relative;overflow:hidden;background:#000;border:1px solid #333}.frame img{position:absolute}' +
+  '.shot span{display:block;margin-top:3px;font-size:12px}.miss{color:#f66;padding:8px}.bad{color:#f66}pre{white-space:pre-wrap}</style>' +
+  '<h1>Preview matrix</h1><p>' + shots.length + ' shots: scene × state × style × theme (none, then each alone).</p>' + body);
+
+console.log(path.join(outDir, 'index.html') + ': ' + shots.length + ' shots in ' + Math.round((Date.now() - started) / 1000) + ' s');
+if (failures.length) {
+  console.error(failures.length + ' failed:');
+  for (const f of failures) console.error(f.shot + '\n  ' + f.errors.join('\n  '));
+  process.exit(1);
+}
