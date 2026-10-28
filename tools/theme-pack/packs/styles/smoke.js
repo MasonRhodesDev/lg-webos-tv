@@ -25,6 +25,10 @@
       'type-label': '26px', 'type-label-weight': '600', 'type-category': '28px', 'type-category-weight': '600', 'type-value': '24px', 'type-value-weight': '500', 'type-body': '26px', 'type-body-weight': '500',
       'type-caption': '20px', 'type-caption-weight': '500', 'type-headline': '32px', 'type-headline-weight': '700', 'type-heading': '19px', 'type-heading-weight': '600', 'type-heading-case': 'uppercase',
       'type-key': '18px', 'type-key-weight': '600', 'type-numeral': '40px', 'type-numeral-weight': '700',
+      'key-w': '132px', 'key-h': '80px', 'key-gap': '14px', 'field-h': '96px', 'active-w': '3px', 'pin-w': '720px', 'pad-w': '432px', 'pad-key-h': '88px',
+      'slot-w': '96px', 'slot-h': '112px', 'slot-dot': '28px',
+      'type-entry': '40px', 'type-entry-weight': '600', 'type-cap': '32px', 'type-cap-weight': '600', 'type-cap-word': '24px', 'type-cap-word-weight': '600',
+      'type-pad': '30px', 'type-pad-weight': '700', 'type-prompt': '22px', 'type-prompt-weight': '600',
       'motion-focus': '140ms', 'motion-value': '200ms', 'motion-enter': '320ms', 'motion-exit': '200ms',
       'ease-focus': 'cubic-bezier(0.2,0,0,1)', 'ease-enter': 'cubic-bezier(0.05,0.7,0.1,1)', 'ease-exit': 'cubic-bezier(0.3,0,0.8,0.15)', 'enter-shift': '40px'
     },

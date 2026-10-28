@@ -31,5 +31,12 @@ KeyHints 1.0 kit/KeyHints.qml
 Screen 1.0 kit/Screen.qml
 Busy 1.0 kit/Busy.qml
 Divider 1.0 kit/Divider.qml
+Well 1.0 kit/Well.qml
+Key 1.0 kit/Key.qml
+Keyboard 1.0 kit/Keyboard.qml
+TextField 1.0 kit/TextField.qml
+TextPrompt 1.0 kit/TextPrompt.qml
+PinPad 1.0 kit/PinPad.qml
+PinPrompt 1.0 kit/PinPrompt.qml
 SettingsStore 1.0 settings/Store.qml
 singleton SettingsBus 1.0 settings/Bus.qml

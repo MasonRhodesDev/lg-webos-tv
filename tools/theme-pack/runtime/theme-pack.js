@@ -23,6 +23,10 @@
     'type-label', 'type-label-weight', 'type-category', 'type-category-weight', 'type-value', 'type-value-weight', 'type-body', 'type-body-weight',
     'type-caption', 'type-caption-weight', 'type-headline', 'type-headline-weight', 'type-heading', 'type-heading-weight', 'type-heading-case',
     'type-key', 'type-key-weight', 'type-numeral', 'type-numeral-weight',
+    // Text entry and PIN (the Keyboard and PIN prompt boards).
+    'key-w', 'key-h', 'key-gap', 'field-h', 'active-w', 'pin-w', 'pad-w', 'pad-key-h', 'slot-w', 'slot-h', 'slot-dot',
+    'type-entry', 'type-entry-weight', 'type-cap', 'type-cap-weight', 'type-cap-word', 'type-cap-word-weight',
+    'type-pad', 'type-pad-weight', 'type-prompt', 'type-prompt-weight',
     'motion-focus', 'motion-value', 'motion-enter', 'motion-exit', 'ease-focus', 'ease-enter', 'ease-exit', 'enter-shift'
   ];
 

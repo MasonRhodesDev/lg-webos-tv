@@ -67,5 +67,10 @@ var ICONS = {
     test: 'M9 3h6M10 3v6L5 18a2 2 0 0 0 1.8 3h10.4A2 2 0 0 0 19 18l-5-9V3',
     shield: 'M12 3l8 3v6c0 4.5-3.4 8-8 9-4.6-1-8-4.5-8-9V6zM9 12l2 2 4-4',
     volume: 'M11 5L6 9H2v6h4l5 4zM15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14',
-    screenOff: 'M12 3v9M6.4 6.4a8 8 0 1 0 11.2 0'
+    screenOff: 'M12 3v9M6.4 6.4a8 8 0 1 0 11.2 0',
+    // The PIN prompt board's lock, and Wi-Fi signal by strength (wifi is full).
+    lock: 'M7 11h10a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-6a2 2 0 0 1 2-2zM8 11V8a4 4 0 0 1 8 0v3',
+    wifi1: 'M8.5 16a5 5 0 0 1 7 0M12 19.5h.01',
+    wifi2: 'M5 12.5a10 10 0 0 1 14 0M8.5 16a5 5 0 0 1 7 0M12 19.5h.01',
+    keyboard: 'M3 6h18v12H3zM7 10h.01M11 10h.01M15 10h.01M7 14h10'
 };

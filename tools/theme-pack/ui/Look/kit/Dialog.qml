@@ -31,24 +31,11 @@ Item {
             spacing: Look.px("space-lx")
             Row {
                 spacing: Look.px("space-ml")
-                // The SmokeAlert board's well: a ring in the icon's hue over a faint wash of it.
-                Rectangle {
-                    id: well
-                    readonly property color tone: dialog.hue >= 0 ? Look.hue(dialog.hue) : Look.color("ink")
+                Well {
                     visible: !!dialog.icon
-                    width: Look.px("well")
-                    height: width
-                    radius: width / 2
-                    color: Qt.rgba(tone.r, tone.g, tone.b, 0.18)
-                    border.width: Look.px("edge-w")
-                    border.color: tone
+                    icon: dialog.icon
+                    hue: dialog.hue
                     anchors.verticalCenter: parent.verticalCenter
-                    Icon {
-                        anchors.centerIn: parent
-                        name: dialog.icon
-                        size: Look.px("icon") * 1.15
-                        color: well.tone
-                    }
                 }
                 Label { role: "title"; text: dialog.title; anchors.verticalCenter: parent.verticalCenter }
             }
