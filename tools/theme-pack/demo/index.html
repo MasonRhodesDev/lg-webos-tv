@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>theme-pack demo</title>
+<style>
+html, body { margin: 0; background: #000; color: #fff; font-family: sans-serif; overflow: hidden; }
+#stage { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; -webkit-transform-origin: 0 0; transform-origin: 0 0; }
+#bar { position: absolute; left: 0; right: 0; bottom: 0; padding: 10px 16px; background: #111; font-size: 14px; display: -webkit-box; display: flex; align-items: center; flex-wrap: wrap; }
+#bar label, #bar select { margin-right: 14px; }
+#bar .grow { -webkit-box-flex: 1; flex: 1; }
+</style>
+</head>
+<body>
+<div id="stage" aria-live="polite"></div>
+<div id="bar">
+  <label>Screen <select id="screen"></select></label>
+  <label>Style <select id="style"></select></label>
+  <span id="themes"></span>
+  <span class="grow"></span>
+  <span>← → screens · on Look: ↑ ↓ and Enter · Back: home</span>
+</div>
+<script src="../runtime/theme-pack.js"></script>
+<script src="../packs/styles/smoke.js"></script>
+<script src="../packs/styles/bubble.js"></script>
+<script src="../packs/themes/glow.js"></script>
+<script src="../packs/themes/winter.js"></script>
+<script src="../packs/themes/halloween.js"></script>
+<script src="../screens/screens.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
