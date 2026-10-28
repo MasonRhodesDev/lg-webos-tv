@@ -2,7 +2,7 @@
 # Package the theme-pack demo as a webOS web app (.ipk) for sideloading.
 # Usage: build-ipk.sh [OUT_DIR] [FONTS_DIR]
 #   FONTS_DIR is the output of fetch-fonts.sh; without it the app falls back to system fonts.
-# Needs: sh, tar, gzip, ar (binutils).
+# Needs: sh, tar, gzip, node.
 set -eu
 here=$(cd "$(dirname "$0")/.." && pwd)
 out=${1:-$here/dist}
@@ -45,5 +45,17 @@ printf '2.0\n' > "$work/debian-binary"
 (cd "$work/data" && tar --owner=0 --group=0 -czf "$work/data.tar.gz" .)
 ipk="$out/${id}_${version}_all.ipk"
 rm -f "$ipk"
-(cd "$work" && ar -qc "$ipk" debian-binary control.tar.gz data.tar.gz)
+# webOS rejects GNU ar's "name/" member names, so write a plain ar archive.
+node -e '
+const fs = require("fs"), path = require("path");
+const [out, dir, ...names] = process.argv.slice(1);
+const parts = [Buffer.from("!<arch>\n")];
+for (const n of names) {
+  const data = fs.readFileSync(path.join(dir, n));
+  const field = (v, w) => String(v).padEnd(w, " ");
+  parts.push(Buffer.from(field(n, 16) + field(0, 12) + field(0, 6) + field(0, 6) + field(100644, 8) + field(data.length, 10) + "`\n"), data);
+  if (data.length % 2) parts.push(Buffer.from("\n"));
+}
+fs.writeFileSync(out, Buffer.concat(parts));
+' "$ipk" "$work" debian-binary control.tar.gz data.tar.gz
 echo "$ipk"

@@ -6,6 +6,11 @@
   var STORE = 'theme-pack.look';
 
   var q = new URLSearchParams(location.search);
+  // On webOS, launch parameters arrive in PalmSystem.launchParams; they take the same keys as the query.
+  try {
+    var lp = window.PalmSystem && window.PalmSystem.launchParams ? JSON.parse(window.PalmSystem.launchParams) : {};
+    Object.keys(lp).forEach(function (k) { q.set(k, String(lp[k])); });
+  } catch (e) { /* no launch parameters */ }
   var tv = window.THEME_PACK_TV === true || q.get('tv') === '1';
   var saved = {};
   try { saved = JSON.parse(localStorage.getItem(STORE) || '{}'); } catch (e) { saved = {}; }
