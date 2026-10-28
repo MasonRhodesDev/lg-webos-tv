@@ -42,9 +42,11 @@ Window {
         if (sc.status === Component.Error) return fail(sc.errorString());
         scene = sc.createObject(sceneLayer, { "width": win.width, "height": win.height });
         if (!scene) return fail(args[0] + ": could not be created");
+        var list = scene.parts !== undefined ? scene.parts : scene.part !== undefined ? [{ "part": scene.part, "lg": scene.lg }] : [];
         if (args[2] === "--states") {
-            var f = scene.frame;
-            console.log("SHOT-INFO " + JSON.stringify({ "states": stateNames(scene),
+            var f = scene.frame, names = [];
+            for (var k = 0; k < list.length; k++) names.push(list[k].part);
+            console.log("SHOT-INFO " + JSON.stringify({ "states": stateNames(scene), "parts": names,
                 "frame": f ? { "x": f.x, "y": f.y, "width": f.width, "height": f.height } : null }));
             Qt.quit();
             return;
@@ -56,7 +58,6 @@ Window {
             scene.state = wanted;
         }
 
-        var list = scene.parts !== undefined ? scene.parts : scene.part !== undefined ? [{ "part": scene.part, "lg": scene.lg }] : [];
         for (var i = 0; i < list.length; i++) {
             var c = Qt.createComponent(Qt.resolvedUrl("../ui/Look/parts/" + list[i].part));
             if (c.status === Component.Error) return fail(c.errorString());

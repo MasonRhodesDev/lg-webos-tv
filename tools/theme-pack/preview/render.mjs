@@ -120,6 +120,12 @@ for (const s of scenes) {
   if (r.code !== 0 || !m) { failures.push({ shot: s, errors: errorsIn(r.log).length ? errorsIn(r.log) : [r.log.trim() || 'exit ' + r.code] }); continue; }
   info[s] = JSON.parse(m[1]);
 }
+// A scene may be written before its part: it is listed as waiting, not rendered, and not a failure.
+const waiting = {};
+for (const s of Object.keys(info)) {
+  const missing = info[s].parts.filter((p) => !fs.existsSync(path.join(root, 'ui/Look/parts', p)));
+  if (missing.length) { waiting[s] = missing; delete info[s]; }
+}
 
 const themeSets = [[]].concat(themes.map((t) => [t]));
 const shots = [];
@@ -174,16 +180,18 @@ for (const s of Object.keys(info)) {
       shots.filter((x) => x.scene === s && x.state === st).map(thumb).join('') + '</div>';
   }
 }
+for (const s in waiting) body += '<h2>' + esc(s) + '</h2><p class="wait">Waits for ' + esc(waiting[s].map((p) => 'ui/Look/parts/' + p).join(', ')) + '.</p>';
 if (failures.length) body = '<h2 class="bad">' + failures.length + ' failed</h2><pre>' +
   esc(failures.map((f) => f.shot + '\n  ' + f.errors.join('\n  ')).join('\n')) + '</pre>' + body;
 fs.writeFileSync(path.join(outDir, 'index.html'), '<!doctype html><meta charset="utf-8"><title>Preview matrix</title>' +
   '<style>body{background:#111;color:#ddd;font:14px system-ui,sans-serif;margin:16px}h2{margin:28px 0 4px}h3{margin:12px 0 6px;' +
   'font-weight:500;color:#aaa}.row{display:flex;flex-wrap:wrap;gap:10px}.shot{color:inherit;text-decoration:none}' +
   '.frame{position:relative;overflow:hidden;background:#000;border:1px solid #333}.frame img{position:absolute}' +
-  '.shot span{display:block;margin-top:3px;font-size:12px}.miss{color:#f66;padding:8px}.bad{color:#f66}pre{white-space:pre-wrap}</style>' +
+  '.shot span{display:block;margin-top:3px;font-size:12px}.miss{color:#f66;padding:8px}.bad{color:#f66}.wait{color:#aaa}pre{white-space:pre-wrap}</style>' +
   '<h1>Preview matrix</h1><p>' + shots.length + ' shots: scene × state × style × theme (none, then each alone).</p>' + body);
 
 console.log(path.join(outDir, 'index.html') + ': ' + shots.length + ' shots in ' + Math.round((Date.now() - started) / 1000) + ' s');
+for (const s in waiting) console.error(s + ': not rendered, waits for ' + waiting[s].map((p) => 'ui/Look/parts/' + p).join(', '));
 if (failures.length) {
   console.error(failures.length + ' failed:');
   for (const f of failures) console.error(f.shot + '\n  ' + f.errors.join('\n  '));

@@ -90,6 +90,29 @@ The tests check the layer model on the rendered HTML: slot order, ring order, va
 
 `test/layer.test.js` runs the QML scenes in `preview/tests/` offscreen (for example the layer's late claims against a fake LG root). It needs Qt 5's `qml` tool, `qml-qt5` or whatever `QML_BIN` names, and is skipped without it.
 
+`test/qml-compat.test.js` checks `ui/` against what the TV's compositor (Qt 5.6.2, an ES5 engine) can run: no ES2015+ syntax or library calls, no Qt 5.7+ types or properties, only the Qt modules the layer uses (QtQuick, QtQuick.Window, QtQml, QtGraphicalEffects), and every other import resolvable on the TV or in `ui/`. Code that breaks these rules runs fine in the preview, which is Qt 5.15, and fails silently on the TV. The TV's modules are listed in `test/fixtures/tv-qml.json`; `test/fixtures/tv-qml-inventory.mjs` rebuilds it from a TV's file listing and qmldir files (its header has the commands).
+
+## Preview harness
+
+`preview/` renders the compositor layer's parts off the TV. A scene in `preview/scenes/` mocks the LG item a part replaces, as the part sees it, and may declare QML `states` (a row focused, a picker open, a toast of each kind). `preview/Shot.qml` draws one scene in one state over a stand-in picture at 1920×1080, with the Look service answered from a payload like the service's own, and fails if a part doesn't `claims()` its mock.
+
+```sh
+node tools/theme-pack/preview/render.mjs [OUT_DIR] [--scene NAME]... [--jobs N]
+```
+
+renders every scene × state × style × theme set (no theme, then each theme alone) in parallel and writes the PNGs and `index.html`, a contact sheet grouped by scene and state, into `OUT_DIR` (default: a new directory under the OS temp dir). It exits non-zero and lists the QML errors if any shot fails. A scene whose part isn't written yet is listed as waiting, not rendered.
+
+It needs Qt 5's `qml` tool with QtQuick and QtGraphicalEffects (`qml-qt5` or `qml` on `PATH`, or `QML_BIN`), Xvfb, and Mesa (software OpenGL). Shots render through OpenGL on a virtual display per worker, because Qt's software backend draws no ShaderEffect and theme glows would be missing. To run one shot by hand:
+
+```sh
+cd tools/theme-pack
+Xvfb :5 -screen 0 1920x1080x24 &
+DISPLAY=:5 LIBGL_ALWAYS_SOFTWARE=1 QT_FORCE_STDERR_LOGGING=1 QML2_IMPORT_PATH=$PWD/preview/mocks:$PWD/ui \
+  qml-qt5 preview/Shot.qml -- $PWD/preview/scenes/VolumeBar.qml "$PAYLOAD_JSON" out.png muted
+```
+
+`QT_FORCE_STDERR_LOGGING=1` is needed or QML errors go to the journal instead. The shot grabs the window's content item, which leaves out the Window's own colour, so `Shot.qml` draws its own backdrop.
+
 ## Fonts on an offline TV
 
 Each style names its font (`font.family`) and the files that draw it (`font.files`, relative to `packs/fonts/`). The files are committed, with each font's `OFL.txt` beside them (both fonts are SIL Open Font License 1.1), so the package carries them and the TV never goes online for type. They are static per-weight TrueType files: the compositor's Qt 5.6 FreeType reads no WOFF2, and Chromium 53 predates variable fonts. `sh tools/theme-pack/tv/fetch-fonts.sh` downloads them again from Google Fonts, for when a style's font or weights change.
