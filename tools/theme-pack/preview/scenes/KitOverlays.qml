@@ -2,7 +2,7 @@ import QtQuick 2.4
 import Look 1.0
 
 // The kit's contact sheet, board 2 of 2: overlays. A tile ribbon in every tile state, toasts, a dialog, the volume
-// rail and the scrims.
+// rail and the scrims; and the chips, badges and icon set.
 Item {
     width: 1920
     height: 1080
@@ -57,11 +57,46 @@ Item {
             message: "Sound out: TV speakers"
         }
 
+        // Chips and badges.
+        Column {
+            x: 96
+            y: 54
+            spacing: Look.px("space-s")
+            Label { role: "heading"; text: "Chips and badges"; color: Look.color("ink-3") }
+            Row {
+                spacing: Look.px("space-s")
+                Chip { text: "2" }
+                Chip { text: "!"; tone: "critical" }
+                Chip { text: "12"; tone: "neutral" }
+                Badge { text: "Watching"; anchors.verticalCenter: parent.verticalCenter }
+                Badge { text: "Live"; tone: "current"; anchors.verticalCenter: parent.verticalCenter }
+                Badge { text: "New"; tone: "attention"; anchors.verticalCenter: parent.verticalCenter }
+            }
+        }
+
+        // The icon set.
+        Column {
+            x: 1100
+            y: 545
+            spacing: Look.px("space-s")
+            Label { role: "heading"; text: "Icons"; color: Look.color("ink-3") }
+            Grid {
+                columns: 10
+                spacing: 16
+                Repeater {
+                    model: ["port", "flask", "usb", "sliders", "screen", "speaker", "moon", "leaf", "power", "palette",
+                            "sparkle", "wifi", "grid", "help", "person", "check", "close", "home", "bell", "info",
+                            "warning", "mute", "clock", "aspect", "eq", "gamepad", "plus", "minus", "back", "drill"]
+                    Icon { name: modelData; color: Look.hue(index); size: 30 }
+                }
+            }
+        }
+
         // Centred in the space above the ribbon, for the board; a real dialog fills the screen.
         Item {
-            y: 210
+            y: 170
             width: 1300
-            height: 480
+            height: 540
             Dialog {
                 modal: false
                 title: "USB drive removed"

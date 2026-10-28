@@ -2,6 +2,7 @@ import QtQuick 2.4
 import Look 1.0
 
 // The kit's contact sheet, board 1 of 2: panels, headers, every row variant and the controls in every state.
+// Chips, badges and the icon set are on board 2.
 Item {
     width: 1920
     height: 1080
@@ -72,6 +73,10 @@ Item {
             Label { role: "heading"; text: "Rows: current · focused disabled"; color: Look.color("ink-3") }
             ListRow { variant: "nav"; label: "Picture"; icon: "screen"; hue: 0; current: true }
             ListRow { variant: "toggle"; label: "Locked"; icon: "power"; hue: 2; on: true; disabled: true; focused: true }
+            Label { role: "heading"; text: "Controls on focus"; color: Look.color("ink-3") }
+            ListRow { variant: "toggle"; label: "Subtitles"; icon: "screen"; hue: 2; on: true; focused: true }
+            ListRow { variant: "slider"; label: "Bass"; icon: "eq"; hue: 4; fraction: 0.7; valueText: "7"; focused: true }
+            ListRow { variant: "check"; label: "Glow"; icon: "sparkle"; hue: 3; checked: true; focused: true }
 
             Label { role: "heading"; text: "Controls"; color: Look.color("ink-3") }
             Row {
@@ -93,29 +98,6 @@ Item {
                 Button { label: "Cancel" }
                 Button { label: "OK"; focused: true; hue: 2 }
                 Button { label: "Off"; disabled: true }
-            }
-
-            Label { role: "heading"; text: "Chips and badges"; color: Look.color("ink-3") }
-            Row {
-                spacing: Look.px("space-s")
-                Chip { text: "2" }
-                Chip { text: "!"; tone: "critical" }
-                Chip { text: "12"; tone: "neutral" }
-                Badge { text: "Watching"; anchors.verticalCenter: parent.verticalCenter }
-                Badge { text: "Live"; tone: "current"; anchors.verticalCenter: parent.verticalCenter }
-                Badge { text: "New"; tone: "attention"; anchors.verticalCenter: parent.verticalCenter }
-            }
-
-            Label { role: "heading"; text: "Icons"; color: Look.color("ink-3") }
-            Grid {
-                columns: 10
-                spacing: 14
-                Repeater {
-                    model: ["port", "flask", "usb", "sliders", "screen", "speaker", "moon", "leaf", "power", "palette",
-                            "sparkle", "wifi", "grid", "help", "person", "check", "close", "home", "bell", "info",
-                            "warning", "mute", "clock", "aspect", "eq", "gamepad", "plus", "minus", "back", "drill"]
-                    Icon { name: modelData; color: Look.hue(index); size: 30 }
-                }
             }
         }
     }

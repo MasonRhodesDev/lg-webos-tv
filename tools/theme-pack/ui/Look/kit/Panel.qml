@@ -60,13 +60,14 @@ Item {
         enterAnim.start();
     }
     NumberAnimation { id: enterAnim; target: panel; property: "enter"; easing.type: Easing.Bezier }
-    visible: enter > 0.001
 
     Decor {
         id: decor
         target: panel.target
         width: panel.width
         height: panel.height
+        // Hidden here, not on the root: the Layer owns a part root's `visible`.
+        visible: panel.enter > 0.001
         opacity: Math.min(1, panel.enter)
         transform: [
             Translate { x: panel.fromX * (1 - panel.enter); y: panel.fromY * (1 - panel.enter) },
