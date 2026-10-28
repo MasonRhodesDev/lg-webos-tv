@@ -66,6 +66,12 @@ FocusScope {
         menu.openAt(t);
         openedAt = new Date().getTime();
     }
+    property bool readyReported: false
+    function reportReady() {
+        if (readyReported || !hook || !hook.applied) return;
+        readyReported = true;
+        Look.report("ready", "settings: host ready");
+    }
     function closeAll() { quick.close(); menu.close(); }
 
     QuickSheet {
@@ -120,8 +126,10 @@ FocusScope {
             else Look.report("error", "settings: " + c.errorString());
         }
         // Ready means the host and Hook A are both live; the boot hook mounts the Settings stub only then.
-        if (hook && hook.applied) Look.report("ready", "settings: host ready");
-        else Look.report("gap", "settings: host up, but Hook A is not applied; not reporting ready");
+        // While configd has not answered, Hook A waits; ready follows as soon as it applies.
+        if (hook) hook.appliedChanged.connect(part.reportReady);
+        if (hook && hook.applied) reportReady();
+        else if (!hook || !hook.waiting) Look.report("gap", "settings: host up, but Hook A is not applied; not reporting ready");
     }
     Component.onDestruction: {
         SettingsBus.ready = false;

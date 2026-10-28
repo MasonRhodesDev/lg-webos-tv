@@ -19,10 +19,8 @@ Item {
         Item {
             id: manager
             objectName: "systemUIManager"
-            property var config: ({ "appinfo": [
-                { "id": "com.webos.app.quicksettings", "defaultWindowType": "overlay", "main": Qt.resolvedUrl("parts/FakeLgQuickSettings.qml") },
-                { "id": "com.webos.app.quickinputpicker", "defaultWindowType": "overlay", "main": "file:///usr/lib/qt5/qml/InputPicker/InputPicker.qml" }
-            ] })
+            // As in YSM: bound to configd's value, which is {} until configd answers.
+            property var config: lgRoot.systemSettings.systemUIManager
             property var launched: []
             function launch(appId, payload) { launched.push(appId); }
         }
@@ -111,6 +109,15 @@ Item {
         }
 
         function test_1_hookA_table() {
+            verify(manager.config.appinfo === undefined, "configd has not answered: the table is empty");
+            verify(reported("waiting", "system UI table empty"), "Hook A waits for configd, not an error");
+            verify(!reported("error", "system UI table"), "and reports no error");
+            verify(!reported("ready", "settings: host ready"), "no ready before the hook applies");
+            // configd answers.
+            lgRoot.systemSettings.systemUIManager = { "appinfo": [
+                { "id": "com.webos.app.quicksettings", "defaultWindowType": "overlay", "main": String(Qt.resolvedUrl("parts/FakeLgQuickSettings.qml")) },
+                { "id": "com.webos.app.quickinputpicker", "defaultWindowType": "overlay", "main": "file:///usr/lib/qt5/qml/InputPicker/InputPicker.qml" }
+            ] };
             var qs = manager.config.appinfo[0];
             compare(qs.id, "com.webos.app.quicksettings");
             verify(/settings\/QuickSettingsEntry\.qml$/.test(qs.main), "the Quick Settings entry loads ours: " + qs.main);

@@ -29,9 +29,17 @@ QtObject {
         return v && v.appinfo ? v : original;
     }
 
+    // configd answers after the layer starts; until then the table is empty and the hook waits for it.
+    property bool waiting: false
     function apply() {
+        if (restored) return;
         var lg = source();
-        if (!lg || !lg.appinfo) { Look.report("error", "settings: system UI table unreadable; the gear opens LG's Quick Settings"); return; }
+        if (!lg || !lg.appinfo) {
+            if (!waiting) Look.report("waiting", "settings: system UI table empty until configd answers; the gear opens LG's Quick Settings until then");
+            waiting = true;
+            return;
+        }
+        waiting = false;
         var out = {}, list = [], found = false;
         for (var k in lg) out[k] = lg[k];
         for (var i = 0; i < lg.appinfo.length; i++) {
@@ -53,11 +61,15 @@ QtObject {
     }
 
     // Gives LG back its own table (configd's value, or the one it had): the host is going, or a launch found no host.
+    // After a restore the hook stays off: configd's later answers no longer re-apply it.
+    property bool restored: false
     function restore() {
+        if (restored) return;
+        restored = true;
+        if (connected) host.systemSettings.systemUIManagerChanged.disconnect(hook.apply);
+        connected = false;
         if (!applied) return;
         applied = false;
-        if (host.systemSettings && host.systemSettings.systemUIManagerChanged !== undefined)
-            host.systemSettings.systemUIManagerChanged.disconnect(hook.apply);
         manager.config = source();
         if (SettingsBus.hook === hook) SettingsBus.hook = null;
         Look.report("warning", "settings: LG's Quick Settings restored in the system UI table");
@@ -68,9 +80,12 @@ QtObject {
         manager = findManager();
         if (!manager) { Look.report("error", "settings: systemUIManager not found; the gear opens LG's Quick Settings"); return; }
         original = manager.config;
-        apply();
-        if (applied && host.systemSettings && host.systemSettings.systemUIManagerChanged !== undefined)
+        if (host.systemSettings && host.systemSettings.systemUIManagerChanged !== undefined) {
             host.systemSettings.systemUIManagerChanged.connect(hook.apply);
+            connected = true;
+        }
+        apply();
     }
+    property bool connected: false
     Component.onDestruction: restore()
 }

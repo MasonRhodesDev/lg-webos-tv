@@ -85,6 +85,8 @@ Bus identity (SETTINGS-PLAN.md section 1)
 
 Hook A (the gear opens our quick sheet)
 - [ ] The reports have `ok` "settings: the gear opens our quick sheet (system UI table)", not a `gap`.
+      At boot it may first say `waiting` "settings: system UI table empty until configd answers"; `ok` and then
+      `ready` "settings: host ready" must follow once configd answers.
 - [ ] The gear opens our quick sheet, never LG's Quick Settings, also after the TV has been on for an hour (configd
       pushing a new `systemUIManager` would re-apply the table; check that it does not leave LG's entry).
 - [ ] The gear again closes it; holding the gear does not flicker it open and shut.
