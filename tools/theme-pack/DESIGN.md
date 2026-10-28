@@ -24,7 +24,8 @@ There is one material: **Surface** (`surface`, with `surface-edge` at `edge-w`, 
 shadow under it). Panels, the volume bar, key caps, toasts and dialogs are all made of it.
 
 - `surface` is for things beside the picture (side panels, the volume bar, tiles, toasts).
-- `surface-strong` is denser, for things that land on top of whatever is showing (dialogs).
+- `surface-strong` is denser, for a style that needs it on top of busy content. The Smoke boards draw every panel,
+  dialogs included, on `surface`; a dialog's `dim` settles the picture instead.
 - Inside a panel, rows sit on `inner`: a lighter plate on the panel, never a second panel.
 - Tiles float straight on the picture, so their plate is `surface`, edged.
 - Dividers are `divider`.

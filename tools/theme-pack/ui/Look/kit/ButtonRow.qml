@@ -36,6 +36,7 @@ Row {
             icon: b.icon || ""
             disabled: !!b.disabled
             focused: bar.focusShown && index === bar.currentIndex
+            onClicked: bar.activated(index)
         }
     }
 }

@@ -36,7 +36,7 @@ Item {
             }
         }
 
-        // Toasts take the bottom-right corner; here they sit under the volume bar, clear of the ribbon.
+        // Toasts take the bottom-right corner; here they sit by the volume bar, clear of the ribbon.
         ToastCard {
             id: toastA
             placement: "none"
@@ -49,8 +49,8 @@ Item {
             link: true
         }
         ToastCard {
-            y: toastA.y + toastA.height + 24
-            x: 1920 - 96 - width
+            y: 54
+            x: 1920 - 96 - 480 - 24 - width
             placement: "none"
             compact: true
             icon: "speaker"
@@ -78,7 +78,7 @@ Item {
         // The icon set.
         Column {
             x: 1100
-            y: 545
+            y: 566
             spacing: Look.px("space-s")
             Label { role: "heading"; text: "Icons"; color: Look.color("ink-3") }
             Grid {
@@ -96,7 +96,7 @@ Item {
         // Centred in the space above the ribbon, for the board; a real dialog fills the screen.
         Item {
             y: 170
-            width: 1300
+            width: 1240
             height: 540
             Dialog {
                 modal: false
@@ -137,7 +137,7 @@ Item {
 
         Row {
             x: 1100
-            y: 360
+            y: 400
             spacing: 24
             Repeater {
                 model: ["dim", "left", "bottom"]

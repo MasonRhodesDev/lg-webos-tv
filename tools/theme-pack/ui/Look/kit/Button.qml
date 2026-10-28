@@ -1,7 +1,7 @@
 import QtQuick 2.4
 import Look 1.0
 
-// A pill button, decoratable as `button`. Focus is the one focus treatment (Plate).
+// A pill button, decoratable as `button`. Focus is the one focus treatment (Plate). A pointer click emits clicked().
 Item {
     id: button
     property string label
@@ -9,6 +9,7 @@ Item {
     property bool focused: false
     property bool disabled: false
     property int hue: -1
+    signal clicked()
     height: Look.px("button-h")
     width: content.width + 2 * Look.px("space-xl")
     z: focused ? 2 : 0
@@ -35,5 +36,10 @@ Item {
             Icon { visible: !!button.icon; name: button.icon; color: plate.ink; anchors.verticalCenter: parent.verticalCenter }
             Label { role: "label"; text: button.label; color: plate.ink; anchors.verticalCenter: parent.verticalCenter }
         }
+    }
+    MouseArea {
+        anchors.fill: parent
+        enabled: !button.disabled
+        onClicked: button.clicked()
     }
 }

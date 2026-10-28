@@ -2,7 +2,7 @@ import QtQuick 2.4
 import Look 1.0
 import "keys.js" as KeyMap
 
-// A dialog: its own dim scrim (when `modal`) and a centred strong panel (decoratable as `dialog`) with an icon well,
+// A dialog (SmokeAlert board): its own dim scrim (when `modal`) and a centred glass panel (decoratable as `dialog`) with an icon well,
 // the title, the body and a row of buttons at the right. Fill the screen with it. Our own dialogs give it focus
 // and it moves between buttons with Left/Right; OK is activated(), Back is back().
 Item {
@@ -24,26 +24,30 @@ Item {
     Panel {
         placement: "center"
         target: "dialog"
-        strong: true
         shown: dialog.shown
         padding: Look.px("space-xxl")
         Column {
             width: parent.width
-            spacing: Look.px("space-l")
+            spacing: Look.px("space-lx")
             Row {
-                spacing: Look.px("space-m")
+                spacing: Look.px("space-ml")
+                // The SmokeAlert board's well: a ring in the icon's hue over a faint wash of it.
                 Rectangle {
+                    id: well
+                    readonly property color tone: dialog.hue >= 0 ? Look.hue(dialog.hue) : Look.color("ink")
                     visible: !!dialog.icon
                     width: Look.px("well")
                     height: width
                     radius: width / 2
-                    color: Look.color("inner")
+                    color: Qt.rgba(tone.r, tone.g, tone.b, 0.18)
+                    border.width: Look.px("edge-w")
+                    border.color: tone
                     anchors.verticalCenter: parent.verticalCenter
                     Icon {
                         anchors.centerIn: parent
                         name: dialog.icon
                         size: Look.px("icon") * 1.15
-                        color: dialog.hue >= 0 ? Look.hue(dialog.hue) : Look.color("ink")
+                        color: well.tone
                     }
                 }
                 Label { role: "title"; text: dialog.title; anchors.verticalCenter: parent.verticalCenter }
