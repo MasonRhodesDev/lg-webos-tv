@@ -532,8 +532,11 @@ QtObject {
             label = input !== undefined && String(input).indexOf("hdmi") !== 0 ? ""
                   : it.id === "signal" ? Menu.signalLabel(v) : Menu.valueLabel(it.id, v);
         } else if (it.id === "wifiSummary") {
-            // Connection's Wi-Fi row: Off, or the network it is on (connectionmanager), or On.
-            label = values.wifiEnabled === "disabled" ? "Off" : values.wifiEnabled === undefined ? "" : values.wifiStatus || "On";
+            // Connection's Wi-Fi row and the Wi-Fi page's subtitle: Off, or the network it is on (the live list while
+            // the page scans, else connectionmanager), or On.
+            var joined = lookup("wifiNetworks", "status", "connected");
+            label = values.wifiEnabled === "disabled" ? "Off" : values.wifiEnabled === undefined ? ""
+                  : joined ? joined.name : values.wifiStatus || "On";
         } else if (it.id === "telemetry") {
             label = Menu.telemetryLabel(values.telemetryKit, v);
         } else {

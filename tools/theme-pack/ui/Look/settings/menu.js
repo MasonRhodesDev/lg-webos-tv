@@ -128,7 +128,7 @@ var pages = {
     ] },
     "Look": { category: "general", title: "Look", sub: "One style, any themes", rows: [] },
     // Lists, forms and the PIN (page ids `wifi`, `bluetooth`, `pin`, `keyboard-input`; see `aliases`).
-    "Wifi": { category: "connection", title: "Wi-Fi", sub: { from: "wifiStatus" }, rows: [
+    "Wifi": { category: "connection", title: "Wi-Fi", sub: { from: "wifiSummary" }, rows: [
         { item: "wifiEnabled", label: "Wi-Fi", icon: "wifi", confirmOff: "Turn off Wi-Fi? Apps that need the internet go offline." },
         { list: "wifiNetworks" },
         { section: "More" },
