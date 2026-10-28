@@ -72,6 +72,103 @@ Item {
             verify(reported("ready", "settings: host ready"), "ready is reported once the hook is live");
         }
 
+        function rowNamed(label) {
+            var l = rows();
+            for (var i = 0; i < l.rows.length; i++) if (l.rows[i].label === label) return i;
+            return -1;
+        }
+        function focusRow(label) {
+            var i = rowNamed(label);
+            verify(i >= 0, "a row " + label);
+            rows().currentIndex = i;
+            compare(focused(), label);
+            return rows().rows[i];
+        }
+
+        // The boards' content: subtitles, picker hints, the footer and the rows the store's adapters fill in.
+        function test_1b_board_content() {
+            openSettings("picture", 100);
+            compare(topId(), "Picture");
+            compare(part.menu.page.sub, "Applies to HDMI 2", "the Picture page names the input");
+            compare(part.menu.footer.text, "Offline \u00b7 telemetry off", "the footer: offline, LG's data agreements withdrawn");
+            TvSettings.values[""].eulaStatus.voiceAllowed = true;
+            TvSettings.notify("", "eulaStatus");
+            compare(part.menu.footer.text, "Offline \u00b7 telemetry on", "and follows the agreements live");
+            TvSettings.values[""].eulaStatus.voiceAllowed = false;
+            TvSettings.notify("", "eulaStatus");
+
+            focusRow("Picture mode");
+            keyClick(Qt.Key_Return);
+            compare(topId(), "pick:pictureMode");
+            compare(part.menu.page.sub, "HDMI 2 \u00b7 4K \u00b7 120 Hz", "the picture-mode picker shows the signal");
+            compare(rows().rows[rowNamed("Game")].hint, "Lowest input lag", "a picker value's hint");
+            compare(rows().rows[rowNamed("Filmmaker")].hint, "Current");
+            keyClick(Qt.Key_Escape);
+            compare(topId(), "Picture");
+
+            openSettings("sound", 101);
+            var r = focusRow("AV sync adjustment");
+            compare(r.variant, "value", "a switch shown as a value");
+            compare(r.value, "Off");
+            keyClick(Qt.Key_Return);
+            compare(topId(), "pick:avSync", "opens a picker of its two values");
+            compare(rows().rows.length, 2);
+            focusRow("On");
+            keyClick(Qt.Key_Return);
+            compare(TvSettings.values.sound.avSync, "on", "choosing writes it");
+            compare(rows().rows[rows().currentIndex].value, "On");
+            compare(rows().rows[rowNamed("Bluetooth surround")].value, "Off", "Bluetooth surround reads the sound output");
+
+            openSettings("general", 102);
+            compare(part.menu.page.sub, "webOS 4.10.0 \u00b7 05.40.45", "General names the software");
+            compare(rows().rows[rowNamed("Language")].value, "English", "a link shows its setting's value");
+            compare(rows().rows[rowNamed("Time and date")].value, "Manual");
+            compare(rows().rows[rowNamed("About this TV")].value, "OLED55B9PUA");
+            compare(rowNamed("Look"), 7, "Look follows the board's seven rows");
+            r = focusRow("Reset to initial settings");
+            compare(r.variant, "nav", "an action that opens something has a chevron");
+            keyClick(Qt.Key_Return);
+            verify(part.menu.confirming !== null, "and the factory reset asks first");
+            part.menu.confirming = null;
+            TvSettings.preferences.useNetworkTime = true;
+            TvSettings.notify("", "prefs");
+            compare(rows().rows[rowNamed("Time and date")].value, "Automatic", "network time, live");
+            TvSettings.preferences.useNetworkTime = false;
+            TvSettings.notify("", "prefs");
+
+            openSettings("connection", 103);
+            var n = TvSettings.calls.length;
+            focusRow("Device connector");
+            keyClick(Qt.Key_Return);
+            var c = TvSettings.calls[TvSettings.calls.length - 1];
+            verify(TvSettings.calls.length > n && c.method === "/launch" && c.params.id === "com.webos.app.connectionwizard",
+                   "Device connector opens LG's connection wizard");
+
+            openSettings("support", 104);
+            compare(part.menu.page.sub, "Offline: online help is unavailable");
+            compare(rows().rows[rowNamed("Software update")].hint, "Updates are blocked while the TV stays offline", "offline: the hint");
+            compare(rows().rows[rowNamed("Software update")].value, "Paused");
+            verify(rows().rows[rowNamed("Signal test")].disabled, "a board row with nothing behind it is greyed");
+            compare(rows().rows[rowNamed("Privacy and terms")].value, "Agreements withdrawn");
+            TvSettings.network.isInternetConnectionAvailable = true;
+            part.store.channels.network.services[0].call("luna://com.webos.service.connectionmanager", "/getstatus", "{}");
+            compare(rows().rows[rowNamed("Software update")].hint, "", "online: no hint");
+            compare(part.menu.footer.text, "Online \u00b7 telemetry off");
+            TvSettings.network.isInternetConnectionAvailable = false;
+            part.store.channels.network.services[0].call("luna://com.webos.service.connectionmanager", "/getstatus", "{}");
+            part.menu.close();
+
+            SettingsBus.quickSettingsRequested(null);
+            compare(part.quick.view.sub, "HDMI 2 \u00b7 4K \u00b7 120 Hz", "the quick sheet shows the input and its signal");
+            TvSettings.values.dimensionInfo.input = "dtv";
+            TvSettings.notify("dimensionInfo", "input");
+            compare(part.quick.view.sub, "Live TV", "no HDMI input, no signal line");
+            TvSettings.values.dimensionInfo.input = "hdmi2";
+            TvSettings.notify("dimensionInfo", "input");
+            keyClick(Qt.Key_Escape);
+            verify(!part.quick.open);
+        }
+
         function test_2_settings_target_and_keys() {
             openSettings("SoundOut", 2);
             verify(part.menu.open, "openSettings opens our Settings");
@@ -97,7 +194,7 @@ Item {
             compare(focused(), "Balance");
             keyClick(Qt.Key_Right);
             keyClick(Qt.Key_Right);
-            compare(rows().rows[rows().currentIndex].valueText, "Right 2", "a slider moves at once");
+            compare(rows().rows[rows().currentIndex].valueText, "R 2", "a slider moves at once");
             wait(250);
             compare(TvSettings.values.sound.audioBalance, 2, "and the last value is written");
         }

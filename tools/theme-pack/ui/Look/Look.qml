@@ -44,7 +44,7 @@ QtObject {
         "toggle-h": "40px", "knob-size": "32px", "button-h": "80px", "tile-w": "260px", "tile-h": "190px", "tile-pad": "24px",
         "elev-panel": "0 20px 50px rgba(0,0,0,0.5)", "elev-focus": "0 10px 26px rgba(0,0,0,0.45)",
         "type-display": "64px", "type-display-weight": "700", "type-title": "40px", "type-title-weight": "700",
-        "type-tile": "30px", "type-tile-weight": "700", "type-label": "26px", "type-label-weight": "600",
+        "type-tile": "30px", "type-tile-weight": "700", "type-label": "26px", "type-label-weight": "600", "type-category": "28px", "type-category-weight": "600",
         "type-value": "24px", "type-value-weight": "400", "type-body": "28px", "type-body-weight": "400",
         "type-caption": "20px", "type-caption-weight": "400", "type-headline": "32px", "type-headline-weight": "700", "type-heading": "19px", "type-heading-weight": "600",
         "type-heading-case": "uppercase", "type-key": "18px", "type-key-weight": "600", "type-numeral": "40px",

@@ -22,6 +22,7 @@ FocusScope {
     property alias page: page
     property alias categories: cats
     property alias dialog: dialog
+    property alias footer: foot
     anchors.fill: parent
 
     // Opens at a target (pages.js target(): a category, a page id or an LG deep-link name); "" is the first page with
@@ -44,7 +45,7 @@ FocusScope {
     function push(entry) {
         var s = stack.slice();
         s[s.length - 1].index = page.list.currentIndex;
-        if (entry.id.indexOf("pick:") === 0 || entry.id.indexOf("adjust:") === 0) entry.sub = page.sub;
+        if ((entry.id.indexOf("pick:") === 0 || entry.id.indexOf("adjust:") === 0) && !entry.subSpec) entry.sub = page.sub;
         s.push(entry);
         stack = s;
     }
@@ -68,8 +69,8 @@ FocusScope {
         else if (event.key === Qt.Key_Right && area === "categories") { area = "page"; focusArea(); event.accepted = true; }
     }
 
-    // What the footer says about the connection.
-    property var footerWatch: ["networkStatus"]
+    // What the footer says: online or not, and LG's data agreements (pages.js footer()).
+    property var footerWatch: Pages.footerRefs
     onOpenChanged: { if (open) store.watch(footerWatch); else store.unwatch(footerWatch); }
 
     Panel {
@@ -110,7 +111,7 @@ FocusScope {
                 y: parent.height - height
                 role: "caption"
                 color: Look.color("ink-3")
-                text: { var rev = menu.store.revision; return menu.store.state("networkStatus").label; }
+                text: { var rev = menu.store.revision; return Pages.footer(menu.store); }
             }
         }
         Divider {
@@ -129,7 +130,11 @@ FocusScope {
             active: menu.open
             entry: menu.topEntry
             crumb: menu.stack.length > 1 ? Pages.title(menu.stack[menu.stack.length - 2]) : ""
-            sub: { var rev = menu.store.revision; return menu.topEntry ? menu.topEntry.sub || Pages.subtitle(Pages.expanded(menu.topEntry).sub, menu.store) : ""; }
+            sub: {
+                var rev = menu.store.revision, e = menu.topEntry;
+                if (!e) return "";
+                return e.subSpec ? Pages.subtitle(e.subSpec, menu.store) : e.sub || Pages.subtitle(Pages.expanded(e).sub, menu.store);
+            }
             list.focusShown: menu.area === "page"
             onOpen: menu.push(entry)
             onDone: menu.pop()

@@ -189,11 +189,14 @@
       "service": "com.webos.applicationManager",
       "method": "launch",
       "params": {
-       "id": "com.webos.app.picturetest"
+       "id": "com.webos.app.customersupport",
+       "params": {
+        "target": "pictureTest"
+       }
       }
      },
      "type": "action",
-     "unknown": "LG wires this row to a picture test launch; the exact app id was not confirmed offline (key picture.pictureTest is a 1..10 counter)"
+     "notes": "LG's Settings launches its customer support app at the picture test (pictureTestLaunch); the key picture.pictureTest is a 1..10 counter, not the trigger"
     }
    ]
   },

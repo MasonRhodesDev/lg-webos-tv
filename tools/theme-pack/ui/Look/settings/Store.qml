@@ -33,16 +33,23 @@ QtObject {
     readonly property string settings: "luna://com.webos.settingsservice"
 
     function item(ref) { return Menu.extra[ref] || Catalog.items[ref] || null; }
-    function isSettings(it) { return !!it && it.api && it.api.service === "com.webos.settingsservice" && !!it.api.keys; }
-    function keyOf(it) { return isSettings(it) ? it.api.category + "." + it.api.keys[0] : it.id; }
+    // The item whose value an item shows: itself, or for a view (menu.js `from`) the item it views.
+    function source(it) { return it && it.from ? item(it.from) : it; }
+    function isSettings(it) { it = source(it); return !!it && !!it.api && it.api.service === "com.webos.settingsservice" && !!it.api.keys; }
+    function keyOf(it) { it = source(it); return isSettings(it) ? it.api.category + "." + it.api.keys[0] : it.id; }
 
     // A channel is one subscription: a settingsservice category, or one of the other services.
     function channelOf(it) {
+        it = source(it);
         if (!it || !it.api) return "";
         if (isSettings(it)) return "settings:" + it.api.category;
-        if (it.api.service === "com.webos.service.tv.time") return "sleep";
-        if (it.api.service === "com.webos.service.connectionmanager") return "network";
-        if (it.api.service === "com.webos.audio") return "volume";
+        var svc = it.api.service;
+        if (svc === "com.webos.service.tv.time") return "sleep";
+        if (svc === "com.webos.service.connectionmanager") return "network";
+        if (svc === "com.webos.audio") return "volume";
+        if (svc === "com.webos.service.tv.display" && it.api.read === "getHDMIInfo") return "signal";
+        if (svc === "com.webos.service.tv.systemproperty" || svc === "com.palm.systemservice/osInfo") return "system";
+        if (svc === "com.palm.systemservice" && it.api.read === "getPreferences") return "prefs";
         if (it.api.look) return "look";
         return "";
     }
@@ -55,7 +62,7 @@ QtObject {
 
     function watch(refs) {
         for (var i = 0; i < refs.length; i++) {
-            var it = item(refs[i]), name = channelOf(it);
+            var it = source(item(refs[i])), name = channelOf(it);
             if (!name) continue;
             var ch = channels[name] || (channels[name] = { "count": 0, "keys": {}, "services": [] });
             ch.count++;
@@ -72,7 +79,7 @@ QtObject {
 
     function unwatch(refs) {
         for (var i = 0; i < refs.length; i++) {
-            var it = item(refs[i]), name = channelOf(it), ch = channels[name];
+            var it = source(item(refs[i])), name = channelOf(it), ch = channels[name];
             if (!ch) continue;
             ch.count--;
             if (isSettings(it)) { var k = it.api.keys[0]; if (--ch.keys[k] <= 0) delete ch.keys[k]; }
@@ -120,6 +127,34 @@ QtObject {
             });
             vol.call("luna://com.webos.audio", "/getVolume", JSON.stringify({ "subscribe": true }));
             ch.services = [vol];
+        } else if (name === "signal") {
+            var sig = service();
+            sig.response.connect(function (method, payload) {
+                var m = parse(payload);
+                if (!m || m.returnValue === false) return;
+                store.values.signal = { "width": m.width, "height": m.height, "frameRate": m.frameRate, "scanType": m.scanType };
+                store.changed();
+            });
+            sig.call("luna://com.webos.service.tv.display", "/getHDMIInfo", JSON.stringify({ "subscribe": true }));
+            ch.services = [sig];
+        } else if (name === "system") {
+            // Read once: none of it changes while the TV runs.
+            var sys = service(), os = service();
+            sys.response.connect(function (method, payload) { store.onSystem(parse(payload), null); });
+            os.response.connect(function (method, payload) { store.onSystem(null, parse(payload)); });
+            sys.call("luna://com.webos.service.tv.systemproperty", "/getSystemInfo", JSON.stringify({ "keys": ["modelName", "firmwareVersion"] }));
+            os.call("luna://com.palm.systemservice", "/osInfo/query", JSON.stringify({ "parameters": ["core_os_release"] }));
+            ch.services = [sys, os];
+        } else if (name === "prefs") {
+            var prefs = service();
+            prefs.response.connect(function (method, payload) {
+                var m = parse(payload);
+                if (!m || m.returnValue === false || m.useNetworkTime === undefined || store.pending.autoTime) return;
+                store.values.autoTime = m.useNetworkTime ? "on" : "off";
+                store.changed();
+            });
+            prefs.call("luna://com.palm.systemservice", "/getPreferences", JSON.stringify({ "keys": ["useNetworkTime"], "subscribe": true }));
+            ch.services = [prefs];
         }
     }
 
@@ -160,6 +195,18 @@ QtObject {
         values.wifiStatus = wifi.state === "connected" ? (wifi.ssid || "Connected") : "Not connected";
         var how = wired.state === "connected" ? "Wired" : wifi.state === "connected" ? "Wi-Fi" : "";
         values.networkStatus = m.isInternetConnectionAvailable ? "Online · " + how : how ? "Not reachable" : "Offline";
+        values.internet = m.isInternetConnectionAvailable ? "Online" : "Offline";
+        changed();
+    }
+    function onSystem(info, os) {
+        if (info && info.returnValue !== false) {
+            if (info.modelName) values.modelName = info.modelName;
+            if (info.firmwareVersion) values.firmwareVersion = info.firmwareVersion;
+        }
+        if (os && os.returnValue !== false && os.core_os_release) values.osRelease = os.core_os_release;
+        var webos = values.osRelease ? "webOS " + values.osRelease : "";
+        values.tvVersion = [webos, values.firmwareVersion || ""].filter(function (x) { return !!x; }).join(" \u00b7 ") || undefined;
+        values.tvSummary = [values.modelName || "", webos].filter(function (x) { return !!x; }).join(" \u00b7 ") || undefined;
         changed();
     }
 
@@ -219,6 +266,10 @@ QtObject {
         if (it.api && it.api.look === "style") {
             var styles = Look.available.styles || [];
             for (var i = 0; i < styles.length; i++) if (styles[i].id === v) label = styles[i].name;
+        } else if (it.id === "signal") {
+            // Only an HDMI input has a signal to describe; an unknown input may still be one.
+            var input = values["dimensionInfo.input"];
+            label = input === undefined || String(input).indexOf("hdmi") === 0 ? Menu.signalLabel(v) : "";
         } else {
             label = it.type === "info" && typeof v === "string" && !Menu.labels[it.id] ? v : Menu.valueLabel(it.id, v);
         }
@@ -317,6 +368,10 @@ QtObject {
             params = { "sleepTimeMinute": value === "off" ? 0 : Number(value) };
         } else if (it.api.service === "com.webos.audio") {
             uri = "luna://com.webos.audio"; method = "/setVolume"; params = { "volume": value };
+        } else if (it.api.service === "com.palm.systemservice" && it.api.write === "setPreferences") {
+            uri = "luna://com.palm.systemservice"; method = "/setPreferences";
+            params = {};
+            params[it.api.keys[0]] = value === "on";
         } else {
             console.warn("settings store: no writer for " + ref);
             return;

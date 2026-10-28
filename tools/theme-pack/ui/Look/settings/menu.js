@@ -3,19 +3,25 @@
 // we design by hand. Every other page of LG's catalog (catalog.js) is reachable too, drawn from its items as they
 // are, so the whole tree can be walked while the next pages are designed.
 //
-// A page is { id, category, title, sub, rows }. `sub` is text, or { from: <item ref> } for that item's value label.
+// A page is { id, category, title, sub, rows }. `sub` is text, or { from: <item ref or [refs]>, format } for those
+// items' value labels, joined with " · ".
 // A row is one of:
-//   { item: ref, label, icon }       a setting. Its catalog type picks the row: switch → toggle, enum → value (OK
-//                                    opens a picker page), range → slider (or `as: "value"`: OK opens an adjust page),
-//                                    info → info. `as: "toggle", on, off` shows an enum as a switch of two values.
+//   { item: ref, label, icon }       a setting. Its catalog type picks the row: switch → toggle (or `as: "value"`: its
+//                                    value and a picker of its two values), enum → value (OK opens a picker page),
+//                                    range → slider (or `as: "value"`: OK opens an adjust page), info → info.
+//                                    `as: "toggle", on, off` shows an enum as a switch of two values. `sub` is the
+//                                    subtitle of the picker it opens.
 //   { page: id, label, icon, value } a link to another page; `value` (an item ref) shows that setting's value.
-//   { action: ref, label, icon }     an action item (catalog type "action"); `confirm` asks first (a Dialog).
+//   { action: ref, label, icon }     an action item (catalog type "action"); `confirm` asks first (a Dialog); `drill`
+//                                    shows a chevron (it opens something of its own).
+//   { missing: "why", label, icon }  a board row with nothing behind it on this TV, greyed with the reason; `as` picks
+//                                    the control it is drawn with.
 //   { section: "Title" }             a section header.
 //   { more: "<catalog category>" }   links to that catalog category's pages that no designed page links to.
-// `hint` is a caption line; `why` is the caption when the TV greys the row (its description says inactive), and
-// `activeWhen` greys it by a rule of ours (a store condition, see Store.holds); `then` on an enum row adds a link at the foot of its picker
-// ({ page, label } with %s for the chosen value's label). Item refs are catalog item ids (or "Page/id"), or ids in
-// `extra` below.
+// `hint` is a caption line (`hintWhen`: only while a store condition is known to hold); `why` is the caption when the
+// TV greys the row (its description says inactive), and `activeWhen` greys it by a rule of ours (a store condition,
+// see Store.holds); `then` on an enum row adds a link at the foot of its picker ({ page, label } with %s for the
+// chosen value's label). Item refs are catalog item ids (or "Page/id"), or ids in `extra` below.
 
 var categories = [
     { id: "picture", label: "Picture", icon: "screen", page: "Picture" },
@@ -32,7 +38,7 @@ var home = { picture: "picture", sound: "sound", network: "connection", general:
 
 var pages = {
     "Picture": { category: "picture", title: "Picture", sub: { from: "input", format: "Applies to %s" }, rows: [
-        { item: "pictureMode", label: "Picture mode", icon: "screen",
+        { item: "pictureMode", label: "Picture mode", icon: "screen", sub: { from: ["input", "signal"] },
           then: { page: "PictureMode", label: "Adjust %s", icon: "sliders" } },
         { item: "backlight", label: "Brightness", icon: "sun" },
         { item: "contrast", label: "Contrast", icon: "half" },
@@ -40,48 +46,65 @@ var pages = {
         { item: "truMotionMode", label: "Motion smoothing", icon: "motion", why: "Locked off in Filmmaker mode" },
         { item: "energySaving", label: "Energy saving", icon: "leaf", as: "toggle", on: "auto", off: "off" },
         { page: "OledPanelSettings", label: "Pixel refresher", icon: "refresh" },
-        { page: "AspectRatioSettings", label: "Aspect ratio", icon: "aspect" },
         { more: "picture" }
     ] },
     "Sound": { category: "sound", title: "Sound", sub: { from: "soundOutput" }, rows: [
         { item: "soundMode", label: "Sound mode", icon: "speaker" },
         { item: "soundOutput", label: "Sound out", icon: "out" },
         { item: "audioBalance", label: "Balance", icon: "balance" },
-        { page: "SoundOut", label: "AV sync adjustment", icon: "clock" },
+        { item: "avSync", label: "AV sync adjustment", icon: "clock", as: "value" },
         { item: "soundOutputDigital", label: "Digital sound output", icon: "plug" },
         { item: "autoVolume", label: "Auto volume", icon: "sliders" },
-        { page: "Bluetooth", label: "Bluetooth devices", icon: "bt" },
+        { page: "Bluetooth", label: "Bluetooth surround", icon: "bt", value: "btSoundOut" },
         { more: "sound" }
     ] },
-    "Network": { category: "connection", title: "Connection", sub: { from: "networkStatus" }, rows: [
+    "Network": { category: "connection", title: "Connection", sub: { from: "internet" }, rows: [
         { page: "Wired", label: "Wired connection", icon: "plug", value: "wiredStatus" },
         { page: "Wifi", label: "Wi-Fi", icon: "wifi", value: "wifiStatus" },
         { item: "networkStatus", label: "Internet", icon: "globe" },
         { page: "Bluetooth", label: "Bluetooth devices", icon: "bt" },
         { item: "simplinkEnable", label: "HDMI device control", hint: "Turn connected devices on and off with the TV", icon: "link" },
-        { action: "inputPicker", label: "Switch input", icon: "port" },
+        { page: "ScreenShare", label: "Screen Share", icon: "cast" },
+        { action: "deviceConnector", label: "Device connector", icon: "grid", drill: true },
         { more: "network" }
     ] },
-    "General": { category: "general", title: "General", rows: [
-        { page: "Language", label: "Language", icon: "lang" },
-        { page: "TimeDate", label: "Time and date", icon: "clock" },
-        { page: "Timers", label: "Timers", icon: "moon", value: "sleepTimer" },
+    // Look is ours, and the boards have no place for it: General is where the catalog's unplaced pages go (`home`),
+    // so it follows the board's seven rows there.
+    "General": { category: "general", title: "General", sub: { from: "tvVersion" }, rows: [
+        { page: "Language", label: "Language", icon: "lang", value: "menuLanguage" },
+        { page: "TimeDate", label: "Time and date", icon: "clock", value: "autoTime" },
+        { page: "HomeSettings", label: "Home dashboard", icon: "home" },
         { item: "quickStartMode", label: "Quick Start+", hint: "Faster power-on, uses more standby power", icon: "bolt" },
+        { item: "screenSaverEnabled", label: "Screen saver", icon: "power", as: "value" },
+        { action: "resetToInitial", label: "Reset to initial settings", icon: "reset", drill: true },
+        { page: "AboutThisTV", label: "About this TV", icon: "info", value: "modelName" },
         { page: "Look", label: "Look", icon: "palette", value: "look.style" },
-        { page: "AboutThisTV", label: "About this TV", icon: "info" },
         { more: "general" },
         { more: "channels" },
         { more: "safety" }
     ] },
-    "Accessibility": { category: "accessibility", title: "Accessibility", rows: [
+    "Accessibility": { category: "accessibility", title: "Accessibility", sub: "Also on the remote: hold Mute", rows: [
         { item: "highContrast", label: "High contrast", icon: "contrast" },
-        { page: "AudioGuidance", label: "Audio guidance", hint: "Reads menus aloud", icon: "ear" },
-        { item: "captionEnable", label: "Subtitles", icon: "cc" },
+        { missing: "Not on this TV's software", label: "Greyscale", icon: "eye", as: "toggle" },
+        { missing: "Not on this TV's software", label: "Invert colours", icon: "invert", as: "toggle" },
+        { item: "AudioGuidance/audioGuidance", label: "Audio guidance", hint: "Reads menus aloud", icon: "ear" },
+        { page: "ClosedCaption", label: "Subtitles", icon: "cc", value: "captionEnable" },
+        { item: "audioDescription", label: "Audio description", icon: "speaker" },
+        { missing: "Not in our Settings yet", label: "Text size", icon: "lang", as: "value" },
         { more: "accessibility" }
     ] },
-    "Support": { category: "support", title: "Support", rows: [
-        { page: "AboutThisTV", label: "TV information", icon: "info" },
-        { action: "pictureTest", label: "Picture test", icon: "screen" }
+    "Support": { category: "support", title: "Support", sub: { from: "onlineHelp" }, rows: [
+        { page: "SoftwareUpdate", label: "Software update", icon: "update", value: "updates",
+          hintWhen: { ref: "internet", is: ["Offline"] }, hint: "Updates are blocked while the TV stays offline" },
+        { action: "pictureTest", label: "Picture test", icon: "screen", drill: true },
+        { action: "soundTest", label: "Sound test", icon: "speaker", drill: true },
+        { missing: "Not in our Settings yet", label: "Signal test", icon: "test" },
+        { page: "AboutThisTV", label: "TV information", icon: "info", value: "tvSummary" },
+        { page: "LegalNotice", label: "Privacy and terms", icon: "shield", value: "agreements" }
+    ] },
+    "SoftwareUpdate": { category: "support", title: "Software update", sub: { from: "tvVersion" }, rows: [
+        { item: "firmwareVersion", label: "Software version", icon: "info" },
+        { item: "automaticUpdate", label: "Automatic updates", hint: "An update can remove root access", icon: "update" }
     ] },
     "Timers": { category: "general", title: "Timers", rows: [
         { item: "sleepTimer", label: "Sleep timer", icon: "moon" },
@@ -91,7 +114,8 @@ var pages = {
     "Look": { category: "general", title: "Look", sub: "One style, any themes", rows: [] }
 };
 
-// Settings that are not in LG's catalog: the volume, screen off, the input picker, our own Look.
+// Settings that are not in LG's catalog: the volume, screen off, the input picker, our own Look, and what the TV
+// reports about itself. `from` makes an item a view of another one's value, with labels of its own.
 var extra = {
     "volume": { id: "volume", tier: 1, type: "range", domain: { min: 0, max: 100, step: 1 },
                 api: { service: "com.webos.audio", read: "getVolume", subscribe: true, write: "setVolume", param: "volume" } },
@@ -100,13 +124,34 @@ var extra = {
     "inputPicker": { id: "inputPicker", tier: 1, type: "action", api: { systemui: "com.webos.app.quickinputpicker" } },
     "input": { id: "input", tier: 3, type: "info",
                api: { service: "com.webos.settingsservice", read: "getSystemSettings", category: "dimensionInfo", keys: ["input"] } },
+    // The current input's signal, as LG's Settings reads it for its HDMI diagnostics: { width, height, frameRate,
+    // scanType }. Only an HDMI input has one.
+    "signal": { id: "signal", tier: 3, type: "info", api: { service: "com.webos.service.tv.display", read: "getHDMIInfo", subscribe: true } },
     "wiredStatus": { id: "wiredStatus", tier: 2, type: "info", api: { service: "com.webos.service.connectionmanager", field: "wired" } },
     "wifiStatus": { id: "wifiStatus", tier: 2, type: "info", api: { service: "com.webos.service.connectionmanager", field: "wifi" } },
+    "internet": { id: "internet", tier: 2, type: "info", api: { service: "com.webos.service.connectionmanager", field: "isInternetConnectionAvailable" } },
+    "onlineHelp": { id: "onlineHelp", tier: 3, type: "info", from: "internet" },
+    // The model and versions, read once (tv.systemproperty getSystemInfo, systemservice osInfo/query).
+    "modelName": { id: "modelName", tier: 3, type: "info", api: { service: "com.webos.service.tv.systemproperty", read: "getSystemInfo", keys: ["modelName"] } },
+    "firmwareVersion": { id: "firmwareVersion", tier: 3, type: "info", api: { service: "com.webos.service.tv.systemproperty", read: "getSystemInfo", keys: ["firmwareVersion"] } },
+    "tvVersion": { id: "tvVersion", tier: 3, type: "info", api: { service: "com.palm.systemservice/osInfo", read: "query", parameters: ["core_os_release"] } },
+    "tvSummary": { id: "tvSummary", tier: 3, type: "info", api: { service: "com.webos.service.tv.systemproperty", read: "getSystemInfo" } },
+    // LG's data agreements. tools/telemetry-off withdraws the data ones each boot (its EULA_KEYS, below).
+    "eulaStatus": { id: "eulaStatus", tier: 3, type: "info",
+                    api: { service: "com.webos.settingsservice", read: "getSystemSettings", category: "", keys: ["eulaStatus"] } },
+    "telemetry": { id: "telemetry", tier: 3, type: "info", from: "eulaStatus" },
+    "agreements": { id: "agreements", tier: 3, type: "info", from: "eulaStatus" },
+    "btSoundOut": { id: "btSoundOut", tier: 3, type: "info", from: "soundOutput" },
+    "updates": { id: "updates", tier: 3, type: "info", from: "automaticUpdate" },
     "look.style": { id: "look.style", tier: 1, type: "enum", api: { look: "style" } }
 };
 
+// The agreements tools/telemetry-off withdraws (its EULA_KEYS): all false means LG's data collection is refused.
+var dataAgreements = ["acrOnAllowed", "acrAdAllowed", "customAdAllowed", "additionalDataAllowed", "voiceAllowed",
+                      "voice2Allowed", "takeOnAllowed", "chpAllowed"];
+
 // The quick sheet (the gear button): the board's rows, in its order.
-var quick = { title: "Quick settings", sub: { from: "input" }, rows: [
+var quick = { title: "Quick settings", sub: { from: ["input", "signal"] }, rows: [
     { item: "pictureMode", label: "Picture mode", icon: "screen" },
     { item: "soundOutput", label: "Sound out", icon: "speaker" },
     { item: "volume", label: "Volume", icon: "volume" },
@@ -118,6 +163,11 @@ var quick = { title: "Quick settings", sub: { from: "input" }, rows: [
 
 // LG's Quick Settings launch params: the hotkeys land on their row with its picker open.
 var activateTypes = { "picture-mode": "pictureMode", "sleep": "sleepTimer", "aspect-ratio": "AspectRatioSettings" };
+
+// A caption under a value in its picker, by item id and value.
+var hints = {
+    pictureMode: { game: "Lowest input lag", hdrGame: "Lowest input lag", dolbyHdrGame: "Lowest input lag" }
+};
 
 // Value labels, by item id. Anything missing is shown from its value ("hdrCinema" → "Hdr cinema").
 var labels = {
@@ -139,14 +189,27 @@ var labels = {
                   "120": "2 hr", "180": "3 hr", "240": "4 hr" },
     energySaving: { auto: "Auto", off: "Off", min: "Minimum", med: "Medium", max: "Maximum", screen_off: "Screen off" },
     truMotionMode: { off: "Off", smooth: "Smooth", clear: "Clear", user: "Custom" },
+    avSync: { on: "On", off: "Off" },
+    autoTime: { on: "Automatic", off: "Manual" },
+    btSoundOut: { bt_soundbar: "On", bt_audio: "On" },
+    updates: { on: "Automatic", off: "Paused" },
+    onlineHelp: { Offline: "Offline: online help is unavailable", Online: "" },
     input: { hdmi1: "HDMI 1", hdmi2: "HDMI 2", hdmi3: "HDMI 3", hdmi4: "HDMI 4", atv: "Antenna", dtv: "Live TV",
              av1: "AV", comp1: "Component", default: "Apps" }
 };
 
+// A signal (getHDMIInfo) as the boards write it: "4K · 120 Hz".
+function signalLabel(v) {
+    if (!v || !v.height) return "";
+    var h = v.height, res = h >= 4320 ? "8K" : h >= 2160 ? "4K" : h + (v.scanType === false || v.scanType === 0 ? "i" : "p");
+    return v.frameRate ? res + " \u00b7 " + Math.round(v.frameRate) + " Hz" : res;
+}
+
 // Range values that read better as words.
 function rangeLabel(id, v) {
     if (id === "colorTemperature") return v === 0 ? "Neutral" : (v > 0 ? "Warm " : "Cool ") + Math.abs(v);
-    if (id === "audioBalance") return v === 0 ? "Centre" : (v < 0 ? "Left " : "Right ") + Math.abs(v);
+    // Short: a slider's number has room for three characters.
+    if (id === "audioBalance") return v === 0 ? "0" : (v < 0 ? "L " : "R ") + Math.abs(v);
     return String(v);
 }
 
@@ -156,8 +219,30 @@ function words(id) {
     return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
+// Menu languages by the UI locale's language (in English: the styles' fonts are Latin only).
+var languages = { en: "English", es: "Spanish", fr: "French", de: "German", it: "Italian", pt: "Portuguese",
+                  nl: "Dutch", ko: "Korean", ja: "Japanese", zh: "Chinese" };
+
+// Values that are objects, or that read as another word.
+function derived(id, v) {
+    var i, n = 0;
+    if (id === "menuLanguage") {
+        var ui = v && v.locales && v.locales.UI ? String(v.locales.UI) : "";
+        return languages[ui.split("-")[0]] || ui;
+    }
+    if ((id === "telemetry" || id === "agreements") && typeof v === "object") {
+        for (i = 0; i < dataAgreements.length; i++) if (v[dataAgreements[i]] === true) n++;
+        if (id === "agreements") return n ? "Accepted" : "Agreements withdrawn";
+        return n ? "telemetry on" : "telemetry off";
+    }
+    if (id === "btSoundOut") return labels.btSoundOut[v] || "Off";
+    return undefined;
+}
+
 function valueLabel(id, v) {
     if (v === undefined || v === null || v === "") return "";
+    var d = derived(id, v);
+    if (d !== undefined) return d;
     var t = labels[id];
     if (t && t[String(v)] !== undefined) return t[String(v)];
     if (typeof v === "number") return rangeLabel(id, v);

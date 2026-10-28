@@ -208,8 +208,14 @@ Once live it reports `ready` "settings: host ready"; the boot hook mounts the Se
   means the host and the hook are both live. Unverified on the TV; see TV-CHECKS.md. Hook B (our own key
   policy for the Option and accessibility keys) is not built: reloading LG's key filters cancels its timers and
   re-runs every policy's init, which is not clean enough to do blind.
-- The preview mocks LG's settings services in `preview/mocks/Preview/TvSettings.qml` (a US TV on HDMI 2 in Filmmaker
-  mode, TV speakers, online over Wi-Fi). Scenes and tests change its values, descriptions and forced failures.
+- The store's adapters beside settingsservice: the sleep timer, the network, the volume, the current input's signal
+  (`tv.display getHDMIInfo`, for "HDMI 2 · 4K · 120 Hz"), the model and versions (`tv.systemproperty getSystemInfo`,
+  `systemservice osInfo/query`) and network time (`systemservice getPreferences`). The Settings footer is the board's
+  "Offline · telemetry off": online or not, and whether LG's data agreements (`eulaStatus`, the ones
+  `tools/telemetry-off` withdraws) are all refused.
+- The preview mocks LG's settings services in `preview/mocks/Preview/TvSettings.qml` (the boards' TV: an OLED55B9 on
+  HDMI 2 at 4K 120 Hz in Filmmaker mode, TV speakers, on a cable with the internet blocked, agreements withdrawn).
+  Scenes and tests change its values, descriptions and forced failures.
 
 ## Our UI layer in the compositor
 

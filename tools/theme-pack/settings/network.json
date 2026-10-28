@@ -105,6 +105,31 @@
      }
     },
     {
+     "id": "deviceConnector",
+     "meaning": "Guide to connecting a set-top box, sound bar or other device",
+     "tier": 3,
+     "api": {
+      "service": "com.webos.applicationManager",
+      "method": "launch",
+      "params": {
+       "id": "com.webos.app.connectionwizard",
+       "params": {
+        "appReturn": {
+         "appId": "com.palm.app.settings",
+         "params": {
+          "target": "network"
+         }
+        }
+       }
+      }
+     },
+     "type": "action",
+     "sideEffects": [
+      "opens LG's connection wizard app"
+     ],
+     "notes": "LG's Settings row Device Connector (deviceConnectorProps); greyed only in some hotel modes"
+    },
+    {
      "id": "mobileTvOn",
      "meaning": "Turn on via phone",
      "tier": 3,

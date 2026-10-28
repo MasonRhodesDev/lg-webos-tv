@@ -100,8 +100,30 @@ Focus and Back (SETTINGS-PLAN.md 3.4)
 - [ ] Whether Back arrives as `Qt.Key_Back` or `Key_Escape` (both are mapped in `kit/keys.js`).
 - [ ] The magic remote's pointer: rows follow it and a click activates (`keyFilter.cursorVisible`).
 
-Known gaps against the Settings boards (for the category-pages wave)
-- General, Connection, Accessibility and Support lack some of the boards' rows (Home dashboard, Screen saver, Reset,
-  Wi-Fi/Bluetooth values, Greyscale, Invert colours, Audio description, Text size, Software update, Sound and Signal
-  test, Privacy and terms); some hints and subtitles differ (General's version line, the quick sheet's "4K · 120 Hz").
-- Look is a row on General; the boards have no Look category.
+Board content: the adapters behind the designed pages (UNVERIFIED reads, from LG's Settings bundle)
+- [ ] `luna-send -n 1 luna://com.webos.service.tv.display/getHDMIInfo '{}'` on an HDMI input answers `width`, `height`,
+      `frameRate` (in Hz) and `scanType`, and a subscription answers again when the source changes resolution or rate.
+      The quick sheet and the Picture mode picker then read e.g. "HDMI 2 · 4K · 120 Hz"; on Live TV or an app, just
+      the input.
+- [ ] `luna://com.webos.service.tv.systemproperty/getSystemInfo '{"keys":["modelName","firmwareVersion"]}'` and
+      `luna://com.palm.systemservice/osInfo/query '{"parameters":["core_os_release"]}'` answer for our appId. Record
+      the values: the board writes "OLED55B9" and "webOS 4.5", and ours shows what the TV reports (expected
+      "OLED55B9PUA" and "4.10.0"). Note whether `getSystemInfo` has an `sdkVersion` that reads "4.5".
+- [ ] `luna://com.palm.systemservice/getPreferences '{"keys":["useNetworkTime"],"subscribe":true}'` answers and
+      `setPreferences {useNetworkTime}` from Time and date's switch sticks (Time and date then reads Automatic/Manual).
+- [ ] `getSystemSettings '{"category":"","keys":["eulaStatus","localeInfo"]}'` answers for our appId (eulaStatus is
+      not in settingsservice.allow). The footer says "telemetry off" only when every one of telemetry-off's
+      `EULA_KEYS` is false; check it says "telemetry on" after `80-telemetry-off revert` and a reload of our Settings.
+      This is LG's data agreements only: it does not prove the hosts blackhole or the daemon stubs are in place.
+- [ ] Device connector opens LG's connection wizard (`com.webos.app.connectionwizard`); Picture test and Sound test
+      open LG's customer support app at those tests (`com.webos.app.customersupport {target}`); Back from each returns
+      somewhere sensible (LG passes `appReturn` to Settings, which the stub redirects to ours).
+- [ ] `permissions.sh` lists groups covering the new reads (tv.display getHDMIInfo, tv.systemproperty, systemservice).
+
+Known gaps against the Settings boards
+- Rows with nothing behind them on webOS 4.5 are drawn in place, greyed, with the reason: Greyscale and Invert colours
+  (not on this TV's software), Text size and Signal test (not in our Settings yet).
+- Values the boards show that no LG setting backs are left out: Home dashboard ("Inputs first"), Screen saver
+  ("After 5 minutes": LG has only on/off), Pixel refresher ("At power off"). Bluetooth devices' "1 paired" and Wi-Fi's
+  "Off" come with the Bluetooth and Wi-Fi pages' channels.
+- Look follows General's seven board rows (the boards have no Look category).

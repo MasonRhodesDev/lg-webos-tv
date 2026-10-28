@@ -79,7 +79,7 @@ Item {
             x: row.icon ? glyph.x + glyph.width + Look.px("space-m") : row.pad
             width: trailing.x - x - Look.px("space-m")
             anchors.verticalCenter: parent.verticalCenter
-            Label { role: "label"; text: row.label; color: row.ink; width: parent.width }
+            Label { role: row.variant === "category" ? "category" : "label"; text: row.label; color: row.ink; width: parent.width }
             Label { visible: !!row.hint; role: "caption"; text: row.hint; color: row.soft; width: parent.width }
         }
         Loader {

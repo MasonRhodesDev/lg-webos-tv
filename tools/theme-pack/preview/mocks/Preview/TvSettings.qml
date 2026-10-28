@@ -1,9 +1,10 @@
 pragma Singleton
 import QtQuick 2.4
 
-// The TV's settings services as the preview answers them (SETTINGS-PLAN.md section 4): a US TV watching HDMI 2 in
-// Filmmaker mode, sound on the TV speakers, online over Wi-Fi. Scenes and tests change `values`, `desc` and `fail`
-// before or while they run. Addresses are from the documentation ranges (RFC 5737).
+// The TV's settings services as the preview answers them (SETTINGS-PLAN.md section 4): a US TV (an OLED55B9) watching
+// HDMI 2 at 4K 120 Hz in Filmmaker mode, sound on the TV speakers, on a cable with the internet blocked, LG's data
+// agreements withdrawn (the boards' TV). Scenes and tests change `values`, `desc` and `fail` before or while they run.
+// Addresses are from the documentation ranges (RFC 5737).
 QtObject {
     id: fixture
 
@@ -12,11 +13,17 @@ QtObject {
                      "truMotionMode": "off", "energySaving": "off", "eyeComfortMode": "off" },
         "aspectRatio": { "arcPerApp": "16x9" },
         "sound": { "soundMode": "standard", "soundOutput": "tv_speaker", "soundOutputDigital": "auto", "audioBalance": 0,
-                   "autoVolume": "off", "avSync": "off" },
+                   "autoVolume": "off", "avSync": "off", "audioDescription": "off" },
         "dimensionInfo": { "input": "hdmi2", "dynamicRange": "sdr", "_3dStatus": "2d" },
         "caption": { "captionEnable": "off" },
         "option": { "highContrast": "off", "quickStartMode": "off", "country": "USA", "audioGuidance": "on" },
-        "other": { "simplinkEnable": "on", "simplinkAutoPowerOn": "on" }
+        "other": { "simplinkEnable": "on", "simplinkAutoPowerOn": "on" },
+        "general": { "screenSaverEnabled": "on" },
+        "support": { "automaticUpdate": "off" },
+        "": { "localeInfo": { "locales": { "UI": "en-US", "TV": "en-US", "FMT": "en-US", "NLP": "en-US" } },
+              "eulaStatus": { "generalTermsAllowed": true, "networkAllowed": true, "acrOnAllowed": false, "acrAdAllowed": false,
+                              "customAdAllowed": false, "additionalDataAllowed": false, "voiceAllowed": false, "voice2Allowed": false,
+                              "takeOnAllowed": false, "chpAllowed": false } }
     })
     // Description overrides by "category.key": { visible, active, values: [visible values] }. Anything else is
     // described from the catalog's domain, every value visible and active.
@@ -30,10 +37,16 @@ QtObject {
     property int sleepMinutes: 0
     property int volume: 21
     property var network: ({
-        "returnValue": true, "isInternetConnectionAvailable": true,
-        "wired": { "state": "disconnected" },
-        "wifi": { "state": "connected", "ssid": "Home", "ipAddress": "192.0.2.24", "gateway": "192.0.2.1", "onInternet": "yes" }
+        "returnValue": true, "isInternetConnectionAvailable": false,
+        "wired": { "state": "connected", "ipAddress": "192.0.2.24", "gateway": "192.0.2.1", "onInternet": "no" },
+        "wifi": { "state": "disconnected" }
     })
+    // tv.display getHDMIInfo: the current HDMI input's signal.
+    property var hdmi: ({ "returnValue": true, "HDMImode": true, "width": 3840, "height": 2160, "frameRate": 120, "scanType": true })
+    // tv.systemproperty getSystemInfo and systemservice osInfo/query.
+    property var system: ({ "modelName": "OLED55B9PUA", "firmwareVersion": "05.40.45", "core_os_release": "4.10.0" })
+    // systemservice getPreferences.
+    property var preferences: ({ "useNetworkTime": false, "timeZone": "America/New_York" })
     // Keys ("category.key", "sleepTimer", "volume") whose next write fails, to show the rollback.
     property var fail: ({})
     // Keys whose writes are never answered (a call the bus drops), to show the timeout rollback.
@@ -72,6 +85,8 @@ QtObject {
             if (s.cancelled) continue;
             if (s.kind === "settings" && s.category === category && s.keys.indexOf(key) >= 0) answer(s.svc, "/getSystemSettings", settingsOf(category, s.keys));
             if (s.kind === "volume" && key === "volume") answer(s.svc, "/getVolume", { "returnValue": true, "volume": volume });
+            if (s.kind === "signal" && key === "signal") answer(s.svc, "/getHDMIInfo", hdmi);
+            if (s.kind === "prefs" && key === "prefs") answer(s.svc, "/getPreferences", { "returnValue": true, "useNetworkTime": preferences.useNetworkTime });
         }
     }
     function cancel(svc) {
@@ -83,7 +98,8 @@ QtObject {
         var p = params ? JSON.parse(params) : {};
         var service = uri.replace(/^(luna|palm):\/\//, "");
         if (["com.webos.settingsservice", "com.webos.service.tv.time", "com.webos.service.connectionmanager", "com.webos.audio",
-             "com.webos.service.tv.display", "com.webos.service.tvpower", "com.webos.applicationManager"].indexOf(service) < 0) return false;
+             "com.webos.service.tv.display", "com.webos.service.tvpower", "com.webos.applicationManager",
+             "com.webos.service.tv.systemproperty", "com.palm.systemservice"].indexOf(service) < 0) return false;
         calls.push({ "uri": uri, "method": method, "params": p });
         var key;
         if (service === "com.webos.settingsservice") {
@@ -127,6 +143,22 @@ QtObject {
                 if (p.subscribe) subs.push({ "svc": svc, "kind": "volume" });
                 answer(svc, method, { "returnValue": true, "volume": volume });
             }
+        } else if (service === "com.webos.service.tv.display" && method === "/getHDMIInfo") {
+            if (p.subscribe) subs.push({ "svc": svc, "kind": "signal" });
+            answer(svc, method, hdmi);
+        } else if (service === "com.webos.service.tv.systemproperty" && method === "/getSystemInfo") {
+            var info = { "returnValue": true };
+            for (var i = 0; i < p.keys.length; i++) if (system[p.keys[i]] !== undefined) info[p.keys[i]] = system[p.keys[i]];
+            answer(svc, method, info);
+        } else if (service === "com.palm.systemservice" && method === "/osInfo/query") {
+            answer(svc, method, { "returnValue": true, "core_os_release": system.core_os_release });
+        } else if (service === "com.palm.systemservice" && method === "/getPreferences") {
+            if (p.subscribe) subs.push({ "svc": svc, "kind": "prefs" });
+            answer(svc, method, { "returnValue": true, "useNetworkTime": preferences.useNetworkTime });
+        } else if (service === "com.palm.systemservice" && method === "/setPreferences") {
+            for (key in p) preferences[key] = p[key];
+            answer(svc, method, { "returnValue": true });
+            notify("", "prefs");
         } else {
             answer(svc, method, { "returnValue": true });
         }

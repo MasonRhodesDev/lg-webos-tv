@@ -22,7 +22,7 @@
       'button-h': '80px', 'tile-w': '260px', 'tile-h': '190px', 'tile-pad': '24px',
       'elev-panel': '0 24px 60px rgba(0,0,0,0.50)', 'elev-focus': '0 12px 30px rgba(0,0,0,0.45)',
       'type-display': '64px', 'type-display-weight': '700', 'type-title': '40px', 'type-title-weight': '700', 'type-tile': '30px', 'type-tile-weight': '700',
-      'type-label': '26px', 'type-label-weight': '600', 'type-value': '24px', 'type-value-weight': '500', 'type-body': '26px', 'type-body-weight': '500',
+      'type-label': '26px', 'type-label-weight': '600', 'type-category': '28px', 'type-category-weight': '600', 'type-value': '24px', 'type-value-weight': '500', 'type-body': '26px', 'type-body-weight': '500',
       'type-caption': '20px', 'type-caption-weight': '500', 'type-headline': '32px', 'type-headline-weight': '700', 'type-heading': '19px', 'type-heading-weight': '600', 'type-heading-case': 'uppercase',
       'type-key': '18px', 'type-key-weight': '600', 'type-numeral': '40px', 'type-numeral-weight': '700',
       'motion-focus': '140ms', 'motion-value': '200ms', 'motion-enter': '320ms', 'motion-exit': '200ms',

@@ -149,6 +149,7 @@ weights its font files carry (a test checks this). Every kit text is a **Label**
 | `tile` | a tile's name |
 | `headline` | toast titles, card headings (SmokeSpec's "heading" 32/700) |
 | `label` | row labels, buttons |
+| `category` | a category row's label in a side list (the Settings boards: 28, a step above `label`) |
 | `value` | values, key hint labels |
 | `body` | dialog text, toast messages |
 | `caption` | hint lines, subtitles, tile sub lines |

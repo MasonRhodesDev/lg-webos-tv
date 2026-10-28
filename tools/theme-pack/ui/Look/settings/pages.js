@@ -89,6 +89,7 @@ function expanded(entry) {
     var d = definition(entry), out = [], used = {}, i, j;
     for (i = 0; i < d.rows.length; i++) {
         if (d.rows[i].item) used[d.rows[i].item] = true;
+        if (d.rows[i].action) used[d.rows[i].action] = true;
         if (d.rows[i].page) used["page:" + d.rows[i].page] = true;
     }
     for (i = 0; i < d.rows.length; i++) {
@@ -127,10 +128,14 @@ function expanded(entry) {
     return { "title": d.title, "sub": d.sub, "rows": out };
 }
 
+// The refs a subtitle spec reads.
+function subRefs(sub) { return !sub || !sub.from ? [] : typeof sub.from === "string" ? [sub.from] : sub.from; }
+
 // Every item ref a page shows, for store.watch().
 function refs(entry) {
     var out = [];
     if (entry.ref) out.push(entry.ref);
+    out = out.concat(subRefs(entry.subSpec));
     if (entry.id === "Look") return out;
     var rows = expanded(entry).rows, d = definition(entry);
     for (var i = 0; i < rows.length; i++) {
@@ -138,18 +143,25 @@ function refs(entry) {
         if (rows[i].value) out.push(rows[i].value);
         if (rows[i].action) out.push(rows[i].action);
         if (rows[i].activeWhen) out.push(rows[i].activeWhen.ref);
+        if (rows[i].hintWhen) out.push(rows[i].hintWhen.ref);
     }
-    if (d.sub && d.sub.from) out.push(d.sub.from);
-    return out;
+    return out.concat(subRefs(d.sub));
 }
 
+// A subtitle: text, or { from: ref or [refs], format } for those items' value labels, joined with " · ".
 function subtitle(sub, store) {
     if (!sub) return "";
     if (typeof sub === "string") return sub;
-    var label = store.state(sub.from).label;
-    if (!label) return "";
+    var from = subRefs(sub), parts = [];
+    for (var i = 0; i < from.length; i++) { var l = store.state(from[i]).label; if (l) parts.push(l); }
+    if (!parts.length) return "";
+    var label = parts.join(" \u00b7 ");
     return sub.format ? sub.format.replace("%s", label) : label;
 }
+
+// The Settings footer, as the board has it: online or offline, and whether LG's data agreements are withdrawn.
+var footerRefs = ["internet", "telemetry"];
+function footer(store) { return subtitle({ "from": footerRefs }, store); }
 
 function title(entry) { return entry.title || expanded(entry).title; }
 
@@ -163,6 +175,16 @@ function isOn(st, spec) {
 function row(spec, store, hue) {
     var r = { "label": spec.label, "icon": spec.icon || "", "hue": hue, "hint": spec.hint || "" };
     if (spec.section !== undefined) return { "section": spec.section };
+    // `hintWhen`: the hint only while a condition is known to hold.
+    if (spec.hintWhen && (store.state(spec.hintWhen.ref).value === undefined || !store.holds(spec.hintWhen))) r.hint = "";
+    // A board row with nothing behind it on this TV: drawn in its place, greyed, saying why.
+    if (spec.missing) {
+        r.variant = spec.as === "toggle" ? "toggle" : spec.as === "value" ? "value" : "info";
+        r.kind = "";
+        r.disabled = true;
+        r.hint = spec.missing;
+        return r;
+    }
     if (spec.settings) { r.variant = "nav"; r.kind = "settings"; return r; }
     if (spec.page) {
         r.variant = "nav";
@@ -177,12 +199,15 @@ function row(spec, store, hue) {
     r.spec = spec;
     var ok = st.active && store.holds(spec.activeWhen);
     if (!ok) { r.disabled = true; if (spec.why) r.hint = spec.why; }
-    if (spec.action || it.type === "action") { r.variant = "action"; r.kind = "action"; return r; }
+    // `drill`: an action that opens something of its own (an app, a reset) shows a chevron, as a link does.
+    if (spec.action || it.type === "action") { r.variant = spec.drill ? "nav" : "action"; r.kind = "action"; return r; }
     r.kind = "item";
+    // `as: "value"` on a switch: its value and a picker of its two values.
+    if (it.type === "switch" && spec.as === "value") { r.variant = "value"; r.value = st.label; return r; }
     if (spec.as === "toggle" || it.type === "switch") { r.variant = "toggle"; r.on = isOn(st, spec); return r; }
     if (it.type === "range") {
         var v = typeof st.value === "number" ? st.value : st.min;
-        if (spec.as === "value") { r.variant = "value"; r.value = st.value === undefined ? "" : st.label; return r; }
+        if (spec.as === "value") { r.variant = "value"; r.adjust = true; r.value = st.value === undefined ? "" : st.label; return r; }
         r.variant = "slider";
         r.fraction = st.max > st.min ? (v - st.min) / (st.max - st.min) : 0;
         r.valueText = st.value === undefined ? "" : st.label;
@@ -212,10 +237,11 @@ function lookRows(store, Look) {
 }
 
 function pickerRows(entry, store) {
-    var st = store.state(entry.ref), out = [], opts = st.options;
+    var st = store.state(entry.ref), out = [], opts = st.options, hints = st.item && Menu.hints[st.item.id] || {};
     for (var i = 0; i < opts.length; i++) {
         var cur = opts[i].value === st.value;
-        out.push({ "variant": "choice", "label": opts[i].label, "icon": entry.icon || "", "hue": i, "hint": cur ? "Current" : "",
+        out.push({ "variant": "choice", "label": opts[i].label, "icon": entry.icon || "", "hue": i,
+                   "hint": cur ? "Current" : hints[opts[i].value] || "",
                    "checked": cur, "current": cur, "disabled": !opts[i].active, "kind": "choose", "ref": entry.ref, "choice": opts[i].value });
     }
     if (entry.then) {
@@ -265,12 +291,13 @@ function landing(entry, rows) {
     return 0;
 }
 
-// What OK on a value row opens: its picker, or for a range shown as a value, its adjust page.
+// What OK on a value row opens: its picker, or for a range shown as a value, its adjust page. The row's `sub` is the
+// subtitle of the page it opens (otherwise that page keeps the one it was opened from).
 function drill(r, crumb) {
     var it = r.spec || {};
-    if (r.variant === "value" && it.as === "value")
-        return { "id": "adjust:" + r.ref, "ref": r.ref, "title": r.label, "icon": r.icon, "crumb": crumb };
-    return { "id": "pick:" + r.ref, "ref": r.ref, "title": r.label, "icon": r.icon, "then": it.then, "crumb": crumb };
+    if (r.adjust)
+        return { "id": "adjust:" + r.ref, "ref": r.ref, "title": r.label, "icon": r.icon, "crumb": crumb, "subSpec": it.sub };
+    return { "id": "pick:" + r.ref, "ref": r.ref, "title": r.label, "icon": r.icon, "then": it.then, "crumb": crumb, "subSpec": it.sub };
 }
 
 // A slider row's next value after Left/Right.

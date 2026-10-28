@@ -27,7 +27,9 @@ Item {
         State { name: "sound"; StateChangeScript { script: p.settings("sound") } },
         State { name: "connection"; StateChangeScript { script: { p.settings("connection"); p.menu.page.list.currentIndex = 3; } } },
         State { name: "general-categories"; StateChangeScript { script: { p.settings(""); p.menu.categories.currentIndex = 3; } } },
-        State { name: "accessibility"; StateChangeScript { script: p.settings("accessibility") } },
+        State { name: "general"; StateChangeScript { script: p.settings("general") } },
+        State { name: "accessibility"; StateChangeScript { script: { p.settings("accessibility"); p.menu.page.list.currentIndex = 3; } } },
+        State { name: "support"; StateChangeScript { script: { p.settings("support"); p.menu.page.list.currentIndex = 1; } } },
         State { name: "look"; StateChangeScript { script: { p.settings("Look"); p.menu.page.list.currentIndex = 2; } } },
         State { name: "confirm"; StateChangeScript { script: {
             p.settings("PictureMode");

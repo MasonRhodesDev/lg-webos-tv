@@ -252,15 +252,17 @@
      "meaning": "Play a test tone to check the speakers",
      "tier": 3,
      "api": {
-      "service": "com.webos.settingsservice",
-      "write": "setSystemSettings",
-      "category": "sound",
-      "keys": [
-       "soundTest"
-      ]
+      "service": "com.webos.applicationManager",
+      "method": "launch",
+      "params": {
+       "id": "com.webos.app.customersupport",
+       "params": {
+        "target": "soundTest"
+       }
+      }
      },
      "type": "action",
-     "unknown": "LG wires the sound test via the sound.soundTest key; exact trigger value not extracted"
+     "notes": "LG's Settings launches its customer support app at the sound test, after a toast when the sound is not on the TV speakers; sound.soundTest's description only greys the row"
     }
    ]
   },

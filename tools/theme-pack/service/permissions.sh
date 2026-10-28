@@ -22,7 +22,9 @@ com.webos.settingsservice/resetSystemSettings com.webos.settingsservice/batch
 com.webos.service.tv.time/getSleepTimeInfo com.webos.service.tv.time/setSleepTimeInfo
 com.webos.service.tv.display/setPSMChangedByUser com.webos.service.connectionmanager/getstatus
 com.webos.audio/getVolume com.webos.audio/setVolume com.webos.service.tvpower/power/turnOffScreen
-com.webos.notification/createToast com.webos.applicationManager/launch'
+com.webos.notification/createToast com.webos.applicationManager/launch
+com.webos.service.tv.display/getHDMIInfo com.webos.service.tv.systemproperty/getSystemInfo
+com.palm.systemservice/osInfo/query com.palm.systemservice/getPreferences com.palm.systemservice/setPreferences'
 node -e '
 var fs = require("fs"), path = require("path"), out = [process.argv[1] + ".group"], methods = process.argv[2].split(/\s+/);
 function covers(pattern, m) { return pattern === m || (/\*$/.test(pattern) && m.indexOf(pattern.slice(0, -1)) === 0); }
