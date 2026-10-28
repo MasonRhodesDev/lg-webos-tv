@@ -29,7 +29,7 @@ QtObject {
     readonly property var stock: ({
         "surface": "rgba(18,18,18,0.92)", "surface-edge": "rgba(255,255,255,0.12)", "inner": "rgba(255,255,255,0.07)",
         "dim": "rgba(0,0,0,0.55)", "scrim": "rgba(0,0,0,0.35)", "ink": "#f5f5f5", "ink-2": "rgba(255,255,255,0.86)",
-        "ink-3": "rgba(255,255,255,0.66)", "ink-disabled": "rgba(255,255,255,0.40)", "shadow": "0 2px 8px rgba(0,0,0,0.5)",
+        "ink-3": "rgba(255,255,255,0.66)", "ink-disabled": "rgba(255,255,255,0.40)", "edge-disabled": "rgba(255,255,255,0.30)", "shadow": "0 2px 8px rgba(0,0,0,0.5)",
         "focus": "#cf0652", "focus-ink": "#ffffff", "focus-edge": "#ffffff", "current": "#cf0652",
         "attention": "#cf0652", "attention-ink": "#ffffff", "critical": "#e04848", "critical-ink": "#ffffff",
         "track": "rgba(110,110,110,0.35)", "knob": "#ffffff",

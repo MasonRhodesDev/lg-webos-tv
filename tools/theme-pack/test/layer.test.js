@@ -36,3 +36,11 @@ test('Look asks for our Settings only on a new open request, never on a subscrip
   assert.ok(/settings requests: all passed/.test(out), out);
   assert.ok(!/FAIL /.test(out), out);
 });
+
+test('the input picker keeps LG\'s hit areas: our tiles and add-on button sit over LG\'s in every state', { skip: !haveQml && QML + ' not found' }, () => {
+  const r = runScene('InputPickerHits.qml');
+  const out = r.stdout + r.stderr;
+  assert.strictEqual(r.status, 0, out);
+  assert.ok(/input picker hits: all passed/.test(out), out);
+  assert.ok(!/FAIL /.test(out), out);
+});

@@ -7,7 +7,7 @@ Item {
     id: scrim
     property string kind: "dim"
     property bool shown: true
-    property real extent: kind === "bottom" ? 560 : 900
+    property real extent: kind === "bottom" ? 480 : 900
     anchors.fill: parent
 
     // Faded and hidden on an inner item: the Layer owns a part root's `visible`.
@@ -28,8 +28,10 @@ Item {
             anchors.right: parent.right
             anchors.bottom: parent.bottom
             height: scrim.extent
+            // Full strength a third of the way down, then flat (the boards' 0 to 160 px of 480).
             gradient: Gradient {
                 GradientStop { position: 0; color: "transparent" }
+                GradientStop { position: 1 / 3; color: Look.color("scrim") }
                 GradientStop { position: 1; color: Look.color("scrim") }
             }
         }

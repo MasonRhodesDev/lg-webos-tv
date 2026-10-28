@@ -7,7 +7,7 @@
     tokens: {
       'surface': 'rgba(10,10,18,0.72)', 'surface-edge': 'rgba(255,255,255,0.22)', 'inner': 'rgba(255,255,255,0.08)',
       'dim': 'rgba(0,0,0,0.50)', 'scrim': 'rgba(0,0,0,0.20)',
-      'ink': '#FFFFFF', 'ink-2': 'rgba(255,255,255,0.86)', 'ink-3': 'rgba(255,255,255,0.70)', 'ink-disabled': 'rgba(255,255,255,0.45)',
+      'ink': '#FFFFFF', 'ink-2': 'rgba(255,255,255,0.86)', 'ink-3': 'rgba(255,255,255,0.70)', 'ink-disabled': 'rgba(255,255,255,0.45)', 'edge-disabled': 'rgba(255,255,255,0.35)',
       'shadow': '0 2px 10px rgba(0,0,0,0.55)',
       'focus': '#FF4FA3', 'focus-ink': '#22000F', 'focus-edge': '#FFFFFF', 'current': '#C6FF3D',
       'attention': '#C6FF3D', 'attention-ink': '#16210A', 'critical': '#FF6B6B', 'critical-ink': '#2A0000',
@@ -16,7 +16,7 @@
       'r-tile': '24px', 'r-panel': '28px', 'r-row': '16px', 'r-key': '14px',
       'surface-strong': 'rgba(12,12,20,0.88)', 'divider': 'rgba(255,255,255,0.10)', 'current-ink': '#16210A', 'r-control': '999px',
       'safe-x': '96px', 'safe-y': '54px', 'space-xs': '8px', 'space-s': '12px', 'space-m': '20px', 'space-ml': '24px', 'space-l': '28px', 'space-lx': '32px', 'space-xl': '40px', 'space-xxl': '56px',
-      'edge-w': '1.5px', 'focus-w': '4px', 'focus-scale': '1.02', 'current-w': '6px',
+      'edge-w': '1.5px', 'focus-w': '4px', 'focus-scale': '1.02', 'current-w': '7px',
       'panel-w': '640px', 'dialog-w': '800px', 'toast-w': '720px', 'row-h': '88px', 'row-h-2': '104px', 'row-pad': '28px', 'section-h': '60px',
       'icon': '34px', 'icon-l': '44px', 'well': '72px', 'volume-w': '480px', 'volume-h': '88px', 'track-h': '12px', 'thumb': '30px', 'toggle-w': '72px', 'toggle-h': '40px', 'knob-size': '32px',
       'button-h': '80px', 'tile-w': '260px', 'tile-h': '190px', 'tile-pad': '24px',

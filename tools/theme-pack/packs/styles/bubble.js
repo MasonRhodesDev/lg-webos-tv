@@ -7,7 +7,7 @@
     tokens: {
       'surface': 'rgba(255,255,255,0.18)', 'surface-edge': 'rgba(255,255,255,0.38)', 'inner': 'rgba(255,255,255,0.12)',
       'dim': 'rgba(24,14,48,0.50)', 'scrim': 'rgba(24,14,48,0.32)',
-      'ink': '#FFFFFF', 'ink-2': 'rgba(255,255,255,0.90)', 'ink-3': 'rgba(255,255,255,0.78)', 'ink-disabled': 'rgba(255,255,255,0.50)',
+      'ink': '#FFFFFF', 'ink-2': 'rgba(255,255,255,0.90)', 'ink-3': 'rgba(255,255,255,0.78)', 'ink-disabled': 'rgba(255,255,255,0.50)', 'edge-disabled': 'rgba(255,255,255,0.40)',
       'shadow': '0 2px 10px rgba(0,0,0,0.55)',
       'focus': '#FFFFFF', 'focus-ink': '#1B0F2E', 'focus-edge': '#FFFFFF', 'current': '#FFFFFF',
       'attention': '#FF3D7F', 'attention-ink': '#FFFFFF', 'critical': '#FF5A5A', 'critical-ink': '#FFFFFF',

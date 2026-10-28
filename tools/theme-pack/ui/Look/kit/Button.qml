@@ -11,7 +11,8 @@ Item {
     property int hue: -1
     signal clicked()
     height: Look.px("button-h")
-    width: content.width + 2 * Look.px("space-xl")
+    // With only an icon, a round button as wide as it is tall.
+    width: label ? content.width + 2 * Look.px("space-xl") : height
     z: focused ? 2 : 0
     scale: focused ? Look.px("focus-scale") : 1
     Behavior on scale { NumberAnimation { duration: Look.px("motion-focus"); easing.type: Easing.Bezier; easing.bezierCurve: Look.curve("ease-focus") } }

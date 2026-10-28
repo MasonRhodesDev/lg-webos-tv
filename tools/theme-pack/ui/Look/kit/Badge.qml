@@ -24,7 +24,7 @@ Item {
             id: label
             anchors.centerIn: parent
             role: "caption"
-            font.weight: Font.Bold
+            font.weight: Font.DemiBold
             text: badge.text
             color: Look.color(badge.inkToken)
         }

@@ -6,7 +6,7 @@
 
   var TOKENS = [
     'surface', 'surface-edge', 'inner', 'dim', 'scrim',
-    'ink', 'ink-2', 'ink-3', 'ink-disabled', 'shadow',
+    'ink', 'ink-2', 'ink-3', 'ink-disabled', 'edge-disabled', 'shadow',
     'focus', 'focus-ink', 'focus-edge', 'current',
     'attention', 'attention-ink', 'critical', 'critical-ink',
     'track', 'knob',

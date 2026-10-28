@@ -45,7 +45,7 @@ Item {
             visible: !!tile.icon && tile.image == ""
             x: tile.pad
             y: tile.pad
-            size: Look.px("icon") * 1.25
+            size: Look.px("icon") * 1.4
             name: tile.icon
             color: tile.disabled || plate.inverted ? plate.ink : tile.hue >= 0 ? Look.hue(tile.hue) : Look.color("ink")
         }

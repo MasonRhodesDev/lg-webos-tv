@@ -3,12 +3,19 @@ import Look 1.0
 import "keys.js" as KeyMap
 
 // A horizontal ribbon of tiles; focus scrolls into view. `model` is a list of tile specs ({ label, sub, icon, image,
-// hue, badge, chip, current, disabled, width }) or { separator: true }. An LG-mirrored surface (the input picker)
-// sets currentIndex from LG; our own menus give it focus and it moves with Left/Right (wrapping if `wraps`).
+// hue, badge, chip, current, disabled, width, lead, heading }) or { separator: true, width }. `heading` starts a group:
+// its name sits above the tile, `lead` px of extra space before it. An LG-mirrored surface (the input picker) sets
+// currentIndex from LG and, with `follows: false`, places the ribbon itself so its tiles stay over LG's; our own menus
+// give it focus and it moves with Left/Right (wrapping if `wraps`).
 ListView {
     id: ribbon
     property bool focusShown: true
     property bool wraps: false
+    // False: the ribbon never scrolls or fades tiles out of view; its owner places it (an LG-mirrored surface).
+    property bool follows: true
+    property real tileHeight: Look.px("tile-h")
+    // How far above the tiles group headings reach.
+    readonly property real headingSpace: probe.height + Look.px("space-s")
     signal activated(int index, var tile)
     signal back()
 
@@ -24,7 +31,7 @@ ListView {
     }
 
     orientation: ListView.Horizontal
-    height: Look.px("tile-h")
+    height: tileHeight
     spacing: Look.px("space-m")
     interactive: false
     boundsBehavior: Flickable.StopAtBounds
@@ -33,7 +40,7 @@ ListView {
     // Scroll only as far as keeps the focused tile, and part of the next, inside the ribbon.
     function reveal(animated) {
         var item = currentItem;
-        if (!item) return;
+        if (!item || !follows) return;
         var margin = Look.px("tile-w") / 2, to = contentX;
         if (item.x - margin < contentX) to = item.x - margin;
         else if (item.x + item.width + margin > contentX + width) to = item.x + item.width + margin - width;
@@ -59,15 +66,18 @@ ListView {
         event.accepted = true;
     }
 
+    Label { id: probe; visible: false; role: "heading"; text: "X" }
+
     delegate: Item {
         id: slot
         readonly property var t: modelData
         readonly property int at: index
-        width: t.separator ? Look.px("space-xs") : (t.width || Look.px("tile-w"))
+        readonly property real lead: t.lead || 0
+        width: t.separator ? (t.width !== undefined ? t.width : Look.px("space-xs")) : lead + (t.width || Look.px("tile-w"))
         height: ribbon.height
         z: at === ribbon.currentIndex ? 2 : 0
         readonly property bool inView: x >= ribbon.contentX - 1 && x + width <= ribbon.contentX + ribbon.width + 1
-        opacity: inView ? 1 : 0
+        opacity: inView || !ribbon.follows ? 1 : 0
         Behavior on opacity { NumberAnimation { duration: Look.px("motion-focus") } }
 
         Rectangle {
@@ -78,9 +88,20 @@ ListView {
             radius: width / 2
             color: Look.color("divider")
         }
+        Label {
+            visible: !slot.t.separator && !!slot.t.heading
+            x: slot.lead
+            y: -ribbon.headingSpace
+            width: slot.width - slot.lead
+            role: "heading"
+            text: slot.t.heading || ""
+            color: Look.color("ink-3")
+        }
         Tile {
             visible: !slot.t.separator
-            width: slot.width
+            x: slot.lead
+            width: slot.width - slot.lead
+            height: ribbon.tileHeight
             label: slot.t.label || ""
             sub: slot.t.sub || ""
             icon: slot.t.icon || ""
