@@ -3,9 +3,11 @@
 //
 //   node preview/render.mjs [OUT_DIR] [--scene NAME]... [--jobs N]
 //
-// OUT_DIR defaults to a new directory under the OS temp dir. Needs Qt 5's `qml` with QtQuick and QtGraphicalEffects;
-// set QML to its path if it isn't `qml-qt5` or `qml` on PATH. Exits non-zero if any shot fails, with its QML errors.
-import { spawn, spawnSync } from 'node:child_process';
+// OUT_DIR defaults to a new directory under the OS temp dir. Needs Qt 5's `qml` with QtQuick and QtGraphicalEffects
+// (QML_BIN, default `qml-qt5` or `qml` on PATH), Xvfb, and Mesa's software OpenGL: Qt's software backend draws no
+// ShaderEffect, so theme glows only show under OpenGL. Each worker runs its own Xvfb. Exits non-zero if any shot
+// fails, with its QML errors.
+import { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -29,15 +31,19 @@ for (let i = 0; i < argv.length; i++) {
 outDir = outDir || fs.mkdtempSync(path.join(os.tmpdir(), 'theme-pack-preview-'));
 fs.mkdirSync(outDir, { recursive: true });
 
-function findQml() {
-  if (process.env.QML) return process.env.QML;
-  for (const name of ['qml-qt5', 'qml']) {
-    if (spawnSync(name, ['--help'], { stdio: 'ignore' }).error === undefined) return name;
+// Looked up on PATH rather than run: `qml --help` with no display aborts and leaves a core file.
+function onPath(name) {
+  if (name.includes('/')) return fs.existsSync(name) ? name : null;
+  for (const d of (process.env.PATH || '').split(path.delimiter)) {
+    const p = path.join(d, name);
+    try { fs.accessSync(p, fs.constants.X_OK); return p; } catch (e) { /* next */ }
   }
-  console.error('no Qt 5 qml binary found: install it, or set QML to its path');
-  process.exit(2);
+  return null;
 }
-const qml = findQml();
+const qml = process.env.QML_BIN ? onPath(process.env.QML_BIN) : onPath('qml-qt5') || onPath('qml');
+const xvfb = onPath('Xvfb');
+if (!qml) { console.error('no Qt 5 qml tool found: install it, or set QML_BIN to its path'); process.exit(2); }
+if (!xvfb) { console.error('no Xvfb found: install it (the shots render through OpenGL on a virtual display)'); process.exit(2); }
 
 const packs = (kind) => fs.readdirSync(path.join(packsDir, kind)).filter((f) => f.endsWith('.js')).sort()
   .map((f) => require(path.join(packsDir, kind, f)));
@@ -62,15 +68,28 @@ function payload(style, active) {
   };
 }
 
-const env = {
-  ...process.env,
-  QT_FORCE_STDERR_LOGGING: '1', QT_QPA_PLATFORM: 'offscreen', QT_QUICK_BACKEND: 'software',
-  QML2_IMPORT_PATH: path.join(here, 'mocks') + path.delimiter + path.join(root, 'ui')
-};
+const env = { ...process.env, QT_FORCE_STDERR_LOGGING: '1', LIBGL_ALWAYS_SOFTWARE: '1',
+  QML2_IMPORT_PATH: path.join(here, 'mocks') + path.delimiter + path.join(root, 'ui') };
+delete env.QT_QPA_PLATFORM;
+delete env.QT_QUICK_BACKEND;
 
-function run(args) {
+// A virtual display of our own; Xvfb picks a free number and writes it to -displayfd, so parallel workers can't race.
+const servers = [];
+function startDisplay() {
+  return new Promise((resolve, reject) => {
+    const x = spawn(xvfb, ['-displayfd', '3', '-screen', '0', '1920x1080x24', '-nolisten', 'tcp'],
+                    { stdio: ['ignore', 'ignore', 'pipe', 'pipe'] });
+    servers.push(x);
+    let out = '', err = '';
+    x.stderr.on('data', (d) => { err += d; });
+    x.stdio[3].on('data', (d) => { out += d; if (/\n/.test(out)) resolve(':' + out.trim()); });
+    x.on('exit', (code) => reject(new Error('Xvfb exited ' + code + ': ' + err.trim())));
+  });
+}
+
+function run(args, display) {
   return new Promise((resolve) => {
-    const p = spawn(qml, [path.join(here, 'Shot.qml'), '--', ...args], { env, stdio: ['ignore', 'pipe', 'pipe'] });
+    const p = spawn(qml, [path.join(here, 'Shot.qml'), '--', ...args], { env: { ...env, DISPLAY: display }, stdio: ['ignore', 'pipe', 'pipe'] });
     let log = '';
     p.stdout.on('data', (d) => { log += d; });
     p.stderr.on('data', (d) => { log += d; });
@@ -94,8 +113,9 @@ if (!scenes.length) { console.error('no scenes' + (only.length ? ' named ' + onl
 const failures = [];
 const info = {};
 const plain = JSON.stringify(payload(styles[0], []));
+const firstDisplay = await startDisplay();
 for (const s of scenes) {
-  const r = await run([path.join(sceneDir, s + '.qml'), plain, '--states']);
+  const r = await run([path.join(sceneDir, s + '.qml'), plain, '--states'], firstDisplay);
   const m = /SHOT-INFO (.*)/.exec(r.log);
   if (r.code !== 0 || !m) { failures.push({ shot: s, errors: errorsIn(r.log).length ? errorsIn(r.log) : [r.log.trim() || 'exit ' + r.code] }); continue; }
   info[s] = JSON.parse(m[1]);
@@ -113,14 +133,15 @@ for (const s of Object.keys(info)) {
 }
 
 let next = 0, done = 0;
-async function worker() {
+async function worker(n) {
+  const display = n === 0 ? firstDisplay : await startDisplay();
   while (next < shots.length) {
     const shot = shots[next++];
     const out = path.join(outDir, shot.file);
     fs.rmSync(out, { force: true });
     const args = [path.join(sceneDir, shot.scene + '.qml'), shot.payload, out];
     if (shot.state) args.push(shot.state);
-    const r = await run(args);
+    const r = await run(args, display);
     const errors = errorsIn(r.log);
     if (r.code !== 0 || errors.length || !fs.existsSync(out)) {
       shot.failed = true;
@@ -130,14 +151,15 @@ async function worker() {
   }
 }
 const started = Date.now();
-await Promise.all(Array.from({ length: Math.min(jobs, shots.length) }, worker));
+await Promise.all(Array.from({ length: Math.min(jobs, shots.length) }, (_, n) => worker(n)));
+for (const x of servers) { x.removeAllListeners('exit'); x.kill(); }
 process.stderr.write('\n');
 
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
 // A scene's `frame` (x, y, width, height in the 1920x1080 shot) is what the contact sheet shows of it.
 function thumb(shot) {
   const f = info[shot.scene].frame || { x: 0, y: 0, width: 1920, height: 1080 };
-  const w = 320, scale = w / f.width, h = Math.round(f.height * scale);
+  const w = 240, scale = w / f.width, h = Math.round(f.height * scale);
   const img = shot.failed ? '<div class="miss">failed</div>'
     : '<img src="' + esc(shot.file) + '" style="width:' + 1920 * scale + 'px;left:' + -f.x * scale + 'px;top:' + -f.y * scale + 'px">';
   return '<a class="shot" href="' + esc(shot.file) + '"><div class="frame" style="width:' + w + 'px;height:' + h + 'px">' + img +
