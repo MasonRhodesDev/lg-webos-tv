@@ -91,3 +91,17 @@ The tests check the layer model on the rendered HTML: slot order, ring order, va
 ## Fonts on an offline TV
 
 The demo loads fonts from Google Fonts. An offline TV can't, so the style falls back to its system stack. To ship real fonts, place the OFL-licensed font files next to the demo and add `@font-face` rules, then open the demo with `?fonts=none`.
+
+## Put it on a TV
+
+The demo ships as a webOS web app called **Look**. The build runs on any machine with internet; the TV only receives the finished package.
+
+```sh
+sh tools/theme-pack/tv/fetch-fonts.sh tools/theme-pack/fonts      # OFL fonts from Google Fonts, latin subset
+sh tools/theme-pack/tv/build-ipk.sh tools/theme-pack/dist tools/theme-pack/fonts
+TV_HOST=<tv address> sh tools/theme-pack/tv/install-tv.sh tools/theme-pack/dist/dev.themepack.look_0.1.0_all.ipk
+```
+
+`install-tv.sh` needs root SSH, which Homebrew Channel provides. It copies the package to `/tmp` on the TV and installs it with the TV's own `appInstallService`. Open **Look** from the home screen. Left and right switch screens, Back on Home closes the app.
+
+In the app the UI draws over a stand-in gradient, not the live HDMI picture: a full-screen web app replaces the input while it runs.

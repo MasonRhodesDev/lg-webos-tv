@@ -1,0 +1,12 @@
+{
+  "id": "dev.themepack.look",
+  "version": "0.1.0",
+  "vendor": "theme-pack",
+  "type": "web",
+  "main": "index.html",
+  "title": "Look",
+  "icon": "icon.png",
+  "largeIcon": "largeIcon.png",
+  "resolution": "1920x1080",
+  "disableBackHistoryAPI": true
+}

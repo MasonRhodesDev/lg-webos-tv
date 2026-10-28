@@ -6,6 +6,7 @@
   var STORE = 'theme-pack.look';
 
   var q = new URLSearchParams(location.search);
+  var tv = window.THEME_PACK_TV === true || q.get('tv') === '1';
   var saved = {};
   try { saved = JSON.parse(localStorage.getItem(STORE) || '{}'); } catch (e) { saved = {}; }
 
@@ -18,14 +19,14 @@
     picture: q.get('picture') || ''
   };
 
-  if (q.get('fonts') !== 'none') {
+  if (!tv && q.get('fonts') !== 'none') {
     var fams = TP.list('style').map(function (s) { return 'family=' + s.font.google; }).join('&');
     var link = document.createElement('link');
     link.rel = 'stylesheet';
     link.href = 'https://fonts.googleapis.com/css2?' + fams + '&display=swap';
     document.head.appendChild(link);
   }
-  if (q.get('chrome') === '0') document.getElementById('bar').style.display = 'none';
+  if (tv || q.get('chrome') === '0') document.getElementById('bar').style.display = 'none';
 
   function save() {
     try { localStorage.setItem(STORE, JSON.stringify({ style: state.style, themes: state.themes })); } catch (e) { /* storage may be unavailable */ }
@@ -73,6 +74,7 @@
       activate();
       return;
     } else if (k === KEY.back || k === KEY.escape || k === KEY.backspace) {
+      if (tv && state.screen === 'home') { window.close(); return; }
       state.screen = 'home';
     } else {
       return;
