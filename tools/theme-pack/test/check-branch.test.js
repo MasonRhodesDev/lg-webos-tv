@@ -39,3 +39,24 @@ test('local patterns parse one per line and skip comments', async () => {
   assert.ok(findPrivate('ssh my-dev-box', p));
   assert.strictEqual(findPrivate('other', p), null);
 });
+
+test('render failure note shows the failing shots, never the progress counter', async () => {
+  const { renderFailureNote } = await load();
+  const progress = '\r1/560\r2/560\r3/560\n';
+  const out = 'index.html: 560 shots in 60 s\n';
+  const err = progress + '2 failed:\nAlert-base-bubble-none.png\n  qml: shot: no shot after 120 s\nToast-base-x.png\n  Toast.qml:12: TypeError: boom\n';
+  const note = renderFailureNote({ status: 1, stdout: out, stderr: err });
+  assert.match(note, /exit 1/);
+  assert.match(note, /Alert-base-bubble-none\.png/);
+  assert.match(note, /Toast\.qml:12: TypeError: boom/);
+  assert.doesNotMatch(note, /\d+\/560/);
+});
+
+test('render failure note without a failure list shows the tail of the output and the signal', async () => {
+  const { renderFailureNote } = await load();
+  const note = renderFailureNote({ status: null, signal: 'SIGKILL', stdout: '', stderr: '\r1/5\r2/5\nError: boom\n    at x (y.mjs:1:1)\nNode.js v22.0.0\n' });
+  assert.match(note, /killed by SIGKILL/);
+  assert.match(note, /Error: boom/);
+  assert.doesNotMatch(note, /\d+\/5\b/);
+  assert.match(renderFailureNote({ status: 3, stdout: '', stderr: '' }), /exit 3 with no output/);
+});

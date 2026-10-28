@@ -21,10 +21,12 @@ const root = path.join(here, '..');
 const packsDir = path.join(root, 'packs');
 
 const argv = process.argv.slice(2);
+let hangLimitMs = 300000;
 let outDir = null, jobs = Math.max(1, Math.floor(os.cpus().length / 2));
 const only = [];
 for (let i = 0; i < argv.length; i++) {
   if (argv[i] === '--scene') only.push(argv[++i].replace(/\.qml$/, ''));
+  else if (argv[i] === '--hang-limit') hangLimitMs = Math.max(1, Number(argv[++i]) || 1) * 1000;
   else if (argv[i] === '--jobs') jobs = Math.max(1, Number(argv[++i]) || 1);
   else if (argv[i].startsWith('--')) { console.error('unknown option ' + argv[i]); process.exit(2); }
   else outDir = path.resolve(argv[i]);
@@ -76,6 +78,8 @@ delete env.QT_QUICK_BACKEND;
 
 // A virtual display of our own; Xvfb picks a free number and writes it to -displayfd, so parallel workers can't race.
 const servers = [];
+const deadDisplays = [];
+process.on('exit', () => { for (const x of servers) x.kill('SIGKILL'); });
 function startDisplay() {
   return new Promise((resolve, reject) => {
     const x = spawn(xvfb, ['-displayfd', '3', '-screen', '0', '1920x1080x24', '-nolisten', 'tcp'],
@@ -84,18 +88,30 @@ function startDisplay() {
     let out = '', err = '';
     x.stderr.on('data', (d) => { err += d; });
     x.stdio[3].on('data', (d) => { out += d; if (/\n/.test(out)) resolve(':' + out.trim()); });
-    x.on('exit', (code) => reject(new Error('Xvfb exited ' + code + ': ' + err.trim())));
+    x.on('error', (e) => reject(new Error('Xvfb could not start: ' + e.message)));
+    x.on('exit', (code, signal) => {
+      const why = 'Xvfb ' + (signal ? 'killed by ' + signal : 'exited ' + code) + (err.trim() ? ': ' + err.trim() : '');
+      if (!out.includes('\n')) reject(new Error(why + ' before it reported a display'));
+      else deadDisplays.push(':' + out.trim() + ' ' + why);
+    });
   });
 }
 
 function run(args, display) {
   return new Promise((resolve) => {
     const p = spawn(qml, [path.join(here, 'Shot.qml'), '--', ...args], { env: { ...env, DISPLAY: display }, stdio: ['ignore', 'pipe', 'pipe'] });
-    let log = '';
+    let log = '', timedOut = false;
+    // Shot.qml gives up on its own well before this; this is for a qml that stops answering at all.
+    const timer = setTimeout(() => { timedOut = true; p.kill('SIGKILL'); }, hangLimitMs);
     p.stdout.on('data', (d) => { log += d; });
     p.stderr.on('data', (d) => { log += d; });
-    p.on('close', (code) => resolve({ code, log }));
-    p.on('error', (e) => resolve({ code: -1, log: String(e) }));
+    p.on('close', (code, signal) => {
+      clearTimeout(timer);
+      if (timedOut) log += '\nshot: qml stopped answering and was killed after ' + hangLimitMs / 1000 + ' s';
+      else if (signal) log += '\nshot: qml was killed by ' + signal + (signal === 'SIGSEGV' || signal === 'SIGABRT' ? ' (crashed)' : '');
+      resolve({ code: code === null ? -1 : code, log });
+    });
+    p.on('error', (e) => { clearTimeout(timer); resolve({ code: -1, log: 'shot: could not run qml: ' + e.message }); });
   });
 }
 
@@ -114,7 +130,10 @@ if (!scenes.length) { console.error('no scenes' + (only.length ? ' named ' + onl
 const failures = [];
 const info = {};
 const plain = JSON.stringify(payload(styles[0], []));
-const firstDisplay = await startDisplay();
+// A display that can't start is the one external nondeterminism here (Xvfb needs a free display number, a lock file and
+// a socket); say so plainly and stop, rather than let the rejection surface as a Node trace.
+function die(e) { console.error('render failed: ' + (e && e.message || e)); process.exit(1); }
+const firstDisplay = await startDisplay().catch(die);
 for (const s of scenes) {
   const r = await run([path.join(sceneDir, s + '.qml'), plain, '--states'], firstDisplay);
   const m = /SHOT-INFO (.*)/.exec(r.log);
@@ -141,7 +160,7 @@ for (const s of Object.keys(info)) {
 
 let next = 0, done = 0;
 async function worker(n) {
-  const display = n === 0 ? firstDisplay : await startDisplay();
+  const display = n === 0 ? firstDisplay : await startDisplay().catch(die);
   while (next < shots.length) {
     const shot = shots[next++];
     const out = path.join(outDir, shot.file);
@@ -154,13 +173,14 @@ async function worker(n) {
       shot.failed = true;
       failures.push({ shot: shot.file, errors: errors.length ? errors : [r.log.trim() || 'exit ' + r.code + ', no image'] });
     }
-    process.stderr.write('\r' + (++done) + '/' + shots.length);
+    ++done;
+    if (process.stderr.isTTY) process.stderr.write('\r' + done + '/' + shots.length);
   }
 }
 const started = Date.now();
 await Promise.all(Array.from({ length: Math.min(jobs, shots.length) }, (_, n) => worker(n)));
 for (const x of servers) { x.removeAllListeners('exit'); x.kill(); }
-process.stderr.write('\n');
+if (process.stderr.isTTY) process.stderr.write('\n');
 
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
 // A scene's `frame` (x, y, width, height in the 1920x1080 shot) is what the contact sheet shows of it.
@@ -193,6 +213,7 @@ fs.writeFileSync(path.join(outDir, 'index.html'), '<!doctype html><meta charset=
 
 console.log(path.join(outDir, 'index.html') + ': ' + shots.length + ' shots in ' + Math.round((Date.now() - started) / 1000) + ' s');
 for (const s in waiting) console.error(s + ': not rendered, waits for ' + waiting[s].map((p) => 'ui/Look/parts/' + p).join(', '));
+for (const d of deadDisplays) failures.push({ shot: 'display ' + d.split(' ')[0], errors: [d.slice(d.indexOf(' ') + 1) + ' while shots were running'] });
 if (failures.length) {
   console.error(failures.length + ' failed:');
   for (const f of failures) console.error(f.shot + '\n  ' + f.errors.join('\n  '));

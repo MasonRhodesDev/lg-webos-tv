@@ -83,8 +83,9 @@ Window {
         repeat: true
         onTriggered: if (!win.fontWanted || Look.font !== "") { stop(); shoot.start(); }
     }
-    // A scene that throws never reaches the shot; give up rather than hang.
-    Timer { interval: 15000; running: true; onTriggered: win.fail("no shot after 15 s" + (win.fontWanted && Look.font === "" ? " (the style's font never loaded)" : "")) }
+    // A scene that throws never reaches the shot; give up rather than hang. Shots run several at once on software GL, so a
+    // loaded machine can take well over 15 s to get one out; this is a hang limit, not a speed requirement.
+    Timer { interval: 120000; running: true; onTriggered: win.fail("no shot after 120 s" + (win.fontWanted && Look.font === "" ? " (the style's font never loaded)" : "")) }
     Timer {
         id: shoot
         interval: 700

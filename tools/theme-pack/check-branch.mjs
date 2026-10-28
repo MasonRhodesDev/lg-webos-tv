@@ -39,6 +39,19 @@ export function findPrivate(line, patterns = PORTABILITY) {
   return hit ? hit.name : null;
 }
 
+// Why a failed render run failed, from its exit status and output. render.mjs prints "N failed:" and then each failing
+// shot with its QML errors; anything else (a crash, a signal, a Node trace) is shown as the tail of what it printed. The
+// progress counter ("12/560", redrawn with \r) is never the cause, so it is dropped.
+export function renderFailureNote(r, maxLines = 12) {
+  const text = [r.stdout, r.stderr].map((t) => String(t || '')).join('\n');
+  const lines = text.split(/[\r\n]+/).filter((l) => l.trim() && !/^\d+\/\d+$/.test(l.trim()));
+  const at = lines.findIndex((l) => /^\d+ failed:$/.test(l));
+  let why = at >= 0 ? lines.slice(at) : lines.slice(-maxLines);
+  if (why.length > maxLines) why = why.slice(0, maxLines).concat('... (' + (why.length - maxLines) + ' more lines; see the contact sheet)');
+  const how = r.signal ? 'killed by ' + r.signal : r.error ? String(r.error.message || r.error) : 'exit ' + r.status;
+  return how + (why.length ? ':\n    ' + why.join('\n    ') : ' with no output');
+}
+
 function git(cwd, ...args) {
   const r = spawnSync('git', args, { cwd, encoding: 'utf8', maxBuffer: 1 << 28 });
   if (r.status !== 0) throw new Error('git ' + args.join(' ') + ': ' + (r.stderr || '').trim());
@@ -110,7 +123,7 @@ function checks(cwd, base, render) {
     const r = spawnSync(process.execPath, [path.join(cwd, 'tools/theme-pack/preview/render.mjs'), dir], { cwd, encoding: 'utf8', maxBuffer: 1 << 28 });
     const sheet = path.join(dir, 'index.html');
     if (r.status === 0) return [true, '0 failed shots; contact sheet ' + sheet];
-    return [false, ((r.stderr || r.stdout || '').trim().split('\n')[0]) + '; contact sheet ' + sheet];
+    return [false, renderFailureNote(r) + '\n    contact sheet ' + sheet];
   });
 
   return results;
