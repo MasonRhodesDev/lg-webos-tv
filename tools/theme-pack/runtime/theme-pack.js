@@ -14,14 +14,14 @@
     'r-tile', 'r-panel', 'r-row', 'r-key',
     // The design language (DESIGN.md): colour roles, sizes, type, elevation and motion the component kit reads.
     'surface-strong', 'divider', 'current-ink', 'r-control',
-    'safe-x', 'safe-y', 'space-xs', 'space-s', 'space-m', 'space-l', 'space-xl', 'space-xxl',
+    'safe-x', 'safe-y', 'space-xs', 'space-s', 'space-m', 'space-ml', 'space-l', 'space-lx', 'space-xl', 'space-xxl',
     'edge-w', 'focus-w', 'focus-scale', 'current-w',
-    'panel-w', 'dialog-w', 'toast-w', 'row-h', 'row-h-2', 'row-pad', 'section-h', 'icon', 'well',
+    'panel-w', 'dialog-w', 'toast-w', 'row-h', 'row-h-2', 'row-pad', 'section-h', 'icon', 'icon-l', 'well', 'volume-w', 'volume-h',
     'track-h', 'thumb', 'toggle-w', 'toggle-h', 'knob-size', 'button-h', 'tile-w', 'tile-h', 'tile-pad',
     'elev-panel', 'elev-focus',
     'type-display', 'type-display-weight', 'type-title', 'type-title-weight', 'type-tile', 'type-tile-weight',
     'type-label', 'type-label-weight', 'type-value', 'type-value-weight', 'type-body', 'type-body-weight',
-    'type-caption', 'type-caption-weight', 'type-heading', 'type-heading-weight', 'type-heading-case',
+    'type-caption', 'type-caption-weight', 'type-headline', 'type-headline-weight', 'type-heading', 'type-heading-weight', 'type-heading-case',
     'type-key', 'type-key-weight', 'type-numeral', 'type-numeral-weight',
     'motion-focus', 'motion-value', 'motion-enter', 'motion-exit', 'ease-focus', 'ease-enter', 'ease-exit', 'enter-shift'
   ];

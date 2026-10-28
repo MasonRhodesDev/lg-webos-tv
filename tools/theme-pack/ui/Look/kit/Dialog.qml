@@ -34,7 +34,7 @@ Item {
                 spacing: Look.px("space-m")
                 Rectangle {
                     visible: !!dialog.icon
-                    width: Look.px("well") * 1.25
+                    width: Look.px("well")
                     height: width
                     radius: width / 2
                     color: Look.color("inner")

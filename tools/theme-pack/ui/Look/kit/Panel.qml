@@ -4,9 +4,9 @@ import Look 1.0
 // A panel: the surface material, decorated as `target`, placed by the placement grammar (DESIGN.md, Placement) and
 // entering and leaving with the style's motion. Its children are the content, inset by `padding`.
 //   side-left, side-right  the full safe height at a side edge, panel-w wide (Quick Settings, sub-menus)
-//   rail                   a narrow column at the right edge, centred (the volume bar)
+//   bar                    a pill at the top-right of the safe area, volume-w by volume-h (the volume bar)
 //   ribbon                 the full safe width at the bottom (the input picker; usually `bare`)
-//   toast                  the top-right corner of the safe area
+//   toast                  the bottom-right corner, safe-x in from the right and the bottom
 //   center                 centred, dialog-w wide, as tall as its content (dialogs)
 //   full                   the whole safe area (our Settings)
 //   none                   placed by the parent
@@ -30,22 +30,23 @@ Item {
     readonly property real areaH: parent ? parent.height : 1080
 
     implicitWidth: placement === "center" ? Look.px("dialog-w") : placement === "toast" ? Look.px("toast-w")
-                 : placement === "rail" ? 112 : Look.px("panel-w")
+                 : placement === "bar" ? Look.px("volume-w") : Look.px("panel-w")
     implicitHeight: body.childrenRect.height + 2 * padding
     width: placement === "ribbon" || placement === "full" ? areaW - 2 * safeX : implicitWidth
     height: placement === "side-left" || placement === "side-right" || placement === "full" ? areaH - 2 * safeY
-          : placement === "rail" ? 560 : implicitHeight
+          : placement === "bar" ? Look.px("volume-h") : implicitHeight
     x: placement === "side-left" || placement === "ribbon" || placement === "full" ? safeX
-     : placement === "side-right" || placement === "rail" || placement === "toast" ? areaW - safeX - width
+     : placement === "side-right" || placement === "bar" || placement === "toast" ? areaW - safeX - width
      : placement === "center" ? (areaW - width) / 2 : 0
     y: placement === "ribbon" ? areaH - safeY - height
-     : placement === "rail" || placement === "center" ? (areaH - height) / 2
+     : placement === "toast" ? areaH - safeX - height
+     : placement === "center" ? (areaH - height) / 2
      : placement === "none" ? 0 : safeY
 
     // Where it comes from: its own edge for edge panels, a small rise and grow for centred ones.
     readonly property real shift: Look.px("enter-shift")
-    readonly property real fromX: placement === "side-left" ? -shift : placement === "side-right" || placement === "rail" ? shift : 0
-    readonly property real fromY: placement === "toast" ? -shift : placement === "ribbon" ? shift
+    readonly property real fromX: placement === "side-left" ? -shift : placement === "side-right" ? shift : 0
+    readonly property real fromY: placement === "bar" ? -shift : placement === "toast" || placement === "ribbon" ? shift
                                 : placement === "center" || placement === "full" ? shift / 3 : 0
     readonly property bool grows: placement === "center" || placement === "full"
 

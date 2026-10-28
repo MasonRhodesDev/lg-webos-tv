@@ -16,7 +16,7 @@ Item {
     // A part with `onDemand: true` replaces an item LG creates later and destroys again (system UI overlays, the
     // toast view). It waits instead of being a gap, is claimed whenever LG shows its item, and is visible only while
     // it holds one.
-    property var parts: ["parts/VolumeBar.qml", "parts/Toast.qml"]
+    property var parts: ["parts/VolumeBar.qml", "parts/VolumeMute.qml", "parts/Toast.qml"]
 
     // How deep under a system UI view's current item (its StarfishSystemUIContainer) an on-demand item may sit.
     readonly property int lateDepth: 3

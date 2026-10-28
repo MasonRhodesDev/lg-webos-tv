@@ -1,9 +1,9 @@
 import QtQuick 2.4
 import Look 1.0
 
-// A toast: a strong panel (decoratable as `toast`) with an icon well, an optional title, the message, and an
-// optional trailing chevron when the toast leads somewhere. `compact` is the one-line kind. Placed `toast` by
-// default (the top-right of the safe area); toasts never take focus.
+// A toast (SmokeOverlays board): a glass panel (decoratable as `toast`) with an icon well, an optional title, the
+// message, and a trailing chevron when the toast leads somewhere. `compact` is the one-line kind, as wide as its text.
+// Placed `toast` by default (the bottom-right corner); toasts never take focus.
 Panel {
     id: toast
     property string title
@@ -15,11 +15,11 @@ Panel {
     property bool link: false
     target: "toast"
     placement: "toast"
-    strong: true
-    padding: Look.px(compact ? "space-s" : "space-m")
-    width: compact ? Math.min(Look.px("toast-w"), well.width + texts.implicitW + 2 * padding + Look.px("space-m") + Look.px("space-s"))
-                   : Look.px("toast-w")
-    readonly property real wellSize: Look.px("well") * (compact ? 0.8 : 1)
+    padding: Look.px(compact ? "space-m" : "space-lx")
+    readonly property real gap: Look.px("space-ml")
+    readonly property real wellSize: compact ? Look.px("well") * 2 / 3 : Look.px("well")
+    readonly property real tail: chevron.visible ? chevron.width + Look.px("space-s") : 0
+    width: compact ? Math.min(Look.px("toast-w"), wellSize + gap + texts.implicitW + tail + 2 * padding) : Look.px("toast-w")
 
     Item {
         width: toast.width - 2 * toast.padding
@@ -28,13 +28,16 @@ Panel {
             id: well
             width: toast.wellSize
             height: width
-            radius: width / 2
+            radius: Math.min(Look.px("r-tile"), width / 2)
             color: Look.color("inner")
-            anchors.verticalCenter: parent.verticalCenter
+            border.width: Look.px("edge-w")
+            border.color: Look.color("surface-edge")
+            anchors.verticalCenter: toast.compact ? parent.verticalCenter : undefined
             Icon {
                 visible: toast.image == ""
                 anchors.centerIn: parent
                 name: toast.icon
+                size: Look.px(toast.compact ? "icon" : "icon-l")
                 color: toast.hue >= 0 ? Look.hue(toast.hue) : Look.color("ink")
             }
             Image {
@@ -48,15 +51,15 @@ Panel {
         }
         Column {
             id: texts
-            readonly property real implicitW: Math.max(titleLabel.implicitWidth, messageLabel.implicitWidth)
-            x: well.width + Look.px("space-m")
-            width: parent.width - x - (chevron.visible ? chevron.width + Look.px("space-s") : 0)
-            anchors.verticalCenter: parent.verticalCenter
-            spacing: 2
-            Label { id: titleLabel; visible: !!toast.title; role: "label"; text: toast.title; width: parent.width }
+            readonly property real implicitW: Math.ceil(Math.max(titleLabel.implicitWidth, messageLabel.implicitWidth)) + 1
+            x: well.width + toast.gap
+            width: parent.width - x - toast.tail
+            anchors.verticalCenter: toast.compact || !toast.title ? parent.verticalCenter : undefined
+            spacing: Look.px("space-xs")
+            Label { id: titleLabel; visible: !!toast.title; role: "headline"; text: toast.title; width: parent.width }
             Label {
                 id: messageLabel
-                role: toast.title ? "value" : "label"
+                role: "body"
                 text: toast.message
                 color: toast.title ? Look.color("ink-2") : Look.color("ink")
                 width: parent.width

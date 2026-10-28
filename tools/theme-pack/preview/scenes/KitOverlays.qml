@@ -2,7 +2,7 @@ import QtQuick 2.4
 import Look 1.0
 
 // The kit's contact sheet, board 2 of 2: overlays. A tile ribbon in every tile state, toasts, a dialog, the volume
-// rail and the scrims; and the chips, badges and icon set.
+// bar and the scrims; and the chips, badges and icon set.
 Item {
     width: 1920
     height: 1080
@@ -36,11 +36,12 @@ Item {
             }
         }
 
-        // Toasts take the top-right corner; here they step left of the rail so both show.
+        // Toasts take the bottom-right corner; here they sit under the volume bar, clear of the ribbon.
         ToastCard {
+            id: toastA
             placement: "none"
-            x: 1920 - 96 - 112 - 40 - width
-            y: 54
+            x: 1920 - 96 - width
+            y: 54 + 88 + 24
             title: "HDMI 2 connected"
             message: "PlayStation 5 · 4K 120 Hz. Game optimiser switched on for this input."
             icon: "gamepad"
@@ -48,8 +49,8 @@ Item {
             link: true
         }
         ToastCard {
-            y: 54 + 170
-            x: 1920 - 96 - 112 - 40 - width
+            y: toastA.y + toastA.height + 24
+            x: 1920 - 96 - width
             placement: "none"
             compact: true
             icon: "speaker"
@@ -108,29 +109,29 @@ Item {
             }
         }
 
+        // The volume bar.
         Panel {
-            placement: "rail"
-            y: 54
-            height: 600
-            padding: Look.px("space-m")
-            Label {
-                id: level
-                role: "numeral"
-                text: "21"
-                anchors.horizontalCenter: parent.horizontalCenter
-            }
-            Slider {
-                vertical: true
-                fraction: 0.21
-                length: 600 - 2 * Look.px("space-m") - level.height - Look.px("space-l") - 72
-                y: level.height + Look.px("space-l")
-                anchors.horizontalCenter: parent.horizontalCenter
-            }
-            Icon {
-                name: "speaker"
-                color: Look.color("ink-2")
-                anchors.horizontalCenter: parent.horizontalCenter
-                anchors.bottom: parent.bottom
+            id: volume
+            placement: "bar"
+            padding: Look.px("space-lx")
+            radius: height / 2
+            Row {
+                height: parent.height
+                spacing: Look.px("space-ml")
+                Icon { id: spk; name: "volume"; anchors.verticalCenter: parent.verticalCenter }
+                Slider {
+                    fraction: 0.42
+                    length: volume.width - 2 * volume.padding - spk.width - level.width - 2 * parent.spacing
+                    anchors.verticalCenter: parent.verticalCenter
+                }
+                Label {
+                    id: level
+                    role: "numeral"
+                    text: "21"
+                    width: Look.px("type-numeral") * 1.4
+                    horizontalAlignment: Text.AlignRight
+                    anchors.verticalCenter: parent.verticalCenter
+                }
             }
         }
 

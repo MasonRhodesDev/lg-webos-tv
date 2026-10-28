@@ -21,10 +21,10 @@ The system is fixed; styles change its values.
 ## Surface
 
 There is one material: **Surface** (`surface`, with `surface-edge` at `edge-w`, radius `r-panel`, the `elev-panel`
-shadow under it). Panels, the volume rail, key caps, toasts and dialogs are all made of it.
+shadow under it). Panels, the volume bar, key caps, toasts and dialogs are all made of it.
 
-- `surface` is for things beside the picture (side panels, the rail, tiles).
-- `surface-strong` is denser, for things that land on top of whatever is showing (toasts, dialogs).
+- `surface` is for things beside the picture (side panels, the volume bar, tiles, toasts).
+- `surface-strong` is denser, for things that land on top of whatever is showing (dialogs).
 - Inside a panel, rows sit on `inner`: a lighter plate on the panel, never a second panel.
 - Tiles float straight on the picture, so their plate is `surface`, edged.
 - Dividers are `divider`.
@@ -46,14 +46,20 @@ decoration goes outside it. A **Panel** takes one placement:
 | placement | where | size | enters from |
 |---|---|---|---|
 | `side-left`, `side-right` | at that edge | `panel-w` wide, full safe height | that edge |
-| `rail` | right edge, centred | 112 wide, 560 tall | the right |
+| `bar` | top-right corner | `volume-w` by `volume-h`, a pill | above |
 | `ribbon` | bottom, full safe width | its content | below |
-| `toast` | top-right corner | `toast-w` (compact: its text) | above |
+| `toast` | bottom-right corner, `safe-x` in from the right and the bottom | `toast-w` (compact: its text) | below |
 | `center` | centred | `dialog-w` wide, its content | a short rise and grow |
 | `full` | the whole safe area | | a short rise and grow |
 
 - A ribbon is usually `bare`: no surface, its tiles straight on a `bottom` scrim. Its decoration target is `ribbon`.
-- Toasts stack downward from the corner with `space-m` between them.
+- Toasts stack upward from the corner with `space-m` between them.
+- The volume bar (SmokeOverlays board): the speaker icon, a **Slider** filling the rest, the level as a `numeral`
+  right-aligned in a two-digit slot, `space-ml` apart, `space-lx` in from the ends. With no level to show (an external
+  speaker, a device the TV cannot set) it shrinks to its icons; the mute indicator is the same pill, round.
+- A toast (SmokeOverlays board): a `well` square plate (`inner`, edged, `r-tile`) holding a `icon-l` icon in its hue,
+  `space-ml` from the title (`headline`) over the message (`body`, `ink-2`); `space-lx` padding; a chevron when it
+  leads somewhere.
 - A side panel pairs with a scrim from its edge; a dialog with `dim`.
 
 ## Row
@@ -125,9 +131,10 @@ weights its font files carry (a test checks this). Every kit text is a **Label**
 | `display` | the Settings app's own name |
 | `title` | page, panel and dialog titles |
 | `tile` | a tile's name |
-| `label` | row labels, buttons, toast titles |
-| `value` | values, key hint labels, toast messages under a title |
-| `body` | dialog text |
+| `headline` | toast titles, card headings (SmokeSpec's "heading" 32/700) |
+| `label` | row labels, buttons |
+| `value` | values, key hint labels |
+| `body` | dialog text, toast messages |
 | `caption` | hint lines, subtitles, tile sub lines |
 | `heading` | section headers and breadcrumbs (`type-heading-case`: Smoke uppercase, Bubble as written) |
 | `key` | the names on key caps |
@@ -135,8 +142,8 @@ weights its font files carry (a test checks this). Every kit text is a **Label**
 
 ## Spacing
 
-`space-xs` 8, `space-s` 12, `space-m` 20, `space-l` 28, `space-xl` 40, `space-xxl` 56 (Smoke; Bubble is a little
-looser). Use them for every gap and padding: `space-s` between rows, `space-m` inside a row between its parts and
+`space-xs` 8, `space-s` 12, `space-m` 20, `space-ml` 24, `space-l` 28, `space-lx` 32, `space-xl` 40, `space-xxl` 56
+(Smoke; Bubble is a little looser). The boards use all of them. Use them for every gap and padding: `space-s` between rows, `space-m` inside a row between its parts and
 between tiles and toasts, `space-l` for panel padding, `space-xl` between key hints and on button sides, `space-xxl`
 for dialog padding.
 
@@ -175,7 +182,7 @@ Each piece is wrapped in `Decor` with a target and the states it passes. Themes 
 | target | component | states |
 |---|---|---|
 | `screen` | **Screen**: the whole display, behind and in front of everything | |
-| `panel` | Panel (side panels, the rail, Settings) | |
+| `panel` | Panel (side panels, the volume bar, Settings) | |
 | `ribbon` | a bare Panel (the input picker's ribbon) | |
 | `toast` | ToastCard | |
 | `dialog` | Dialog's panel | |
@@ -184,7 +191,7 @@ Each piece is wrapped in `Decor` with a target and the states it passes. Themes 
 | `button` | Button | focused, disabled |
 | `chip` | Chip | |
 | `badge` | Badge | |
-| `thumb` | a Slider's thumb | disabled |
+| `thumb` | the end of a Slider's fill (the boards draw no thumb; only themes do) | disabled |
 | `knob` | a Toggle's knob | disabled |
 | `radio` | Radio | current (chosen), disabled |
 | `check` | Check | current (checked), disabled |
