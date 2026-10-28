@@ -24,11 +24,12 @@ else
   echo "Look service not installed; skipping permissions"
 fi
 
-# 2. Compositor Look. A client takes its bus groups when it connects, so the restart also picks up step 1.
-if [ -f "$ROOT/qml/compositor-look.sh" ]; then
-  sh "$ROOT/qml/compositor-look.sh" apply && echo "compositor look applied (see /tmp/compositor-look.log)"
+# 2. Our UI layer in the compositor. A client takes its bus groups when it connects, so the restart also picks up
+# step 1.
+if [ -f "$ROOT/layer/own-layer.sh" ]; then
+  sh "$ROOT/layer/own-layer.sh" apply && echo "UI layer started (see /tmp/own-layer.log)"
 else
-  echo "compositor left stock (no build)"
+  echo "compositor left stock (no layer installed)"
 fi
 
 # 3. Patched Settings, only over the exact stock build it was made from.

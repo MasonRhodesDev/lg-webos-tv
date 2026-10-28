@@ -31,14 +31,15 @@
     reads: [],
     recipes: [
       { target: 'screen', slot: 'back', when: 'always', outset: 0, style: 'overflow:hidden;background:linear-gradient(to bottom,rgba(40,10,60,0.35),rgba(40,10,60,0) 60%)', html: SKY },
-      { target: '*', slot: 'back', when: 'focused', outset: 26, style: 'border-radius:56px;background:#FF8A1F;opacity:0.5;-webkit-filter:blur(16px);filter:blur(16px)' },
+      { target: '*', slot: 'back', when: 'focused', outset: 26, style: 'border-radius:56px;background:#FF8A1F;opacity:0.5;-webkit-filter:blur(16px);filter:blur(16px)',
+        fill: '#FF8A1F', radius: 56, blur: 16, opacity: 0.5 },
       { target: 'tile', slot: 'front', when: 'always', outset: [6, 6, 0, 0], style: 'left:auto;bottom:auto;width:76px;height:76px', html: WEB },
       { target: 'panel', slot: 'front', when: 'always', outset: [0, 56, 0, 0], style: 'left:auto;bottom:auto;width:44px;height:170px', html: SPIDER },
       { target: 'settings', slot: 'front', when: 'always', outset: [0, 64, 0, 0], style: 'left:auto;bottom:auto;width:44px;height:170px', html: SPIDER },
       { target: 'chip', slot: 'back', when: 'always', outset: 6, style: 'border-radius:999px;background:#FF8A1F' },
       { target: 'chip', slot: 'front', when: 'always', outset: [16, 0, 0, 0], style: 'bottom:auto;height:16px;text-align:center',
         html: '<svg width="14" height="16" viewBox="0 0 14 16" aria-hidden="true"><path d="M6 16c0-6 1-11 6-14-1 4-2 9-2 14z" fill="#3C6E2A"></path></svg>' },
-      { target: 'thumb', slot: 'front', when: 'always', outset: 10, style: '', html: PUMPKIN },
+      { target: 'thumb', slot: 'front', when: 'always', outset: 10, style: '', html: PUMPKIN, asset: 'thumb.png' },
       { target: 'knob', slot: 'front', when: 'always', outset: 6, style: '', html: SPIDER_KNOB },
       { target: 'screen', slot: 'front', when: 'always', outset: 0, style: 'left:auto;bottom:auto;width:150px;height:150px', html: CORNER_WEB(false) },
       { target: 'screen', slot: 'front', when: 'always', outset: 0, style: 'right:auto;bottom:auto;width:150px;height:150px', html: CORNER_WEB(true) }

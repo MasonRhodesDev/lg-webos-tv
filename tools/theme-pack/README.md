@@ -136,26 +136,38 @@ How it works:
 
 Current limits: the Look button reuses the Picture icon; with eight categories the last one (Accessibility) sits below the bottom edge.
 
-## Look in the compositor (volume, inputs)
+## Our UI layer in the compositor
 
-The volume bar, the input picker and the rest of the system UI are QML inside the compositor (`surface-manager-starfish`). `webos/compositor-look.mjs` builds a copy of the stock `SystemUIAssets` module and `InputPicker/Style.qml` from your own copy of the QML, adds a `ThemePack` singleton that subscribes to the Look service, and binds the stock style properties to it. Every `ThemePack` property starts at LG's value, so the UI is stock until the service answers.
+The volume bar, the input picker and the rest of the system UI are QML inside the compositor (`surface-manager-starfish`). Instead of editing LG's files, `ui/` is a QML module tree that the compositor finds first on its import path:
+
+- `ui/YSM` defines the compositor's root type, `YSM`, as LG's own `YSM.qml` with our layer added on top. LG's root loads it through `import YSM 1.0`, so no LG file is edited or mounted over.
+- `ui/Look/Layer.qml` is our layer. For each component it draws, it finds LG's item and makes it invisible, but leaves it running. LG keeps deciding *when* (timeouts, the volume OSD setting, audio guidance); our component decides *how it looks*. If LG's item isn't found, LG's stays on screen and the gap is reported.
+- `ui/Look/Look.qml` is the active style's tokens and themes, live from the Look service. `Decor.qml` is the layer model (back rings, origin, front rings) and `Ring.qml` draws one recipe.
+- Our components are written from scratch on those three (today: `VolumeBar.qml`), so a style and its themes reach every pixel they draw.
 
 ```sh
-ssh root@"$TV_HOST" 'tar -C /usr/lib/qt5 -cf - qml' | tar -C /tmp/stock -xf -
-node tools/theme-pack/webos/compositor-look.mjs --qml /tmp/stock/qml --out /tmp/compositor-look
-TV_HOST=<tv address> sh tools/theme-pack/webos/compositor-look-tv.sh apply /tmp/compositor-look
-TV_HOST=<tv address> sh tools/theme-pack/webos/compositor-look-tv.sh revert
+TV_HOST=<tv address> sh tools/theme-pack/webos/own-layer-tv.sh apply    # copy ui/, restart the compositor with it
+TV_HOST=<tv address> sh tools/theme-pack/webos/own-layer-tv.sh revert   # restart the compositor on stock
 ```
 
-`apply` checks the TV's stock files against the ones the build was made from, bind-mounts the build and restarts the compositor, which blanks the on-screen UI for a moment. If the compositor cannot render a frame within 40 s it unmounts and restarts on stock. The compositor's QML calls the bus as `com.webos.surfacemanager.systemui`, a name in no permission group, so `service/permissions.sh` grants it the service's group; a client takes its groups when it connects, which is one more reason the compositor restarts.
+`own-layer.sh` passes `QML2_IMPORT_PATH` to the compositor job only, so a plain restart is stock again. The root reports to the Look service as soon as it loads; if it doesn't within 60 s, the compositor is restarted on stock. Our layer is created separately from the root, so a broken layer leaves LG's UI running and reports its error. Read the reports with `luna-send -n 1 luna://dev.themepack.look.service/getReports '{}'` (the compositor's own QML warnings go nowhere). The compositor's QML calls the bus as `com.webos.surfacemanager.systemui`, a name in no permission group, so `service/permissions.sh` grants it the service's group.
+
+### Recipes the QML layer draws
+
+The compositor can't draw HTML, and has no SVG plugin. A recipe is drawn by the QML layer when it names one of:
+
+- `asset`: a PNG in the theme's asset pack, `packs/assets/<theme id>/`, scaled into the ring box.
+- `fill` (a colour, or a token name such as `focus`), with optional `radius` and `blur` in px: a soft glow.
+
+`opacity` applies to both. Recipes with only `html`/`style` are drawn by the HTML renderer alone. `node tools/theme-pack/render-assets.mjs` renders each `asset` from its recipe's inline SVG (needs `rsvg-convert`); the PNGs are committed, so building doesn't need it.
 
 ## Every boot
 
-The read-only system and the boot snapshot undo mounts and bus permissions at each power-on. `webos/60-themepack` is a Homebrew Channel boot hook that puts them back: bus permissions and a rescan, the compositor Look, the patched Settings (only over the exact stock build it was made from), then a hidden warm-up launch of Settings so its first open is instant. It logs to `/tmp/themepack.log`.
+The read-only system and the boot snapshot undo mounts and bus permissions at each power-on. `webos/60-themepack` is a Homebrew Channel boot hook that puts them back: bus permissions and a rescan, our UI layer in the compositor, the patched Settings (only over the exact stock build it was made from), then a hidden warm-up launch of Settings so its first open is instant. It logs to `/tmp/themepack.log`.
 
 ```sh
 TV_HOST=<tv address> sh tools/theme-pack/webos/install-boot.sh install /tmp/settings-look
 TV_HOST=<tv address> sh tools/theme-pack/webos/install-boot.sh remove
 ```
 
-The compositor step runs when a build was applied with `compositor-look-tv.sh`, which leaves it on the TV.
+The layer step runs once `own-layer-tv.sh apply` has put the layer on the TV.

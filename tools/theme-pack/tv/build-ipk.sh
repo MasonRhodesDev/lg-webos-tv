@@ -24,6 +24,7 @@ svc="$work/data/usr/palm/services/$id.service"
 mkdir -p "$svc" "$work/data/usr/palm/packages/$id"
 cp "$here/service/service.js" "$here/service/services.json" "$here/service/package.json" "$here/service/permissions.sh" "$svc/"
 node "$here/export-json.mjs" "$svc/packs" >/dev/null
+cp -r "$here/packs/assets" "$svc/packs/"
 mkdir -p "$svc/data" && chmod 0777 "$svc/data"
 cp "$here/tv/packageinfo.json" "$work/data/usr/palm/packages/$id/"
 if [ -n "$fonts" ]; then mkdir -p "$app/fonts" && cp "$fonts"/* "$app/fonts/"; fi

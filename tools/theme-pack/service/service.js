@@ -11,6 +11,8 @@ var packsDir = path.join(__dirname, 'packs');
 var lookFile = path.join(__dirname, 'data', 'look.json');
 var subscribers = {};
 var lastLoadMs = null;
+// What the TV's renderers reported (loaded, errors), newest last. They cannot write files, so this is their log.
+var reports = [];
 
 // Stay running after the first call: a cold start drops the call that woke the service.
 service.activityManager.create('keepAlive', function () {});
@@ -41,6 +43,8 @@ function payload() {
     look: look,
     subscribers: Object.keys(subscribers).length,
     lastLoadMs: lastLoadMs,
+    // Theme assets are files next to the packs; renderers resolve a recipe's `asset` against this.
+    assets: 'file://' + path.join(packsDir, 'assets') + '/',
     style: styles[look.style],
     themes: look.themes.map(function (t) { return themes[t]; }),
     available: {
@@ -80,3 +84,14 @@ function setLook(message) {
   Object.keys(subscribers).forEach(function (k) { subscribers[k].respond(out); });
   message.respond(out);
 }
+
+service.register('report', function (message) {
+  var p = message.payload || {};
+  reports.push({ at: new Date().toISOString(), from: String(p.from || ''), kind: String(p.kind || 'info'), text: String(p.text || '') });
+  if (reports.length > 100) reports.shift();
+  message.respond({ returnValue: true });
+});
+
+service.register('getReports', function (message) {
+  message.respond({ returnValue: true, reports: reports });
+});

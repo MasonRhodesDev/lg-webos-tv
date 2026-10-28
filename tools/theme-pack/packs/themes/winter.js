@@ -38,10 +38,11 @@
     recipes: [
       { target: 'screen', slot: 'back', when: 'always', outset: 0, style: 'overflow:hidden', html: FIELD },
       { target: 'screen', slot: 'front', when: 'always', outset: 0, style: 'bottom:auto;height:44px', html: ICICLES },
-      { target: '*', slot: 'back', when: 'focused', outset: 24, style: 'border-radius:56px;background:#9AD8FF;opacity:0.4;-webkit-filter:blur(16px);filter:blur(16px)' },
+      { target: '*', slot: 'back', when: 'focused', outset: 24, style: 'border-radius:56px;background:#9AD8FF;opacity:0.4;-webkit-filter:blur(16px);filter:blur(16px)',
+        fill: '#9AD8FF', radius: 56, blur: 16, opacity: 0.4 },
       { target: '*', slot: 'front', when: 'focused', outset: [20, 0, 0, 20], style: 'right:auto;bottom:auto;width:36px;height:36px',
         html: '<svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#EEF8FF" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="' + FLAKE + '"></path></svg>' },
-      { target: 'thumb', slot: 'front', when: 'always', outset: 10, style: '', html: SNOWMAN },
+      { target: 'thumb', slot: 'front', when: 'always', outset: 10, style: '', html: SNOWMAN, asset: 'thumb.png' },
       { target: 'knob', slot: 'front', when: 'always', outset: 4, style: '', html: FLAKE_KNOB },
       { target: 'chip', slot: 'back', when: 'always', outset: 14, style: 'opacity:0.85',
         html: '<svg width="100%" height="100%" viewBox="0 0 24 24" fill="none" stroke="#DDF1FF" stroke-width="1.2" stroke-linecap="round" aria-hidden="true"><path d="' + FLAKE + '"></path></svg>' }
