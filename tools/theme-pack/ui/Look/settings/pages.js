@@ -54,6 +54,16 @@ function target(name) {
     return [Menu.categories[0].page];
 }
 
+// Catalog pages that sit under a page in LG's tree, including ones no row of it links to (LG's code opens them).
+function children(id) {
+    var out = [];
+    for (var i = 0; i < Catalog.catalog.order.length; i++) {
+        var p = Catalog.catalog.pages[Catalog.catalog.order[i]], n = p.lgPath.length;
+        if (n > 1 && p.lgPath[n - 2] === id && !p.region) out.push(p);
+    }
+    return out;
+}
+
 // What a page is made of: { title, sub, rows: [specs] } (specs as in menu.js).
 function definition(entry) {
     var id = entry.id, d = id === "quick" ? Menu.quick : Menu.pages[id];
@@ -67,6 +77,9 @@ function definition(entry) {
         if (it.type === "page") rows.push({ "page": it.opens, "label": words(it.id), "hint": it.meaning });
         else rows.push({ "item": id + "/" + it.id, "label": words(it.id), "hint": it.meaning });
     }
+    var linked = {}, kids = children(id);
+    for (i = 0; i < rows.length; i++) if (rows[i].page) linked[rows[i].page] = true;
+    for (i = 0; i < kids.length; i++) if (!linked[kids[i].id]) rows.push({ "page": kids[i].id, "label": words(kids[i].id), "hint": kids[i].meaning });
     return { "title": words(id), "rows": rows };
 }
 
@@ -102,6 +115,12 @@ function expanded(entry) {
             } else if (!used[it.id] && !used[top.id + "/" + it.id]) {
                 more.push({ "item": top.id + "/" + it.id, "label": words(it.id), "hint": it.meaning });
             }
+        }
+        var kids = children(top.id);
+        for (j = 0; j < kids.length; j++) {
+            if (used["page:" + kids[j].id]) continue;
+            used["page:" + kids[j].id] = true;
+            more.push({ "page": kids[j].id, "label": words(kids[j].id), "hint": kids[j].meaning });
         }
         if (more.length) { out.push({ "section": "More" }); out = out.concat(more); }
     }

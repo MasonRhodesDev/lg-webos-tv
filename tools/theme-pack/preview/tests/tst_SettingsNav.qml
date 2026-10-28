@@ -187,6 +187,8 @@ Item {
             verify(part.menu.confirming !== null, "an action with a confirmation asks first");
             compare(part.menu.dialog.currentIndex, 0, "the safe button has focus");
             var n = TvSettings.calls.length;
+            // Keys reach the dialog's buttons once its panel has started to show (Qt forwards keys to visible items only).
+            wait(50);
             keyClick(Qt.Key_Return);
             verify(part.menu.confirming === null);
             compare(TvSettings.calls.length, n, "Cancel does nothing");
