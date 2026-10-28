@@ -54,5 +54,23 @@
     }
   };
 
+  // Report how long the page took to reach a mounted app, so the cost of skipping the V8 snapshot can be measured.
+  function reportLoad() {
+    var root = document.getElementById('root');
+    if (root && root._reactRootContainer) {
+      var ms = Math.round(Date.now() - window.performance.timing.navigationStart);
+      call('getLook', { loadMs: ms }, function () {});
+      return;
+    }
+    setTimeout(reportLoad, 50);
+  }
+
+  // The patched app cannot use its V8 snapshot, so a cold open takes seconds. Ask WAM to keep it resident: closing
+  // then hides it and the next open is instant. Without the call, the app simply closes as before.
+  try {
+    if (window.PalmSystem && typeof window.PalmSystem.keepAlive === 'function') window.PalmSystem.keepAlive(true);
+  } catch (e) { /* not supported: normal close */ }
+
   if (window.PalmServiceBridge) subscribe(0);
+  if (window.PalmServiceBridge) reportLoad();
 })();

@@ -10,6 +10,7 @@ var packsDir = path.join(__dirname, 'packs');
 // The service runs sandboxed as a non-root user; data/ is the one directory the package makes writable for it.
 var lookFile = path.join(__dirname, 'data', 'look.json');
 var subscribers = {};
+var lastLoadMs = null;
 
 // Stay running after the first call: a cold start drops the call that woke the service.
 service.activityManager.create('keepAlive', function () {});
@@ -39,6 +40,7 @@ function payload() {
     returnValue: true,
     look: look,
     subscribers: Object.keys(subscribers).length,
+    lastLoadMs: lastLoadMs,
     style: styles[look.style],
     themes: look.themes.map(function (t) { return themes[t]; }),
     available: {
@@ -49,6 +51,8 @@ function payload() {
 }
 
 service.register('getLook', function (message) {
+  var t = message.payload && message.payload.loadMs;
+  if (typeof t === 'number') lastLoadMs = t;
   if (message.isSubscription) subscribers[message.uniqueToken] = message;
   message.respond(payload());
 }, function (message) {

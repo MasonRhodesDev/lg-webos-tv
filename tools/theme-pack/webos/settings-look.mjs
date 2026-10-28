@@ -77,13 +77,37 @@ const css = readFileSync(cssPath, 'utf8').replace(/[^{}]*\{[^{}]*\}/g, (rule) =>
 writeFileSync(cssPath, ':root{--tp-focus:#cf0652;--tp-focus-ink:#fff}' + css);
 copyFileSync(join(here, 'look-bridge.js'), join(out, 'look-bridge.js'));
 
+// Each page carries a prerendered nav that shows until the app has loaded. Copy its Safety entry into a Look
+// entry before Accessibility, so Look is there from the first frame. Labels are localised, so this works from
+// attributes; a page whose markup differs is left alone and gets Look once the app renders.
+const NAV_ITEM = '<div class="_2iOITikgMzAvlEq-AUTT9h"><div class="_14RWAOjvtowMsc2Wcmvh3q"><div data-component-id="';
+let prerendered = 0;
+function prerenderLook(page, f) {
+  const safety = page.indexOf(NAV_ITEM + 'safety"');
+  const access = page.indexOf(NAV_ITEM + 'accessibility"');
+  if (safety < 0 || access < safety || page.indexOf(NAV_ITEM + 'look"') >= 0) {
+    console.warn(f + ': prerendered nav not recognised, Look appears after load');
+    return page;
+  }
+  const look = page.slice(safety, access)
+    .replace('data-component-id="safety"', 'data-component-id="look"')
+    .replace(/data-webos-voice-label="[^"]*"/, 'data-webos-voice-label="Look"')
+    .replace('data-target-id="Safety"', 'data-target-id="Look"')
+    .replace('data-spotlight-id="Safety"', 'data-spotlight-id="Look"')
+    .replace('\ua5a6', '\ua5a1')
+    .replace(/(<div class="_2CJCOEVTp8ddl02f4GdNDV[^"]*">)[^<]*(<\/div>)/, '$1Look$2');
+  prerendered++;
+  return page.slice(0, access) + look + page.slice(access);
+}
+
 // The app normally runs from a V8 snapshot of the stock main.js. Make every page load main.js instead.
 let pages = 0;
 for (const f of readdirSync(out).filter((f) => /^index(\..+)?\.html$/.test(f))) {
   const p = join(out, f);
   let page = replaceOnce(readFileSync(p, 'utf8'), '"undefined"==typeof App', '!0', f);
   page = replaceOnce(page, '</head>', '<script src="look-bridge.js"></script></head>', f + ' head');
+  page = prerenderLook(page, f);
   writeFileSync(p, page);
   pages++;
 }
-console.log(`patched main.js, main.css and ${pages} pages; Look lists ${look.styles.length} styles and ${look.themes.length} themes`);
+console.log(`patched main.js, main.css and ${pages} pages (${prerendered} with Look prerendered); Look lists ${look.styles.length} styles and ${look.themes.length} themes`);
