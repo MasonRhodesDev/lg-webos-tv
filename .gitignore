@@ -14,6 +14,5 @@ tools/ui-atlas/**/*.jpg
 tools/ui-atlas/**/*.ttf
 tools/ui-atlas/**/__pycache__/
 
-# theme-pack build output and downloaded fonts
+# theme-pack build output
 tools/theme-pack/dist/
-tools/theme-pack/fonts/

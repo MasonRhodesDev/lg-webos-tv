@@ -1,25 +1,22 @@
 #!/bin/sh
-# Download each style's font (OFL, from Google Fonts) as woff2 into OUT_DIR, with a fonts.css
-# that points at the local files. Run on a machine with internet; the TV itself stays offline.
+# Download each style's font from Google Fonts into packs/fonts/<family>/, with its OFL licence. The files are
+# committed, so building needs no internet; rerun this only when a style's font or weights change.
+# Static per-weight TrueType files, because neither consumer reads anything newer: the TV's Qt 5.6 FreeType has no
+# WOFF2, and Chromium 53 predates variable fonts. Google serves TTF to a client it does not recognise.
+# Each style lists its files in font.files, relative to packs/fonts: <family>/<family>-<weight>.ttf.
 set -eu
-out=${1:?usage: fetch-fonts.sh OUT_DIR}
 here=$(cd "$(dirname "$0")/.." && pwd)
-mkdir -p "$out"
-: > "$out/fonts.css"
-# Ask as the TV's engine (Chromium 53): it predates variable fonts, so Google serves one static file per weight.
-ua='Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/53.0.2785.34 Safari/537.36'
 for f in "$here"/packs/styles/*.js; do
   spec=$(node -e "console.log(require('$f').font.google)")
   family=$(node -e "console.log(require('$f').font.family)")
-  css=$(curl -fsS -A "$ua" "https://fonts.googleapis.com/css2?family=$spec&display=swap")
-  # Keep only the latin subset blocks.
-  echo "$css" | awk '/^\/\* /{keep = ($0 == "/* latin */")} keep' > "$out/.block.css"
-  grep -o 'https://[^)]*\.woff2' "$out/.block.css" | while read -r url; do
-    name=$(echo "$family" | tr -d ' ')-$(basename "$url")
-    curl -fsS -o "$out/$name" "$url"
-    sed -i "s#$url#$name#" "$out/.block.css"
+  dir=$(echo "$family" | tr -d ' ')
+  slug=$(echo "$family" | tr -d ' ' | tr '[:upper:]' '[:lower:]')
+  out="$here/packs/fonts/$dir"
+  rm -rf "$out" && mkdir -p "$out"
+  for w in $(echo "$spec" | sed 's/.*@//' | tr ';' ' '); do
+    url=$(curl -fsS "https://fonts.googleapis.com/css2?family=$(echo "$spec" | sed 's/@.*//')@$w" | grep -o 'https://[^)]*\.ttf')
+    curl -fsS -o "$out/$dir-$w.ttf" "$url"
   done
-  cat "$out/.block.css" >> "$out/fonts.css"
+  curl -fsS -o "$out/OFL.txt" "https://raw.githubusercontent.com/google/fonts/main/ofl/$slug/OFL.txt"
+  echo "$family: $(ls "$out" | tr '\n' ' ')"
 done
-rm -f "$out/.block.css"
-echo "fonts written to $out"

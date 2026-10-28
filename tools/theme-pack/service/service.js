@@ -45,6 +45,8 @@ function payload() {
     lastLoadMs: lastLoadMs,
     // Theme assets are files next to the packs; renderers resolve a recipe's `asset` against this.
     assets: 'file://' + path.join(packsDir, 'assets') + '/',
+    // The styles' font files; a style's font.files are relative to this.
+    fonts: 'file://' + path.join(packsDir, 'fonts') + '/',
     style: styles[look.style],
     themes: look.themes.map(function (t) { return themes[t]; }),
     available: {

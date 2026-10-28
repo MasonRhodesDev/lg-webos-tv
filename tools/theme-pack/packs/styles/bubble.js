@@ -2,7 +2,8 @@
   var pack = {
     kind: 'style', id: 'bubble', name: 'Bubble',
     description: 'Clear white-tinted glass, rounded type, focus fills with each item\'s own colour.',
-    font: { family: 'Fredoka', stack: 'Fredoka, sans-serif', google: 'Fredoka:wght@500;600;700' },
+    font: { family: 'Fredoka', stack: 'Fredoka, sans-serif', google: 'Fredoka:wght@500;600;700',
+      files: ['Fredoka/Fredoka-500.ttf', 'Fredoka/Fredoka-600.ttf', 'Fredoka/Fredoka-700.ttf'] },
     tokens: {
       'surface': 'rgba(255,255,255,0.18)', 'surface-edge': 'rgba(255,255,255,0.38)', 'inner': 'rgba(255,255,255,0.12)',
       'dim': 'rgba(24,14,48,0.50)', 'scrim': 'rgba(24,14,48,0.32)',

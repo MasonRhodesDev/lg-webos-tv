@@ -90,15 +90,16 @@ The tests check the layer model on the rendered HTML: slot order, ring order, va
 
 ## Fonts on an offline TV
 
-The demo loads fonts from Google Fonts. An offline TV can't, so the style falls back to its system stack. To ship real fonts, place the OFL-licensed font files next to the demo and add `@font-face` rules, then open the demo with `?fonts=none`.
+Each style names its font (`font.family`) and the files that draw it (`font.files`, relative to `packs/fonts/`). The files are committed, with each font's `OFL.txt` beside them (both fonts are SIL Open Font License 1.1), so the package carries them and the TV never goes online for type. They are static per-weight TrueType files: the compositor's Qt 5.6 FreeType reads no WOFF2, and Chromium 53 predates variable fonts. `sh tools/theme-pack/tv/fetch-fonts.sh` downloads them again from Google Fonts, for when a style's font or weights change.
+
+The browser demo loads the same fonts from Google Fonts; open it with `?fonts=none` to see the fallback stack. The packaged app links the committed files instead, and the compositor layer loads them through `Look.font` (below).
 
 ## Put it on a TV
 
 The demo ships as a webOS web app called **Look**. The build runs on any machine with internet; the TV only receives the finished package.
 
 ```sh
-sh tools/theme-pack/tv/fetch-fonts.sh tools/theme-pack/fonts      # OFL fonts from Google Fonts, latin subset
-sh tools/theme-pack/tv/build-ipk.sh tools/theme-pack/dist tools/theme-pack/fonts
+sh tools/theme-pack/tv/build-ipk.sh tools/theme-pack/dist
 TV_HOST=<tv address> sh tools/theme-pack/tv/install-tv.sh tools/theme-pack/dist/dev.themepack.look_0.1.0_all.ipk
 ```
 
@@ -110,7 +111,7 @@ Launch parameters take the same keys as the demo's query string, so a screen and
 luna-send -n 1 luna://com.webos.applicationManager/launch '{"id":"dev.themepack.look","params":{"screen":"look","themes":"halloween"}}'
 ```
 
-Two packaging details matter on webOS 4.x. The `.ipk` must be a plain `ar` archive: GNU `ar` writes member names with a trailing slash, which the installer rejects ("Failed to extract package"), so `build-ipk.sh` writes the archive itself. The fonts must be static per-weight files: Chromium 53 predates variable fonts and would draw everything at one weight, so `fetch-fonts.sh` asks Google Fonts as that browser.
+Two packaging details matter on webOS 4.x. The `.ipk` must be a plain `ar` archive: GNU `ar` writes member names with a trailing slash, which the installer rejects ("Failed to extract package"), so `build-ipk.sh` writes the archive itself. The fonts must be static per-weight files: Chromium 53 predates variable fonts and would draw everything at one weight.
 
 In the app the UI draws over a stand-in gradient, not the live HDMI picture: a full-screen web app replaces the input while it runs.
 
@@ -142,7 +143,7 @@ The volume bar, the input picker and the rest of the system UI are QML inside th
 
 - `ui/YSM` defines the compositor's root type, `YSM`, as LG's own `YSM.qml` with our layer added on top. LG's root loads it through `import YSM 1.0`, so no LG file is edited or mounted over.
 - `ui/Look/Layer.qml` is our layer. Each part in `ui/Look/parts/` draws one component and names the LG item it replaces with `claims(item)`. The layer finds that item and makes it invisible, but leaves it running; the part reads it through `lg`. LG keeps deciding *when* (timeouts, the volume OSD setting, audio guidance); our component decides *how it looks*. If LG's item isn't found, LG's stays on screen and the gap is reported.
-- `ui/Look/Look.qml` is the active style's tokens and themes, live from the Look service. `Decor.qml` is the layer model (back rings, origin, front rings) and `Ring.qml` draws one recipe.
+- `ui/Look/Look.qml` is the active style's tokens, font and themes, live from the Look service. `Look.font` is the style's font family, loaded from the files the Look package installs; parts set `font.family: Look.font` on their text. `Decor.qml` is the layer model (back rings, origin, front rings) and `Ring.qml` draws one recipe.
 - Parts are written from scratch on those three, so a style and its themes reach every pixel they draw. To add one, add its file to `parts` in `Layer.qml`.
 
 ```sh

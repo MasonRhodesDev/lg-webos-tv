@@ -1,5 +1,6 @@
 pragma Singleton
 import QtQuick 2.4
+import QtQml 2.2
 import WebOSServices 1.0
 
 // Look: the active style's tokens and the active themes, for our own UI layer. Until the Look service answers,
@@ -12,6 +13,11 @@ QtObject {
     property var themes: []
     property string assets: ""
     property string styleId: ""
+    // The active style's font family, for `font.family`. Empty (the system font) until its files have loaded; on a
+    // style change it keeps the previous family until the new one is ready, so text never flashes to the system font.
+    property string font: ""
+    property var fontSpec: ({ "family": "", "files": [] })
+    property string fontsDir: ""
     property bool online: false
 
     readonly property var stock: ({
@@ -55,6 +61,35 @@ QtObject {
         themes = m.themes || [];
         assets = m.assets || "";
         styleId = m.look.style;
+        var f = m.style.font || {};
+        if (f.family === fontSpec.family && (m.fonts || "") === fontsDir) return;
+        fontsDir = m.fonts || "";
+        if (f.family && !(fontsDir && f.files && f.files.length)) report("gap", "style " + styleId + ": no font files, using the system font");
+        fontSpec = { "family": f.family || "", "files": fontsDir ? f.files || [] : [] };
+    }
+
+    function fontStatusChanged() {
+        var files = fontSpec.files, ready = 0;
+        if (fontLoaders.count !== files.length) return;
+        for (var i = 0; i < files.length; i++) {
+            var l = fontLoaders.objectAt(i);
+            if (!l || l.status === FontLoader.Loading) return;
+            if (l.status === FontLoader.Error) report("error", "font " + l.source + " did not load");
+            else if (l.status === FontLoader.Ready) ready++;
+        }
+        if (!ready || font === fontSpec.family) return;
+        font = fontSpec.family;
+        report("ok", "font " + font + ": " + ready + " of " + files.length + " files loaded");
+    }
+
+    // One loader per file: each file is one weight, and all of them register under the style's family name.
+    property var fontLoaders: Instantiator {
+        model: look.fontSpec.files
+        onObjectAdded: look.fontStatusChanged()
+        delegate: FontLoader {
+            source: look.fontsDir + modelData
+            onStatusChanged: look.fontStatusChanged()
+        }
     }
 
     function report(kind, text) {

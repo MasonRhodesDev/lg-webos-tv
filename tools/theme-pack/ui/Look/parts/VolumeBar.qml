@@ -41,6 +41,7 @@ Item {
         anchors.topMargin: 28
         text: bar.muted ? "—" : String(bar.level)
         color: Look.color("ink")
+        font.family: Look.font
         font.pixelSize: 40
         font.weight: Font.DemiBold
     }
