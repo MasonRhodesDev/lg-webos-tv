@@ -93,7 +93,7 @@ QtObject {
     function fill(value) { return /^(#|rgb)/.test(value) ? colorOf(value) : color(value); }
 
     // The rings one slot draws for a component type, in paint order. Themes listed later wrap further out: their back
-    // rings paint first and their front rings paint last. Recipes this renderer cannot draw (HTML-only) are left out.
+    // rings paint first and their front rings paint last. A recipe with no asset, fill or stroke is left out.
     function rings(target, slot) {
         var list = slot === "back" ? themes.slice().reverse() : themes, out = [];
         for (var i = 0; i < list.length; i++) {
