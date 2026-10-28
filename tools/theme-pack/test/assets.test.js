@@ -3,7 +3,7 @@ const assert = require('node:assert');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
-const TP = require('../runtime/theme-pack.js');
+const TP = require('../packs/tokens.js');
 
 const dir = path.join(__dirname, '..');
 const themes = fs.readdirSync(path.join(dir, 'packs/themes')).map((f) => require('../packs/themes/' + f));
@@ -118,12 +118,57 @@ test('every recipe radius is px or a radius token', () => {
   });
 });
 
-test('recipes write only to the decoration targets DESIGN.md lists', () => {
-  const md = fs.readFileSync(path.join(dir, 'DESIGN.md'), 'utf8');
-  const contract = md.slice(md.indexOf('## Decoration contract'));
-  const targets = [...contract.matchAll(/^\| `([a-z]+)` \|/gm)].map((m) => m[1]);
-  assert.ok(targets.length >= 14, 'found the contract table');
-  recipes.forEach((r) => assert.ok(r.target === '*' || targets.indexOf(r.target) >= 0, r.theme + ': unknown target ' + r.target));
+test('recipes write only to the decoration targets', () => {
+  recipes.forEach((r) => assert.ok(r.target === '*' || TP.TARGETS[r.target], r.theme + ': unknown target ' + r.target));
+});
+
+// The direct properties of each `Decor { ... }` block in a kit file (not those of the items inside it).
+function decorBlocks(src) {
+  const out = [];
+  const re = /(^|\n)\s*Decor \{/g;
+  let m;
+  while ((m = re.exec(src))) {
+    let depth = 1, i = m.index + m[0].length, line = '', props = {};
+    for (; i < src.length && depth > 0; i++) {
+      const c = src[i];
+      if (c === '{') depth++;
+      else if (c === '}') depth--;
+      else if (c === '\n') {
+        const p = depth === 1 && /^\s*([a-z]+)\s*:\s*(.*?)\s*$/.exec(line);
+        if (p) props[p[1]] = p[2];
+        line = '';
+        continue;
+      }
+      if (depth === 1 && c !== '{' && c !== '}') line += c;
+    }
+    out.push(props);
+  }
+  return out;
+}
+
+test('the kit decorates exactly the contract\'s targets, passing only the states each one lists', () => {
+  const kit = path.join(dir, 'ui/Look/kit');
+  const files = fs.readdirSync(kit).filter((f) => /\.qml$/.test(f));
+  const named = new Set();
+  files.forEach((f) => {
+    const src = fs.readFileSync(path.join(kit, f), 'utf8');
+    // Literal targets: a Decor's own, or a Panel's (ToastCard, Dialog, PinPrompt, and Panel's bare/plain default).
+    [...src.matchAll(/\btarget:\s*(?:[^"\n]*\?\s*)?"([a-z]+)"(?:\s*:\s*"([a-z]+)")?/g)].forEach((t) => { named.add(t[1]); if (t[2]) named.add(t[2]); });
+    decorBlocks(src).forEach((d) => {
+      const lit = /^"([a-z]+)"$/.exec(d.target || '');
+      const targets = lit ? [lit[1]] : Object.keys(TP.TARGETS).filter((t) => TP.TARGETS[t].states.length === 0);
+      ['focused', 'current', 'disabled'].filter((s) => d[s] !== undefined).forEach((s) => {
+        targets.forEach((t) => assert.ok(TP.TARGETS[t] && TP.TARGETS[t].states.includes(s), f + ': a ' + t + ' Decor passes ' + s + ', which the contract does not list'));
+      });
+    });
+  });
+  assert.deepStrictEqual([...named].filter((t) => !TP.TARGETS[t]), [], 'kit targets missing from the contract');
+  assert.deepStrictEqual(Object.keys(TP.TARGETS).filter((t) => !named.has(t)), [], 'contract targets no kit component draws');
+});
+
+test('every style defines every token', () => {
+  fs.readdirSync(path.join(dir, 'packs/styles')).map((f) => require('../packs/styles/' + f))
+    .forEach((s) => assert.deepStrictEqual(TP.missingTokens(s), [], s.id + ' is missing tokens'));
 });
 
 function pngSize(file) {

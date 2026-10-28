@@ -2,17 +2,9 @@ const test = require('node:test');
 const assert = require('node:assert');
 const fs = require('node:fs');
 const path = require('node:path');
-const vm = require('node:vm');
-const TP = require('../runtime/theme-pack.js');
+const TP = require('../packs/tokens.js');
 
 const ui = path.join(__dirname, '..', 'ui', 'Look');
-
-test('the kit icon set carries every icon the HTML renderer draws, with the same paths', () => {
-  const src = fs.readFileSync(path.join(ui, 'kit', 'icons.js'), 'utf8').replace(/^\.pragma library\s*$/m, '');
-  const ctx = {};
-  vm.runInNewContext(src, ctx);
-  Object.keys(TP.ICONS).forEach((name) => assert.strictEqual(ctx.ICONS[name], TP.ICONS[name], 'icon ' + name));
-});
 
 test('the layer\'s stock fallback defines every token, so the kit is whole before the service answers', () => {
   const qml = fs.readFileSync(path.join(ui, 'Look.qml'), 'utf8');

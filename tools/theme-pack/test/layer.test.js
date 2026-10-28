@@ -54,6 +54,15 @@ test('components paint in passes, the focused one lifted, attachments last, chil
   assert.ok(!/\.qml:\d+/.test(out), 'QML warnings:\n' + out);
 });
 
+test('themes off leaves ±1 empty; later themes wrap further out; chips, thumbs and knobs are dressed; disabled decoration recedes', { skip: !haveQml && QML + ' not found' }, () => {
+  const r = runScene('Decoration.qml');
+  const out = r.stdout + r.stderr;
+  assert.strictEqual(r.status, 0, out);
+  assert.ok(/decoration: all passed/.test(out), out);
+  assert.ok(!/FAIL /.test(out), out);
+  assert.ok(!/\.qml:\d+/.test(out), 'QML warnings:\n' + out);
+});
+
 // The Look service's answer for one style, as service/service.js's payload() builds it.
 function stylePayload(id) {
   const style = require(path.join(dir, 'packs/styles', id + '.js'));

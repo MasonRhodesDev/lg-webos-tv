@@ -313,6 +313,25 @@ Item {
             compare(part.focusHandler.log[part.focusHandler.log.length - 1], "release 7", "focus handed back");
         }
 
+        // The Look app's launch: openSettings {target: "Look"} lands on our Look page, which lists every installed style
+        // and theme and marks the chosen ones.
+        function test_3b_look_page() {
+            Fixture.load(JSON.stringify({ "returnValue": true, "look": { "style": "bubble", "themes": ["winter"] }, "style": { "id": "bubble", "tokens": {} },
+                "themes": [], "settings": { "open": true, "target": "Look", "at": 6 },
+                "available": { "styles": [{ "id": "smoke", "name": "Smoke" }, { "id": "bubble", "name": "Bubble" }],
+                               "themes": [{ "id": "glow", "name": "Glow" }, { "id": "winter", "name": "Winter" }, { "id": "halloween", "name": "Halloween" }] } }));
+            verify(part.menu.open, "openSettings Look opens our Settings");
+            compare(topId(), "Look");
+            ["Smoke", "Bubble", "Glow", "Winter", "Halloween"].forEach(function (n) { verify(rowNamed(n) >= 0, "the Look page lists " + n); });
+            var l = rows();
+            verify(l.rows[rowNamed("Bubble")].checked && !l.rows[rowNamed("Smoke")].checked, "the chosen style is marked");
+            verify(l.rows[rowNamed("Winter")].on && !l.rows[rowNamed("Glow")].on, "the chosen theme is on");
+            for (var i = 0; i < 4 && part.menu.open; i++) keyClick(Qt.Key_Escape);
+            verify(!part.menu.open, "Back closes it");
+            Fixture.load(JSON.stringify({ "returnValue": true, "look": { "style": "smoke", "themes": [] }, "style": { "id": "smoke", "tokens": {} },
+                                          "themes": [], "settings": { "open": false, "at": 7 } }));
+        }
+
         function test_4_quick_sheet() {
             var container = Qt.createComponent(Qt.resolvedUrl("parts/FakeSystemUiContainer.qml")).createObject(root);
             var entry = Qt.createComponent(Qt.resolvedUrl("../../ui/Look/settings/QuickSettingsEntry.qml")).createObject(container);
