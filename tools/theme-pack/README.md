@@ -92,6 +92,14 @@ The tests check the layer model on the rendered HTML: slot order, ring order, va
 
 `test/qml-compat.test.js` checks `ui/` against what the TV's compositor (Qt 5.6.2, an ES5 engine) can run: no ES2015+ syntax or library calls, no Qt 5.7+ types or properties, only the Qt modules the layer uses (QtQuick, QtQuick.Window, QtQml, QtGraphicalEffects), and every other import resolvable on the TV or in `ui/`. Code that breaks these rules runs fine in the preview, which is Qt 5.15, and fails silently on the TV. The TV's modules are listed in `test/fixtures/tv-qml.json`; `test/fixtures/tv-qml-inventory.mjs` rebuilds it from a TV's file listing and qmldir files (its header has the commands).
 
+## Before merging a branch
+
+```sh
+node tools/theme-pack/check-branch.mjs [BRANCH_OR_WORKTREE_PATH] [--base main] [--render]
+```
+
+Prints one PASS/FAIL line per check over the commits `base..HEAD` and exits non-zero on any FAIL: the branch sits on top of base; no attribution trailers (`Co-Authored-By`, `Generated with`) in commit messages; no core dumps added or lying untracked; no private address (RFC 1918) or home path (`/home/<user>/`, `/Users/<user>/`) in added lines; and `node --test` passes in the branch's worktree. `--render` also runs the preview harness into a temp dir, needs 0 failed shots, and prints the contact sheet path. Add your own portability patterns (one regex per line) in the gitignored `tools/theme-pack/.check-branch.local` (copy the `.example`) or the `CHECK_BRANCH_PATTERNS` env var.
+
 ## Preview harness
 
 `preview/` renders the compositor layer's parts off the TV. A scene in `preview/scenes/` mocks the LG item a part replaces, as the part sees it, and may declare QML `states` (a row focused, a picker open, a toast of each kind). `preview/Shot.qml` draws one scene in one state over a stand-in picture at 1920×1080, with the Look service answered from a payload like the service's own, and fails if a part doesn't `claims()` its mock.

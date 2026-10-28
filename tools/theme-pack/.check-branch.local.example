@@ -1,0 +1,6 @@
+# Extra portability patterns for check-branch.mjs, one regular expression per line.
+# Copy to .check-branch.local (gitignored) and list your own private values there, for example
+# a hostname or a domain you must never commit. The same lines work in the CHECK_BRANCH_PATTERNS env var.
+#
+# \.internal\.example\.com
+# my-dev-box

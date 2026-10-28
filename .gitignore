@@ -18,3 +18,4 @@ tools/ui-atlas/**/__pycache__/
 tools/theme-pack/dist/
 # Core dumps from crashed tools (e.g. Qt with no display)
 core.[0-9]*
+tools/theme-pack/.check-branch.local
