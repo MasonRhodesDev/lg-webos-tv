@@ -13,7 +13,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const APP = JSON.parse(fs.readFileSync(path.join(here, '..', '..', 'tv', 'appinfo.json'), 'utf8'));
 const STYLES = [{ id: 'smoke', name: 'Smoke' }, { id: 'bubble', name: 'Bubble' }];
 const THEMES = [{ id: 'glow', name: 'Glow' }, { id: 'halloween', name: 'Halloween' }, { id: 'winter', name: 'Winter' }];
-const SHOW_MS = 1200;
+const SHOW_MS = 3000;
 
 export function initialState(over = {}) {
   return Object.assign({
