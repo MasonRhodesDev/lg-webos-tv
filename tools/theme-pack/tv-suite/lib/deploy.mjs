@@ -5,6 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnCmd } from './tv.mjs';
+import { backup, BACKUP } from './backup.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 export const THEME = path.join(here, '..', '..');
@@ -35,10 +36,26 @@ async function waitReport(ctx, t0, match, seconds) {
 
 export const STEPS = [
   {
+    id: 'backup',
+    title: 'keep what deploy replaces (the boot hook, the old Settings, the layer and stub dirs), once',
+    rollback: 'node tools/theme-pack/tv-suite/tv-suite.mjs rollback --live',
+    rollbackNote: 'puts back exactly what this backup holds, then checks it',
+    async apply(ctx) {
+      const r = await backup(ctx);
+      if (r.error) return 'the backup failed, nothing was changed: ' + r.error;
+      ctx.note('backup', r.manifest);
+      return null;
+    },
+    async check(ctx) {
+      const r = await ctx.tv.sh('cat ' + BACKUP + '/manifest.json');
+      try { JSON.parse(r.stdout); return null; } catch (e) { return 'no backup manifest at ' + BACKUP; }
+    }
+  },
+  {
     id: 'look',
     title: 'Look package (app, Look service, permissions.sh)',
     rollback: 'ssh root@$TV_HOST "luna-send -n 1 luna://com.webos.appInstallService/dev/remove \'{\\"id\\":\\"' + APP.id + '\\"}\'"',
-    rollbackNote: 'the remove method name is unverified on this firmware (read it back with getAppInfo)',
+    rollbackNote: 'dev/remove is in the TV\'s own schema list (appInstallService.dev.remove.schema); `rollback --live` removes it only if it was not there before',
     async apply(ctx) {
       const dist = fs.mkdtempSync(path.join(os.tmpdir(), 'tv-suite-ipk-'));
       const b = await script(ctx, 'tv/build-ipk.sh', [dist]);

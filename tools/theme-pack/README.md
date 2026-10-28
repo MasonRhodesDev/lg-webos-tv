@@ -274,6 +274,8 @@ The ring box is the outset box. The QML Ring reads a recipe's placement from its
 against TV-CHECKS.md. It needs root SSH to the TV (Homebrew Channel), Python on the TV (for the key helper), and Node,
 `ssh`, `scp`, `tar` and `gzip` here; the contact sheet's boards need Chromium (`CHROMIUM` names another binary).
 
+Every command is a dry run against the fake TV unless it is given `--live` (then it talks to `root@$TV_HOST`).
+
 ```sh
 export TV_HOST=<tv address>
 node tools/theme-pack/tv-suite/tv-suite.mjs deploy OUT_DIR      # Look package, our layer, boot hook and stub; checked step by step
@@ -281,10 +283,12 @@ node tools/theme-pack/tv-suite/tv-suite.mjs coldboot OUT_DIR    # reboot, wait f
 node tools/theme-pack/tv-suite/tv-suite.mjs manual OUT_DIR      # the checks that need a person, in one pass (--print to list them)
 node tools/theme-pack/tv-suite/tv-suite.mjs run OUT_DIR         # every scenario (--scenario ID to pick, --list to list them)
 node tools/theme-pack/tv-suite/tv-suite.mjs report OUT_DIR --boards CANVAS_DIR [--preview RENDER_DIR]
-node tools/theme-pack/tv-suite/tv-suite.mjs rollback            # prints the undo commands, newest step first
+node tools/theme-pack/tv-suite/tv-suite.mjs rollback            # puts back what deploy's backup holds, and checks it (--print: the commands)
 ```
 
-- **deploy** builds and installs the Look package (`tv/build-ipk.sh`, `tv/install-tv.sh`, which runs `permissions.sh`),
+- **deploy** first keeps, once, what it replaces on the TV (the boot hook, the old patched Settings, the layer and stub
+  dirs, and whether LG's Settings was mounted over and the Look package installed) in
+  `/media/developer/themepack-backup`; `rollback` puts exactly that back and runs the old hook. Then it builds and installs the Look package (`tv/build-ipk.sh`, `tv/install-tv.sh`, which runs `permissions.sh`),
   applies the layer (`own-layer-tv.sh apply`) and installs the boot hook and stub (`install-boot.sh install`). After
   each step it checks the TV (getAppInfo, getLook, the layer's reports, the hook's log, `mount`), prints that step's
   rollback, and stops at the first failure with the reason (the hook's own "settings left stock (...)" line, a
@@ -311,6 +315,17 @@ node tools/theme-pack/tv-suite/tv-suite.mjs rollback            # prints the und
   system UI and SAM show, and checks what it can. It drives the fallbacks itself: it deploys a copy of the layer
   broken on purpose (Layer.qml failing, or without our Settings part), checks the boot hook's verdict and that the
   gear opens LG's Quick Settings, and puts the good layer and the stub back. Verdicts go to `manual.json`.
+- Safety: before changing anything the suite writes a journal (`OUT_DIR/journal.json`, found again through
+  `$TV_SUITE_STATE`, default `~/.local/state/tv-suite/`) of the TV's baseline: the Look, the volume, the input in
+  front, the watched settings, the network state and the paired Bluetooth devices (the PIN is compared in memory,
+  never written). Each scenario's end, SIGINT, SIGTERM and an error put the TV back to it and read every value again;
+  a value that cannot be read never counts as restored. A command that finds a journal left by an interrupted one
+  restores from it first, and starts nothing until that is verified. The manual pass's fallbacks are marked in the
+  journal before the layer is broken, and the pass does not go on until the good layer is verified back.
+- The guard presses nothing on a probe older than the layer's heartbeat allows (Layer.qml sends every probe again
+  each second while a menu of ours is open, every five seconds otherwise), nothing until a probe newer than the last
+  key has arrived, nothing while LG's Quick Settings, the input picker or any other LG overlay is open (those close
+  with `closeByAppId`), and BACK only to a menu of ours that is confirmed open.
 - The state comes from the parts themselves: each part of our layer publishes a small `probe` (what it shows, the
   open pages, the focused row and its kind) to the Look service (`getProbe`), next to the reports.
 - **report** writes `OUT_DIR/index.html` (with the cold boot and the manual pass when they ran into the same

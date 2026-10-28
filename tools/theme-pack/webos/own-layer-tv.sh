@@ -12,7 +12,8 @@ here=$(cd "$(dirname "$0")" && pwd)
 dest=/media/developer/themepack/layer
 lock=/tmp/own-layer.lock
 
-on_tv() { ssh "root@$host" "$@"; }
+# Bounded: a TV that stops answering fails each call within ~30 s instead of hanging.
+on_tv() { ssh -o ConnectTimeout=10 -o ServerAliveInterval=10 -o ServerAliveCountMax=2 "root@$host" "$@"; }
 locked() {
   # mkdir is atomic, so only one copy holds the lock. The holder releases it when the TV-side script finishes.
   i=0
@@ -24,7 +25,11 @@ locked() {
 }
 run_and_wait() {
   on_tv "(sh $dest/own-layer.sh $1; rmdir $lock) </dev/null >/dev/null 2>&1 &"
-  until on_tv "[ ! -d $lock ]"; do sleep 3; done
+  i=0
+  until on_tv "[ ! -d $lock ]"; do
+    i=$((i + 1)); [ $i -gt 200 ] && { echo "the TV-side $1 did not finish within 10 min (lock $lock still held)" >&2; exit 1; }
+    sleep 3
+  done
   on_tv "sed -n '/^=== /h; /^=== /!H; \${x;p}' /tmp/own-layer.log"
 }
 

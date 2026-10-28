@@ -143,9 +143,12 @@ service.register('getReports', function (message) {
 var probes = {};
 service.register('setProbe', function (message) {
   var p = message.payload || {};
-  probes[String(p.from || '')] = { at: new Date().toISOString(), state: p.state === undefined ? null : p.state };
+  var prev = probes[String(p.from || '')];
+  probes[String(p.from || '')] = { at: new Date().toISOString(), layer: String(p.layer || ''), seq: prev ? prev.seq + 1 : 1,
+                                   state: p.state === undefined ? null : p.state };
   message.respond({ returnValue: true });
 });
+// `now` is the service's clock, so a reader can tell how old each probe is without trusting its own.
 service.register('getProbe', function (message) {
-  message.respond({ returnValue: true, probes: probes });
+  message.respond({ returnValue: true, now: new Date().toISOString(), probes: probes });
 });

@@ -113,11 +113,20 @@ test('setProbe keeps the latest state per part, without telling Look subscribers
   const { call } = start();
   const sub = call('getLook', {}, true);
   call('setProbe', { from: 'parts/Settings.qml', state: { menu: { open: true } } });
-  call('setProbe', { from: 'parts/Settings.qml', state: { menu: { open: false } } });
+  call('setProbe', { from: 'parts/Settings.qml', state: { menu: { open: false } }, layer: '17' });
   call('setProbe', { from: 'parts/Toast.qml', state: { shown: true, message: 'hi' } });
-  const probes = call('getProbe')[0].probes;
+  const answer = call('getProbe')[0];
+  const probes = answer.probes;
+  assert.match(answer.now, /^\d{4}-\d\d-\d\dT/, 'the service says its own time, for the probes\' age');
+  assert.strictEqual(probes['parts/Settings.qml'].seq, 2, 'a sequence per part');
   assert.deepStrictEqual(probes['parts/Settings.qml'].state, { menu: { open: false } });
   assert.strictEqual(probes['parts/Toast.qml'].state.message, 'hi');
   assert.match(probes['parts/Toast.qml'].at, /^\d{4}-\d\d-\d\dT/);
   assert.strictEqual(sub.length, 1);
+});
+
+test('getProbe answers the layer instance that sent each probe', () => {
+  const { call } = start();
+  call('setProbe', { from: 'parts/Toast.qml', state: { shown: false }, layer: 'abc' });
+  assert.strictEqual(call('getProbe')[0].probes['parts/Toast.qml'].layer, 'abc');
 });

@@ -59,15 +59,25 @@ export async function rerunHook(ctx, { unmount = true } = {}) {
 export async function mounted(ctx) { return (await ctx.tv.sh('mount')).stdout.includes(' ' + SETTINGS_APP + ' '); }
 
 // The good build back: the layer from this checkout, then the hook (which mounts the stub once the host is ready).
-export async function restoreLayer(ctx) {
-  const t0 = await ctx.tv.now();
-  const a = await sh(ctx, 'webos/own-layer-tv.sh', ['apply']);
-  const b = await sh(ctx, 'webos/install-boot.sh', ['install']);
-  ctx.tv.resetKeys();
-  const ready = (await ctx.tv.reports(t0)).some((x) => x.text === 'settings: host ready');
-  const ok = ready && await mounted(ctx);
-  ctx.check('the good layer is back: host ready and the stub mounted', ok, ok ? '' : (a.status || b.status) ? 'a script failed' : ready ? 'not mounted' : 'no "settings: host ready"');
-  return ok;
+// Verified by a fresh read: "settings: host ready" since the restore began, the stub mounted, and our Settings' probe
+// up. Tried `tries` times; returns why it is still not good, or ''.
+export async function restoreLayer(ctx, tries = 3) {
+  let why = '';
+  for (let i = 1; i <= tries; i++) {
+    const t0 = await ctx.tv.now();
+    const a = await sh(ctx, 'webos/own-layer-tv.sh', ['apply']);
+    const b = await sh(ctx, 'webos/install-boot.sh', ['install']);
+    ctx.tv.resetKeys();
+    const ready = (await ctx.tv.reports(t0)).some((x) => x.text === 'settings: host ready');
+    const m = await mounted(ctx);
+    const probe = !!(await ctx.tv.probes().catch(() => ({}))).Settings;
+    why = ready && m && probe ? '' : [a.status ? 'own-layer-tv.sh apply failed' : '', b.status ? 'install-boot.sh install failed' : '',
+      ready ? '' : 'no "settings: host ready"', m ? '' : 'the stub is not mounted', probe ? '' : 'no probe from our Settings'].filter(Boolean).join(', ');
+    if (!why) break;
+    ctx.say('  the good layer is not back yet (' + why + ')' + (i < tries ? ', trying again' : ''));
+  }
+  ctx.check('the good layer is back: host ready, the stub mounted, our probe up (read back)', !why, why);
+  return why;
 }
 
 export async function removeStub(ctx) { return sh(ctx, 'webos/install-boot.sh', ['remove']); }

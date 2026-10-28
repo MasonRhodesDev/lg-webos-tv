@@ -23,13 +23,25 @@ Item {
     property var waiting: []
 
     // A part may say what it shows in `probe` (a plain object); it goes to the Look service on each change, batched,
-    // for the TV suite to read (getProbe).
+    // for the TV suite to read (getProbe). Every probe is also sent again on a heartbeat, faster while one of our menus
+    // is open, so a probe that stops being refreshed means this layer is gone, and the suite presses nothing.
     property var probing: ({})
+    property var probed: []
+    readonly property string instance: String(new Date().getTime())
     function watchProbe(part, file) {
         if (part.probe === undefined) return;
+        probed = probed.concat([{ "part": part, "file": file }]);
         part.probeChanged.connect(function () { layer.probing[file] = part; probeTimer.restart(); });
         probing[file] = part;
         probeTimer.restart();
+    }
+    function publish(file, part) { Look.probe(file, part.probe, instance); }
+    function menuOpen() {
+        for (var i = 0; i < probed.length; i++) {
+            var p = probed[i].part.probe;
+            if (p && ((p.menu && p.menu.open) || (p.quick && p.quick.open))) return true;
+        }
+        return false;
     }
     Timer {
         id: probeTimer
@@ -37,8 +49,14 @@ Item {
         onTriggered: {
             var due = layer.probing;
             layer.probing = {};
-            for (var f in due) Look.probe(f, due[f].probe);
+            for (var f in due) layer.publish(f, due[f]);
         }
+    }
+    Timer {
+        interval: layer.menuOpen() ? 1000 : 5000
+        repeat: true
+        running: layer.probed.length > 0
+        onTriggered: { for (var i = 0; i < layer.probed.length; i++) layer.publish(layer.probed[i].file, layer.probed[i].part); }
     }
 
     function find(item, part, depth) {

@@ -164,24 +164,19 @@ export const SCENARIOS = [
   },
   {
     id: 'input-picker',
-    title: 'Input picker: launch, move, close; never select',
+    title: 'Input picker: launch, capture, close with closeByAppId; no key is pressed in it',
     tvChecks: [],
     async run(ctx) {
       const st = await ctx.state();
       // A second launch while it is open counts as an Input press and switches the input after 5 s.
       if (st.systemUi === PICKER || (st.picker && st.picker.shown)) ctx.skip('the input picker is already open');
-      if (st.systemUi === 'unknown') ctx.skip("systemUIManager's answer is unreadable: the picker might be open, and a second launch switches the input");
+      if (st.systemUi !== '') ctx.skip('systemUIManager does not confirm that nothing is open (' + st.systemUi + '): a launch over an open picker switches the input');
       const fg = await ctx.foreground();
       await ctx.luna(SYSUI + '/launch', { appId: PICKER });
-      const p = await ctx.wait('our input picker', async () => { const s = await ctx.state(); return s.picker && s.picker.shown ? s.picker : null; });
+      await ctx.wait('our input picker', async () => { const s = await ctx.state(); return s.picker && s.picker.shown ? s.picker : null; });
       await ctx.capture('picker', { board: 'SmokeInputPicker', scene: 'InputPicker' });
-      await ctx.key('RIGHT');
-      await ctx.wait('picker focus to move', async () => { const s = await ctx.state(); return !!(s.picker && s.picker.focus !== p.focus); });
-      await ctx.capture('picker-moved', { board: 'SmokeInputPicker', scene: 'InputPicker' });
-      await ctx.key('LEFT');
-      await ctx.wait('picker focus back', async () => { const s = await ctx.state(); return !!(s.picker && s.picker.focus === p.focus); });
-      await ctx.key('BACK');
-      await ctx.wait('the picker to close on Back', async () => { const s = await ctx.state(); return !(s.picker && s.picker.shown) && s.systemUi !== PICKER; });
+      await ctx.luna(SYSUI + '/closeByAppId', { id: PICKER });
+      await ctx.wait('the picker to close', async () => { const s = await ctx.state(); return !(s.picker && s.picker.shown) && s.systemUi !== PICKER; });
       // An accidental Input press would switch after 5 s.
       await ctx.sleep(6000);
       ctx.check('the input did not change', (await ctx.foreground()) === fg, fg);
@@ -626,7 +621,7 @@ export const SCENARIOS = [
         await ctx.luna(SYSUI + '/launch', { appId: PICKER });
         await ctx.wait('our input picker', async () => { const s = await ctx.state(); return !!(s.picker && s.picker.shown); });
         await swap('picker', 'SmokeInputPicker', 'InputPicker');
-        await ctx.key('BACK');
+        await ctx.luna(SYSUI + '/closeByAppId', { id: PICKER });
         await ctx.wait('the picker to close', async () => { const s = await ctx.state(); return !(s.picker && s.picker.shown); });
       }
       const message = 'TV suite swap ' + Date.now();

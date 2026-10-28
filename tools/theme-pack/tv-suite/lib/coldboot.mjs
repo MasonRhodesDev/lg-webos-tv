@@ -14,7 +14,9 @@ export async function coldboot(ctx, { upTimeout = 600, hookTimeout = 300 } = {})
   const out = { timings: {}, checks: [] };
   const before = await tv.clock();
   if (!before) throw new Error('the TV does not answer ssh before the reboot');
-  ctx.say('rebooting the TV (up ' + Math.round(before.up) + ' s)');
+  const fg0 = await ctx.foreground().catch(() => '');
+  out.foreground = { before: fg0 };
+  ctx.say('rebooting the TV (up ' + Math.round(before.up) + ' s, ' + (fg0 || 'nothing') + ' in front)');
   await tv.disconnect().catch(() => {});
   await tv.sh('(sleep 1; reboot) </dev/null >/dev/null 2>&1 &', { fresh: true, timeout: 15000 });
   const t0 = Date.now();
@@ -76,6 +78,15 @@ export async function coldboot(ctx, { upTimeout = 600, hookTimeout = 300 } = {})
   ctx.check('getTelemetry answers after the hook', ['active', 'inactive', 'unknown'].includes(tel.kit), tel.kit);
   ctx.check('Hook A: the gear opens our quick sheet', reports.some((x) => x.kind === 'ok' && x.text === 'settings: the gear opens our quick sheet (system UI table)'),
     (reports.find((x) => /Hook A|Quick Settings/.test(x.text)) || {}).text || 'no Hook A report');
+  // The boot comes up on LG's default input; the one that was in front is launched again (restoring, not switching).
+  let fg = await ctx.foreground().catch(() => '');
+  out.foreground.afterBoot = fg;
+  if (fg0 && fg !== fg0) {
+    await tv.luna('luna://com.webos.applicationManager/launch', { id: fg0 }).catch(() => null);
+    for (let i = 0; i < 10 && fg !== fg0; i++) { await ctx.sleep(1000); fg = await ctx.foreground().catch(() => ''); }
+    out.foreground.restored = fg === fg0;
+  }
+  ctx.check('the input is back on ' + (fg0 || 'what was in front'), !fg0 || fg === fg0, fg !== out.foreground.afterBoot ? 'relaunched ' + fg0 + ' (the boot came up on ' + out.foreground.afterBoot + ')' : fg);
   out.ok = out.checks.every((x) => x.ok);
   return out;
 }

@@ -166,8 +166,8 @@ QtObject {
     function report(kind, text) {
         bus.call(service, "/report", JSON.stringify({ "from": "ui", "kind": kind, "text": text }));
     }
-    function probe(from, state) {
-        bus.call(service, "/setProbe", JSON.stringify({ "from": from, "state": state }));
+    function probe(from, state, instance) {
+        bus.call(service, "/setProbe", JSON.stringify({ "from": from, "state": state, "layer": instance || "" }));
     }
 
     property var bus: Service {

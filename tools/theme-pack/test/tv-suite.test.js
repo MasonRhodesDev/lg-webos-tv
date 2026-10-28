@@ -19,6 +19,8 @@ async function dryRun(over = {}, ids) {
   const { SCENARIOS } = await imp('lib/scenarios.mjs');
   const state = fake.deployedState(over);
   const out = tmp('run');
+  // Each dry run keeps its journal pointer to itself (a failed restore leaves a journal open, on purpose).
+  process.env.TV_SUITE_STATE = tmp('state');
   const lines = [];
   const tv = makeTv({ host: 'tv.invalid', exec: fake.inProcess(state) });
   const ctx = makeCtx({ tv, out, say: (l) => lines.push(l), poll: 10, sleep: (ms) => new Promise((r) => setTimeout(r, Math.min(ms, 30))) });
@@ -57,11 +59,15 @@ test('the guard lets through only keys that change nothing', async () => {
   assert.strictEqual(guard('ENTER', pin('page'), { pin: true }), null);
   assert.match(guard('ENTER', pin('new'), { pin: true }), /only BACK/, 'never on a new-PIN prompt');
   const none = { settings: { quick: { open: false }, menu: { open: false } }, systemUi: '' };
-  for (const k of ['UP', 'DOWN', 'ENTER', 'LEFT', 'BACK']) assert.match(guard(k, none), /app underneath/, k);
+  for (const k of ['UP', 'DOWN', 'ENTER', 'LEFT', 'BACK']) assert.match(guard(k, none), /nothing of ours is confirmed open/, k + ': BACK too, only with our menu open');
   assert.strictEqual(guard('QMENU', none), null);
-  assert.match(guard('ENTER', Object.assign({}, none, { systemUi: 'com.webos.app.quickinputpicker' })), /select an input/);
-  assert.strictEqual(guard('RIGHT', Object.assign({}, none, { picker: { shown: true } })), null);
-  assert.match(guard('LEFT', Object.assign({}, none, { systemUi: 'com.webos.app.quicksettings' })), /set a mode/, "never Left/Right on LG's Quick Settings");
+  for (const k of ['ENTER', 'RIGHT', 'BACK', 'QMENU']) {
+    assert.match(guard(k, Object.assign({}, none, { picker: { shown: true } })), /input picker is open: no key/, 'picker ' + k);
+    assert.match(guard(k, Object.assign({}, none, { systemUi: 'com.webos.app.quicksettings' })), /LG's Quick Settings is open: no key/, 'LG QS ' + k);
+  }
+  // A stale probe (the layer may be gone): nothing, not even BACK to our menu.
+  const stale = Object.assign({}, menu(row('item', 'value')), { fresh: false, stale: "our Settings' probe is 30.0 s old" });
+  for (const k of ['BACK', 'QMENU', 'DOWN']) assert.match(guard(k, stale), /stale state, nothing is pressed/, 'stale ' + k);
   for (const k of ['HOME', 'EXIT', 'INPUT_HUB', 'POWER', 'CHANNELUP', '0']) assert.match(guard(k, none), /never pressed/, k);
   assert.match(guard('VOLUMEUP', none), /volume scenarios/);
   // Reversible writes: only the named setting, only its toggle or picker choice; actions never.
@@ -80,9 +86,8 @@ test('the guard lets through only keys that change nothing', async () => {
   assert.match(guard('ENTER', kb('Password for Home'), { type: true }), /password/);
   assert.strictEqual(guard('VOLUMEUP', none, { volume: true }), null);
   assert.match(guard('NOSUCHKEY', none), /unknown/);
-  const odd = Object.assign({}, none, { systemUi: 'unknown' });
-  for (const k of ['QMENU', 'UP', 'ENTER', 'LEFT']) assert.match(guard(k, odd), /unknown/, k + ' with systemUIManager unreadable');
-  assert.strictEqual(guard('BACK', odd), null);
+  const odd = Object.assign({}, menu(row('item', 'value')), { systemUi: 'unknown' });
+  for (const k of ['QMENU', 'UP', 'ENTER', 'LEFT', 'BACK']) assert.match(guard(k, odd), /LG overlay we do not know/, k + ' with systemUIManager unreadable');
   assert.ok(Object.keys(KEYS).every((k) => ['proven', 'table', 'unverified'].includes(KEYS[k].from)));
 });
 
@@ -207,8 +212,11 @@ test('dry run: the suite catches BACK arriving as Backspace, a lingering stub, a
 
   const pick = await dryRun({ faults: { backChooses: true } }, ['picture-mode']);
   assert.strictEqual(pick.run('picture-mode').status, 'fail');
-  assert.ok(pick.run('picture-mode').checks.some((c) => !c.ok && c.name === 'the TV is as it was' && /pictureMode/.test(c.detail)));
-  assert.strictEqual(pick.state.settings.pictureMode, 'expert1', 'and the suite put it back');
+  assert.match(pick.run('picture-mode').reason, /left changed, then restored: pictureMode/);
+  assert.strictEqual(pick.state.settings.pictureMode, 'expert1', 'and the suite put it back, read back');
+  // A restore that does not stick is caught by the second read, not reported as done.
+  const sticky = await dryRun({ faults: { backChooses: true, restoreIgnored: true } }, ['picture-mode']);
+  assert.ok(sticky.run('picture-mode').checks.some((c) => !c.ok && /read back after the restore/.test(c.name) && /pictureMode: was "expert1", now/.test(c.detail)));
 
   const unmounted = await dryRun({ mounted: false }, ['redirect']);
   assert.strictEqual(unmounted.run('redirect').status, 'skip');
@@ -301,7 +309,9 @@ test('dry run: the manual pass prints its checklist, breaks the layer on purpose
   const by = (id) => m.items.find((x) => x.id === id);
   assert.strictEqual(by('layer-broken').verdict, 'pass', JSON.stringify(by('layer-broken')));
   assert.ok(by('layer-broken').checks.some((c) => c.ok && /hook leaves LG's Settings/.test(c.name)));
-  assert.ok(by('part-removed').checks.some((c) => c.ok && /opens LG's Quick Settings/.test(c.name)));
+  // Nobody pressed the gear on the fake: the person's pass is not what the suite saw.
+  assert.strictEqual(by('part-removed').verdict, 'fail');
+  assert.ok(by('part-removed').checks.some((c) => !c.ok && /what the suite saw agrees/.test(c.name)));
   assert.strictEqual(by('part-removed').note, 'looks fine');
   assert.strictEqual(by('exit').verdict, 'fail', 'a pass the suite did not see (nobody pressed EXIT on the fake) is a fail');
   assert.ok(by('exit').checks.some((c) => !c.ok && /what the suite saw agrees/.test(c.name)));
@@ -321,7 +331,8 @@ test("systemUIManager's foregroundAppInfo list is read as the TV answers it, and
   const tv = (answer) => ({ luna: async () => { if (answer instanceof Error) throw answer; return answer; } });
   assert.strictEqual(await systemUiFront(tv({ foregroundAppInfo: [], returnValue: true })), '');
   assert.strictEqual(await systemUiFront(tv({ foregroundAppInfo: [{ appId: 'com.webos.app.quicksettings' }], returnValue: true })), 'com.webos.app.quicksettings');
-  assert.strictEqual(await systemUiFront(tv({ foregroundAppInfo: [{ appId: 'x' }, { appId: 'com.webos.app.quickinputpicker' }] })), 'com.webos.app.quickinputpicker');
+  assert.strictEqual(await systemUiFront(tv({ foregroundAppInfo: [{ appId: 'com.webos.app.quickinputpicker' }] })), 'com.webos.app.quickinputpicker');
+  assert.strictEqual(await systemUiFront(tv({ foregroundAppInfo: [{ appId: 'com.webos.app.someoverlay' }] })), 'unknown', 'any other LG overlay is unknown');
   assert.strictEqual(await systemUiFront(tv({ appId: 'com.webos.app.quicksettings', returnValue: true })), 'unknown');
   assert.strictEqual(await systemUiFront(tv({ foregroundAppInfo: [{}] })), 'unknown');
   assert.strictEqual(await systemUiFront(tv(new Error('no answer'))), 'unknown');
@@ -343,4 +354,147 @@ test('dry run: the Look app opens the Look page, and a bus refusal in the log fa
   assert.strictEqual(ok.run('look-app').status, 'pass', ok.run('look-app').reason);
   const bad = await dryRun({ faults: { lookAppDenied: true } }, ['look-app']);
   assert.ok(bad.run('look-app').checks.some((c) => !c.ok && /no permission error/.test(c.name) && /Permission denied/.test(c.detail)));
+});
+
+// The safety verifier's blockers, reproduced and shown fixed.
+const CLI = path.join(dir, 'tv-suite.mjs');
+function fakeFile(over) {
+  const f = path.join(tmp('blk'), 'tv.json');
+  const run = (...a) => spawnSync(process.execPath, [CLI, ...a, '--dry-run', '--fake-state', f], { encoding: 'utf8', timeout: 180000 });
+  assert.strictEqual(run('deploy', tmp('dep')).status, 0);
+  if (over) { const s = JSON.parse(fs.readFileSync(f, 'utf8')); fs.writeFileSync(f, JSON.stringify(Object.assign(s, typeof over === 'function' ? over(s) : over))); }
+  return { f, run, state: () => JSON.parse(fs.readFileSync(f, 'utf8')) };
+}
+const readFake = (f) => { try { return JSON.parse(fs.readFileSync(f, 'utf8')); } catch (e) { return null; } };
+// Starts a dry-run command, waits until `when(state)` holds in the fake TV, then sends `signal`.
+function interrupted(f, args, when, signal) {
+  const { spawn } = require('node:child_process');
+  return new Promise((resolve) => {
+    const p = spawn(process.execPath, [CLI, ...args, '--dry-run', '--fake-state', f], { stdio: ['pipe', 'pipe', 'pipe'] });
+    let out = '', sent = false;
+    p.stdout.on('data', (d) => { out += d; });
+    p.stderr.on('data', (d) => { out += d; });
+    const t = setInterval(() => { const s = readFake(f); if (!sent && s && when(s)) { sent = true; p.kill(signal); } }, 5);
+    p.on('close', (code, sig) => { clearInterval(t); resolve({ code, sig, out, sent }); });
+  });
+}
+
+test('blocker: SIGINT in the middle of a write restores the TV from the journal and closes it', async () => {
+  const { f, state } = fakeFile({ faults: { slow: 15 } });
+  const r = await interrupted(f, ['run', tmp('int'), '--scenario', 'write-name'], (s) => s.settings.deviceName === 'Living roomx', 'SIGINT');
+  assert.ok(r.sent, 'the write happened');
+  assert.strictEqual(r.code, 130, r.out);
+  assert.match(r.out, /SIGINT: stopping, and restoring the TV from the journal/);
+  assert.strictEqual(state().settings.deviceName, 'Living room', 'the name is back');
+  assert.match(r.out, /back to the baseline, read back; journal closed/);
+  assert.deepStrictEqual(fs.readdirSync(path.dirname(f)).filter((x) => x.endsWith('.json') && x !== 'tv.json'), [], 'no journal pointer left');
+});
+
+test('blocker: a killed command leaves its journal; the next command restores from it before taking a baseline', async () => {
+  const { f, run, state } = fakeFile({ faults: { slow: 15 } });
+  const r = await interrupted(f, ['run', tmp('kill'), '--scenario', 'write-name'], (s) => s.settings.deviceName === 'Living roomx', 'SIGKILL');
+  assert.ok(r.sent);
+  assert.strictEqual(state().settings.deviceName, 'Living roomx', 'killed: nothing could restore');
+  const s = state(); s.faults = {}; fs.writeFileSync(f, JSON.stringify(s));
+  const next = run('run', tmp('next'), '--scenario', 'toast');
+  assert.match(next.stdout, /restoring from the journal/);
+  assert.strictEqual(state().settings.deviceName, 'Living room', 'restored before the new baseline');
+  assert.strictEqual(next.status, 0, next.stdout + next.stderr);
+  const res = JSON.parse(fs.readFileSync(path.join(next.stdout.match(/results: (\S+)/)[1]), 'utf8'));
+  assert.strictEqual(res.notes.start.deviceName, 'Living room', 'the new baseline is the restored TV, not the half-written one');
+});
+
+test('blocker: a journal that cannot be restored stops the next command', async () => {
+  const { f, run, state } = fakeFile({ faults: { slow: 15 } });
+  await interrupted(f, ['run', tmp('kill2'), '--scenario', 'write-name'], (s) => s.settings.deviceName === 'Living roomx', 'SIGKILL');
+  const s = state(); s.faults = {}; s.btDevices = []; fs.writeFileSync(f, JSON.stringify(s));
+  const next = run('run', tmp('next2'), '--scenario', 'toast');
+  assert.notStrictEqual(next.status, 0);
+  assert.match(next.stdout + next.stderr, /not back to the journal's baseline: bluetooth: was/);
+  assert.ok(!/== toast/.test(next.stdout), 'nothing new started');
+});
+
+test('blocker: SIGINT at a fallback prompt puts the good layer back', async () => {
+  const { f, state } = fakeFile({ faults: { slow: 5 } });
+  const r = await interrupted(f, ['manual', tmp('mint'), '--item', 'layer-broken'], (s) => s.broken === 'layer' && /left stock/.test(s.themepackLog), 'SIGINT');
+  assert.ok(r.sent);
+  assert.strictEqual(r.code, 130, r.out);
+  const s = state();
+  assert.ok(s.broken === null && s.mounted && s.settingsHost, 'good layer, stub mounted: ' + JSON.stringify({ broken: s.broken, mounted: s.mounted, host: s.settingsHost }));
+  assert.match(r.out, /the good layer is back: host ready, the stub mounted, our probe up/);
+});
+
+test('blocker: a stale probe presses nothing, closeAll included', async () => {
+  const fake = await imp('fake/tv.mjs');
+  const r = await dryRun({ faults: { staleProbe: true } }, ['quick-sheet']);
+  assert.strictEqual(r.run('quick-sheet').status, 'fail');
+  assert.ok(r.run('quick-sheet').checks.some((c) => !c.ok && /stale state, nothing is pressed: our Settings' probe is 60/.test(c.detail)));
+  assert.deepStrictEqual(r.state.keys, [], 'no key reached the TV');
+  // Our menu open, then the layer dies (its probe goes stale): closeAll's BACK is refused too.
+  const { makeTv } = await imp('lib/tv.mjs');
+  const { makeCtx, closeAll } = await imp('lib/run.mjs');
+  const st = fake.deployedState({ netinput: true });
+  st.quick.open = true; st.quick.stack = [{ id: 'quick' }];
+  st.faults.staleProbe = true;
+  const ctx = makeCtx({ tv: makeTv({ host: 'tv.invalid', exec: fake.inProcess(st) }), out: tmp('stale'), say: () => {}, poll: 5, sleep: (ms) => new Promise((x) => setTimeout(x, Math.min(ms, 10))) });
+  assert.match(await closeAll(ctx), /could not be closed: stale state/);
+  assert.deepStrictEqual(st.keys, []);
+});
+
+test('blocker: no PIN-derived value is written anywhere', () => {
+  const { f, run } = fakeFile((s) => ({ settings: Object.assign(s.settings, { systemPin: '4826' }) }));
+  const out = tmp('pin');
+  const r = run('run', out, '--scenario', 'pin', '--scenario', 'write-toggle');
+  assert.strictEqual(r.status, 0, r.stdout + r.stderr);
+  const files = [];
+  (function walk(d) { for (const x of fs.readdirSync(d)) { const p = path.join(d, x); if (fs.statSync(p).isDirectory()) walk(p); else files.push(p); } })(out);
+  for (const p of files.filter((x) => !x.endsWith('.png'))) {
+    const text = fs.readFileSync(p, 'utf8');
+    assert.ok(!text.includes('4826'), p + ' holds the PIN');
+    assert.doesNotMatch(text, /"pin"\s*:/, p + ' holds a pin field');
+  }
+  assert.ok(!(r.stdout + r.stderr).includes('4826'), 'nor the output');
+});
+
+test('blocker: an unreadable value is never a baseline, and nothing starts without one', async () => {
+  await assert.rejects(dryRun({ faults: { unreadable: ['soundMode'] } }, ['toast']), /no baseline: soundMode is unreadable/);
+});
+
+test('blocker: deploy backs up the old setup once, and rollback puts exactly it back', () => {
+  const f = path.join(tmp('rb'), 'tv.json');
+  const fake = require('node:path');
+  const run = (...a) => spawnSync(process.execPath, [CLI, ...a, '--dry-run', '--fake-state', f], { encoding: 'utf8', timeout: 180000 });
+  const old = { faults: {}, oldHook: true, rootSettings: true, mounted: 'patched' };
+  // The TV as found: the old boot hook, its patched Settings mounted, no Look package.
+  fs.writeFileSync(f, JSON.stringify(Object.assign(JSON.parse(spawnSync(process.execPath, ['-e', 'import(process.argv[1]).then(m=>console.log(JSON.stringify(m.initialState())))', path.join(dir, 'fake/tv.mjs')], { encoding: 'utf8' }).stdout), old)));
+  const d = run('deploy', tmp('d'));
+  assert.strictEqual(d.status, 0, d.stdout + d.stderr);
+  assert.match(d.stdout, /backup made/);
+  let s = JSON.parse(fs.readFileSync(f, 'utf8'));
+  assert.ok(s.hook && !s.oldHook && !s.rootSettings, 'deploy replaced the old hook and removed the old Settings');
+  assert.match(run('deploy', tmp('d2')).stdout, /backup kept from before/, 'a second deploy keeps the first backup');
+  const rb = run('rollback', tmp('r'));
+  assert.strictEqual(rb.status, 0, rb.stdout + rb.stderr);
+  s = JSON.parse(fs.readFileSync(f, 'utf8'));
+  assert.ok(s.oldHook && !s.hook && s.rootSettings && s.mounted === 'patched' && !s.installed, JSON.stringify({ oldHook: s.oldHook, hook: s.hook, rootSettings: s.rootSettings, mounted: s.mounted, installed: s.installed }));
+  const pr = spawnSync(process.execPath, [CLI, 'rollback', '--print'], { encoding: 'utf8', env: Object.assign({}, process.env, { TV_HOST: '' }) });
+  assert.strictEqual(pr.status, 0, pr.stderr);
+  assert.match(pr.stdout, /appInstallService\/dev\/remove/);
+  void fake;
+});
+
+test('without --live every command is a dry run, whatever TV_HOST says', () => {
+  const r = spawnSync(process.execPath, [CLI, 'run', tmp('nolive'), '--scenario', 'toast'], { encoding: 'utf8', timeout: 120000, env: Object.assign({}, process.env, { TV_HOST: 'tv.example' }) });
+  assert.match(r.stdout, /no --live: a dry run against the fake TV, not tv\.example/);
+});
+
+test('closeAll closes LG\'s Quick Settings with closeByAppId, and coldboot puts the input back', async () => {
+  const r = await dryRun({ lgQs: true }, ['toast']);
+  assert.strictEqual(r.state.lgQs, false);
+  const { f, run, state } = fakeFile();
+  const c = run('coldboot', tmp('cb'));
+  assert.strictEqual(c.status, 0, c.stdout);
+  assert.match(c.stdout, /ok {3}the input is back on com\.webos\.app\.hdmi2: relaunched com\.webos\.app\.hdmi2 \(the boot came up on com\.webos\.app\.livetv\)/);
+  assert.strictEqual(state().fg, 'com.webos.app.hdmi2');
+  void f;
 });

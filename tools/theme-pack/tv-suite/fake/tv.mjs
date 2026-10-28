@@ -27,7 +27,7 @@ export function initialState(over = {}) {
     menu: { open: false, stack: [], area: 'categories', cat: 0, index: 0, editing: null, pin: null, dialog: false },
     reports: [], ownLayerLog: '', themepackLog: '',
     installed: false, layerFiles: false, layer: false, stub: false, hook: false, mounted: false, lgQs: false,
-    files: {}, events: [], writes: [], unknown: [], keys: [], bootAt: Date.now() - 3600e3, netinput: false, down: 0, boots: 0, broken: null, settingsHost: false
+    files: {}, events: [], writes: [], unknown: [], keys: [], bootAt: Date.now() - 3600e3, netinput: false, down: 0, oldHook: false, rootSettings: false, backup: null, boots: 0, broken: null, settingsHost: false
   }, over);
 }
 
@@ -84,7 +84,8 @@ function probes(s) {
             pin: m.pin ? { mode: m.pin.mode, length: m.pin.pin.length, error: m.pin.error, pad: m.pin.pad } : null }
   };
   if (s.faults.noProbe) return {};
-  const at = iso();
+  // A healthy layer refreshes every probe; under the staleProbe fault they stopped a minute ago (a dead layer).
+  const at = s.faults.staleProbe ? new Date(Date.now() - 60000).toISOString() : iso();
   return {
     'parts/Settings.qml': { at, state: settings },
     'parts/VolumeBar.qml': { at, state: { shown: now < s.volume.barUntil, level: s.volume.volume, muted: s.volume.muted } },
@@ -284,14 +285,20 @@ function hook(s) {
   s.themepackLog += log.join('\n') + '\n';
 }
 
+function manifestOf(s) {
+  const b = s.backup;
+  return JSON.stringify({ created: b.created, hook: !!b.hook, settings: !!b.settings, layer: !!b.layer, stub: !!b.stub, settingsMounted: b.settingsMounted, lookInstalled: b.lookInstalled });
+}
+
 // A reboot: everything the boot undoes goes (mounts, the layer, reports, /tmp), ssh is down for a few polls, then
 // the boot hook runs.
 function reboot(s) {
   s.boots++;
   Object.assign(s, { mounted: false, layer: false, settingsHost: false, netinput: false, reports: [], themepackLog: '', ownLayerLog: '', files: {}, lgQs: false,
-                     down: s.faults.slowBoot ? 6 : 2, bootAt: Date.now() });
+                     down: s.faults.slowBoot ? 6 : 2, bootAt: Date.now(), fg: 'com.webos.app.livetv' });
   s.quick.open = false; closeMenu(s); s.picker.shown = false;
-  if (s.hook) hook(s);
+  if (s.oldHook) { if (s.rootSettings) s.mounted = 'patched'; }
+  else if (s.hook) hook(s);
 }
 
 function launchSettings(s, params) {
@@ -309,7 +316,13 @@ function luna(s, uri, p) {
   if (m.startsWith(look) && !s.installed) return { returnValue: false, errorText: 'Service does not exist: dev.themepack.look.service.' };
   switch (m) {
     case look + 'getReports': return ok({ reports: s.reports });
-    case look + 'getProbe': { const p = s.layer && s.broken !== 'layer' ? probes(s) : {}; if (!s.settingsHost) delete p['parts/Settings.qml']; return ok({ probes: p }); }
+    case look + 'getProbe': {
+      const p = s.layer && s.broken !== 'layer' ? probes(s) : {};
+      if (!s.settingsHost) delete p['parts/Settings.qml'];
+      for (const k of Object.keys(p)) Object.assign(p[k], { layer: 'fake', seq: 1 });
+      return ok({ now: iso(), probes: p });
+    }
+    case 'com.webos.service.tvpower/power/getPowerState': return ok({ state: 'Active' });
     case look + 'getLook': return ok({ look: s.look, available: { styles: STYLES, themes: THEMES } });
     case look + 'setLook':
       if (p.style !== undefined && !STYLES.some((x) => x.id === p.style)) return { returnValue: false, errorText: 'unknown style ' + p.style };
@@ -324,11 +337,11 @@ function luna(s, uri, p) {
       const out = {};
       const eula = { acrOnAllowed: false, acrAdAllowed: false, customAdAllowed: false, additionalDataAllowed: false, voiceAllowed: false,
                      voice2Allowed: false, takeOnAllowed: false, chpAllowed: false };
-      for (const k of p.keys || []) if (k === 'eulaStatus') out[k] = eula; else if (s.settings[k] !== undefined) out[k] = s.settings[k];
+      for (const k of p.keys || []) if (k === 'eulaStatus') out[k] = eula; else if (s.settings[k] !== undefined && !(s.faults.unreadable || []).includes(k)) out[k] = s.settings[k];
       return ok({ category: p.category, settings: out });
     }
     case 'com.webos.settingsservice/setSystemSettings':
-      for (const [k, v] of Object.entries(p.settings || {})) { s.settings[k] = v; event(s, 'setSystemSettings ' + k); }
+      for (const [k, v] of Object.entries(p.settings || {})) { if (!s.faults.restoreIgnored) s.settings[k] = v; (s.restores = s.restores || []).push(k); }
       return ok({});
     case 'com.webos.applicationManager/getForegroundAppInfo': return ok({ appId: s.fg });
     case 'com.webos.applicationManager/running': return ok({ running: [{ id: s.fg }].concat(s.faults.stubLingers && s.mounted ? [{ id: 'com.palm.app.settings' }] : []) });
@@ -339,6 +352,8 @@ function luna(s, uri, p) {
     case 'com.webos.applicationManager/launch':
       if (p.id === 'com.palm.app.settings') launchSettings(s, p.params);
       else if (p.id === APP.id) { if (s.settingsHost) openAt(s, 'Look'); }
+      // An input coming back to the front (a restore) is no event; any other launch is.
+      else if (/^com\.webos\.app\.(hdmi\d|livetv)$/.test(p.id)) { s.fg = p.id; (s.inputLaunches = s.inputLaunches || []).push(p.id); }
       else { s.fg = p.id; event(s, 'launched ' + p.id); }
       return ok({});
     case 'com.webos.applicationManager/closeByAppId': return ok({});
@@ -353,7 +368,10 @@ function luna(s, uri, p) {
     case 'com.webos.service.systemUIManager/launch':
       if (p.appId === 'com.webos.app.quickinputpicker') { if (s.picker.shown) event(s, 'picker launched while open: input switched'); s.picker.shown = true; }
       return ok({});
-    case 'com.webos.service.systemUIManager/closeByAppId': if (p.id === 'com.webos.app.quickinputpicker') s.picker.shown = false; return ok({});
+    case 'com.webos.service.systemUIManager/closeByAppId':
+      if (p.id === 'com.webos.app.quickinputpicker') s.picker.shown = false;
+      if (p.id === 'com.webos.app.quicksettings') s.lgQs = false;
+      return ok({});
     case 'com.webos.surfacemanager/showQuickSettings':
       if (s.layer && !s.faults.lgQuickSettings) { s.quick.open = true; s.quick.stack = [{ id: 'quick' }]; landOn(s, s.quick); } else s.lgQs = true;
       return ok({});
@@ -366,7 +384,7 @@ function luna(s, uri, p) {
     case 'com.palm.systemservice/getPreferences': return ok({ useNetworkTime: true });
     case 'dev.themepack.look.service/getTelemetry': return ok({ kit: 'unknown' });
     case 'com.webos.service.wifi/getstatus': return ok({ status: 'serviceDisabled' });
-    case 'com.webos.service.btaudiosrc/getPairedDevices': return ok({ devices: [{ address: '00:00:00:00:00:00', name: 'Speaker', state: 'paired' }] });
+    case 'com.webos.service.btaudiosrc/getPairedDevices': return ok({ devices: s.btDevices || [{ address: '00:00:00:00:00:00', name: 'Speaker', state: 'paired' }] });
     case 'com.webos.appInstallService/dev/install': s.installed = true; return ok({ id: p.id, details: { state: 'installed' } });
     case 'com.webos.appInstallService/dev/remove': s.installed = false; return ok({});
   }
@@ -444,9 +462,35 @@ export function ssh(s, cmd, stdin) {
   if (cmd === 'date -u +%s; cut -d" " -f1 /proc/uptime') return r(Math.floor(Date.now() / 1000) + '\n' + ((Date.now() - s.bootAt) / 1000).toFixed(2) + '\n');
   if (/^\(sleep 1; reboot\)/.test(cmd)) { reboot(s); return r(); }
   if (cmd === 'tail -1 /tmp/themepack.log 2>/dev/null') return r(s.themepackLog.trim().split('\n').pop() + '\n');
-  if (/^\/var\/lib\/webosbrew\/init\.d\/60-themepack; tail -8 \/tmp\/themepack\.log$/.test(cmd)) { if (s.hook) hook(s); return r(s.themepackLog.trim().split('\n').slice(-8).join('\n') + '\n'); }
+  if (/^\/var\/lib\/webosbrew\/init\.d\/60-themepack; tail -8 \/tmp\/themepack\.log$/.test(cmd)) {
+    if (s.oldHook) { if (s.rootSettings) s.mounted = 'patched'; s.themepackLog += 'old hook: patched settings mounted\n'; }
+    else if (s.hook) hook(s);
+    return r(s.themepackLog.trim().split('\n').slice(-8).join('\n') + '\n');
+  }
   if (/^date -u /.test(cmd)) return r(iso().slice(0, 19) + '\n');
   if (cmd === 'true') return r();
+  if (cmd.startsWith('# tv-suite: backup')) {
+    if (s.faults.backupFails) return r('', 1);
+    let made = '';
+    if (!s.backup) {
+      s.backup = { created: iso(), hook: s.hook ? 'ours' : s.oldHook ? 'old' : null, settings: s.rootSettings, layer: s.layerFiles, stub: s.stub,
+                   settingsMounted: !!s.mounted, lookInstalled: s.installed };
+      made = 'backup made\n';
+    } else made = 'backup kept from before\n';
+    return r(made + manifestOf(s) + '\n');
+  }
+  if (cmd === 'cat /media/developer/themepack-backup/manifest.json') return s.backup ? r(manifestOf(s) + '\n') : r('', 1);
+  if (cmd.startsWith('# tv-suite: restore backup')) {
+    const b = s.backup;
+    Object.assign(s, { hook: b.hook === 'ours', oldHook: b.hook === 'old', rootSettings: b.settings, layerFiles: b.layer, stub: b.stub });
+    return r('restored\n');
+  }
+  if (cmd.startsWith('# tv-suite: verify backup')) {
+    const b = s.backup, out = [];
+    if ((b.hook === 'old') !== s.oldHook || (b.hook === 'ours') !== s.hook) out.push('hook differs');
+    if (b.settings !== s.rootSettings) out.push('settings differ');
+    return r(out.concat(['checked']).join('\n') + '\n');
+  }
   if (cmd === '[ -S /tmp/netinput.pointer.sock ]') return r('', s.netinput ? 0 : 1);
   if (cmd === 'wc -l < /var/log/messages 2>/dev/null') return r('120\n');
   if (/^tail -n \+\d+ \/var\/log\/messages \| grep/.test(cmd)) return r(s.faults.lookAppDenied ? 'Oct 28 ls-hubd: Permission denied for dev.themepack.look to call dev.themepack.look.service/openSettings\n' : '', s.faults.lookAppDenied ? 0 : 1);
@@ -463,7 +507,7 @@ export function ssh(s, cmd, stdin) {
   }
   if (/^rm -rf \S+\/layer && mv \S+\/layer\.new \S+\/layer$/.test(cmd)) { s.layerFiles = true; return r(); }
   if (/^tar -C \S+\/settings-stub\.new -mxf - && /.test(cmd)) { s.stub = true; return r(); }
-  if (/^rm -rf \S+\/settings \S+\/settings-stub\.new && mkdir -p/.test(cmd)) return r();
+  if (/^rm -rf \S+\/settings \S+\/settings-stub\.new && mkdir -p/.test(cmd)) { s.rootSettings = false; return r(); }
   if (cmd === 'sh -s') {
     if (/umount/.test(stdin)) { if (s.faults.stubBusy && s.mounted) return { status: 1, stdout: 'Settings is still in use; left mounted\n' }; s.mounted = false; }
     return r();
@@ -497,7 +541,7 @@ export function scp(s, args) {
   const remote = (x) => /^[^/]*@[^:]+:/.test(x) || /^[\w.-]+:\//.test(x);
   if (remote(dst)) {
     const p = dst.slice(dst.indexOf(':') + 1);
-    if (/60-themepack$/.test(p)) s.hook = true;
+    if (/60-themepack$/.test(p)) { s.hook = true; s.oldHook = false; }
     s.files[p] = 'uploaded';
     return 0;
   }
@@ -538,6 +582,7 @@ export function main(kind, argv, stdin) {
 export function fileBacked(f) {
   return async (cmd, argv, opts = {}) => {
     const s = load(f);
+    if (s.faults.slow) await new Promise((r) => setTimeout(r, s.faults.slow));
     try { return await inProcess(s)(cmd, argv, opts); } finally { save(f, s); }
   };
 }

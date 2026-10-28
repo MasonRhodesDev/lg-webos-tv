@@ -53,17 +53,17 @@ export function guard(key, state, allow = {}) {
   if (!k) return 'unknown key ' + key;
   if (k.never) return key + ' is never pressed: ' + k.never;
   if (['VOLUMEUP', 'VOLUMEDOWN', 'MUTE'].includes(key)) return allow.volume ? null : key + ' only in the volume scenarios';
-  if (state.systemUi === 'unknown') return key === 'BACK' ? null : "systemUIManager's answer is unreadable: whether LG's UI is open is unknown, so only BACK";
-  if (key === 'QMENU') return null;
+  // Nothing is pressed on a state that cannot be trusted: a stale probe (the layer may be gone, and the key would
+  // land on LG's UI or the app), or an LG overlay we do not know.
+  if (state.fresh === false) return 'stale state, nothing is pressed: ' + state.stale;
+  if (state.systemUi === 'unknown') return "an LG overlay we do not know is open, or systemUIManager's answer is unreadable: nothing is pressed";
   const s = state.settings || {};
   const own = s.menu && s.menu.open ? 'menu' : s.quick && s.quick.open ? 'quick' : null;
   const picker = !!(state.picker && state.picker.shown) || state.systemUi === 'com.webos.app.quickinputpicker';
-  if (!own) {
-    if (state.systemUi === 'com.webos.app.quicksettings') return key === 'BACK' ? null : "LG's Quick Settings is open: " + key + ' could set a mode';
-    if (picker) return key === 'LEFT' || key === 'RIGHT' || key === 'BACK' ? null : 'the input picker is open: ' + key + ' could select an input';
-    if (key === 'BACK') return allow.back ? null : 'nothing of ours is open: BACK would reach the app underneath';
-    return 'nothing of ours is open: ' + key + ' would reach the app underneath';
-  }
+  if (state.systemUi === 'com.webos.app.quicksettings') return "LG's Quick Settings is open: no key (it closes with closeByAppId)";
+  if (picker) return 'the input picker is open: no key (it closes with closeByAppId)';
+  if (key === 'QMENU') return null;
+  if (!own) return 'nothing of ours is confirmed open: ' + key + ' would reach the app underneath';
   const v = s[own];
   if (key === 'BACK') return null;
   if (v.dialog) return 'a dialog is up: only BACK';

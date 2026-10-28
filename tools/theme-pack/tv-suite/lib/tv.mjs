@@ -36,7 +36,12 @@ export function makeTv({ host = process.env.TV_HOST, log = () => {}, python = pr
   const target = user + '@' + host;
 
   // `fresh` skips the shared connection: across a reboot its socket is stale.
+  // After abort() every call fails: an interrupted command's own steps stop, and only the restore (on a fresh
+  // instance) talks to the TV.
+  let aborted = false;
+  function abort() { aborted = true; }
   async function sh(command, { input, tty = false, timeout, fresh = false } = {}) {
+    if (aborted) throw new Error('interrupted: this command no longer talks to the TV');
     const opts = fresh ? ['-o', 'ControlMaster=no', '-o', 'ControlPath=none', '-o', 'ConnectTimeout=5', '-o', 'BatchMode=yes'] : control;
     const r = await exec('ssh', [...opts, ...(tty ? ['-tt'] : []), target, command], { input, timeout });
     log('ssh', command, r.status);
@@ -50,6 +55,7 @@ export function makeTv({ host = process.env.TV_HOST, log = () => {}, python = pr
     try { return JSON.parse(line); } catch (e) { throw new Error(uri + ': unreadable answer ' + line.slice(0, 200)); }
   }
   async function pull(remote, local) {
+    if (aborted) throw new Error('interrupted: this command no longer talks to the TV');
     const r = await exec('scp', ['-q', ...control, target + ':' + remote, local]);
     log('scp', remote + ' -> ' + local, r.status);
     if (r.status !== 0) throw new Error('scp ' + remote + ': ' + r.stderr.trim());
@@ -94,12 +100,20 @@ export function makeTv({ host = process.env.TV_HOST, log = () => {}, python = pr
     const a = await luna(svc + '/getReports');
     return (a.reports || []).filter((r) => r.at > since);
   }
-  async function probes() {
+  // The parts' probes with their age by the service's own clock: { states, meta: { name: { at, layer, seq, age } },
+  // now }. Ages are seconds; a part whose probe stopped being refreshed has a growing age.
+  async function probeRead() {
     const a = await luna(svc + '/getProbe');
-    const out = {};
-    for (const [k, v] of Object.entries(a.probes || {})) out[k.replace(/^parts\//, '').replace(/\.qml$/, '')] = v.state;
-    return out;
+    const now = a.now || '', t = Date.parse(now);
+    const states = {}, meta = {};
+    for (const [k, v] of Object.entries(a.probes || {})) {
+      const name = k.replace(/^.*\//, '').replace(/\.qml$/, '');
+      states[name] = v.state;
+      meta[name] = { at: v.at, layer: v.layer || '', seq: v.seq || 0, age: isFinite(t) && v.at ? (t - Date.parse(v.at)) / 1000 : Infinity };
+    }
+    return { states, meta, now };
   }
+  async function probes() { return (await probeRead()).states; }
   // Closes the shared connection (before a reboot).
   async function disconnect() { await exec('ssh', [...control, '-O', 'exit', target], { timeout: 10000 }); }
   // The TV's clock and its uptime, read together: { now (epoch s), up (s since boot) }, or null when it is down.
@@ -108,5 +122,5 @@ export function makeTv({ host = process.env.TV_HOST, log = () => {}, python = pr
     const [now, up] = r.stdout.trim().split(/\s+/).map(Number);
     return r.status === 0 && now > 0 && up >= 0 ? { now, up } : null;
   }
-  return { host, target, sh, luna, pull, keys, ensureKeys, resetKeys, capture, now, reports, probes, disconnect, clock };
+  return { host, target, sh, luna, pull, keys, ensureKeys, resetKeys, capture, now, reports, probes, probeRead, disconnect, clock, abort };
 }
