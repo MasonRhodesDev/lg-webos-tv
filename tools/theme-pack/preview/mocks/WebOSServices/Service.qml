@@ -16,6 +16,8 @@ QtObject {
         } else if (uri === "luna://dev.themepack.look.service" && method === "/getLook") {
             if (JSON.parse(params).subscribe) Fixture.subscribe(this);
             response(method, JSON.stringify(Fixture.payload));
+        } else if (uri === "luna://dev.themepack.look.service" && method === "/getTelemetry") {
+            response(method, JSON.stringify({ "returnValue": true, "kit": TvSettings.telemetryKit }));
         } else if (uri === "luna://dev.themepack.look.service") {
             Fixture.command(method, params);
             if (method === "/report") console.log("report: " + params);

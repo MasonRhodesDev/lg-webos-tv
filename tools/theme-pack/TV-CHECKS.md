@@ -112,18 +112,35 @@ Board content: the adapters behind the designed pages (UNVERIFIED reads, from LG
 - [ ] `luna://com.palm.systemservice/getPreferences '{"keys":["useNetworkTime"],"subscribe":true}'` answers and
       `setPreferences {useNetworkTime}` from Time and date's switch sticks (Time and date then reads Automatic/Manual).
 - [ ] `getSystemSettings '{"category":"","keys":["eulaStatus","localeInfo"]}'` answers for our appId (eulaStatus is
-      not in settingsservice.allow). The footer says "telemetry off" only when every one of telemetry-off's
-      `EULA_KEYS` is false; check it says "telemetry on" after `80-telemetry-off revert` and a reload of our Settings.
-      This is LG's data agreements only: it does not prove the hosts blackhole or the daemon stubs are in place.
+      not in settingsservice.allow), with all eight of telemetry-off's `EULA_KEYS` as booleans.
+- [ ] `luna-send -n 1 luna://dev.themepack.look.service/getTelemetry '{}'` says `"kit":"active"` after a cold boot
+      with tools/telemetry-off installed (once its hook has run, ~35 s), `inactive` after
+      `80-telemetry-off revert`, and that the service sees the root namespace's `/etc/hosts` (not a jail's stale copy:
+      the marker must vanish after `revert`). The footer then reads "telemetry off", "agreements withdrawn" (kit not in
+      force, agreements refused) or "telemetry on" (an agreement accepted).
 - [ ] Device connector opens LG's connection wizard (`com.webos.app.connectionwizard`); Picture test and Sound test
       open LG's customer support app at those tests (`com.webos.app.customersupport {target}`); Back from each returns
       somewhere sensible (LG passes `appReturn` to Settings, which the stub redirects to ours).
 - [ ] `permissions.sh` lists groups covering the new reads (tv.display getHDMIInfo, tv.systemproperty, systemservice).
 
-Known gaps against the Settings boards
-- Rows with nothing behind them on webOS 4.5 are drawn in place, greyed, with the reason: Greyscale and Invert colours
-  (not on this TV's software), Text size and Signal test (not in our Settings yet).
-- Values the boards show that no LG setting backs are left out: Home dashboard ("Inputs first"), Screen saver
-  ("After 5 minutes": LG has only on/off), Pixel refresher ("At power off"). Bluetooth devices' "1 paired" and Wi-Fi's
-  "Off" come with the Bluetooth and Wi-Fi pages' channels.
+Known gaps against the Settings boards (every row that differs from its board, and why)
+- Picture: Pixel refresher shows no "At power off": no LG setting backs it (LG runs the refresh by itself).
+- Sound: Balance's number is "0" / "L 2" / "R 2", not the board's position percent (the slider's number has room for
+  three characters). Bluetooth surround is not greyed with "Pair a Bluetooth speaker first": it waits on the
+  Bluetooth page's paired count (`btPairedCount`, pages-lists lane); once both are merged its row takes
+  `activeWhen: { ref: "btPairedCount", not: [0] }` and `why: "Pair a Bluetooth speaker first"`.
+- Connection: the subtitle is the live "Offline"/"Online", not "Offline by design" (the TV cannot know it is by
+  design). Internet has no "Blocked at the firewall by choice" hint, for the same reason. Wi-Fi reads "Not connected"
+  rather than "Off", and Bluetooth devices has no "1 paired": both come with the Wi-Fi and Bluetooth pages' data
+  (pages-lists lane). Screen Share is a link to its page, not a switch: LG 4.5 has no Screen Share on/off, only
+  "Delete pairing history" (`miracast/deletePairedDeviceList`).
+- General: the subtitle is "webOS 4.10.0 · 05.40.45" and About this TV "OLED55B9PUA": what the TV reports
+  (`core_os_release`, `modelName`); "webOS 4.5" and "OLED55B9" are LG's product names (see the sdkVersion check
+  above). Home dashboard has no "Inputs first" (no such LG setting). Screen saver reads "On" with an On/Off picker,
+  not "After 5 minutes" (LG has only on/off).
+- Accessibility: Greyscale, Invert colours and Text size are drawn in place, greyed, "Not on this TV's software":
+  LG's 4.5 Settings bundle and the settings descriptions have no such settings.
+- Support: TV information reads "OLED55B9PUA · webOS 4.10.0" (as General). Sound test launches LG's customer support
+  app straight away, without LG's toast when the sound is not on the TV speakers.
+- Quick sheet: none (Energy saving's state is the fixture's).
 - Look follows General's seven board rows (the boards have no Look category).

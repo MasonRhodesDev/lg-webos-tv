@@ -50,6 +50,7 @@ QtObject {
         if (svc === "com.webos.service.tv.display" && it.api.read === "getHDMIInfo") return "signal";
         if (svc === "com.webos.service.tv.systemproperty" || svc === "com.palm.systemservice/osInfo") return "system";
         if (svc === "com.palm.systemservice" && it.api.read === "getPreferences") return "prefs";
+        if (svc === "dev.themepack.look.service") return "kit";
         if (it.api.look) return "look";
         return "";
     }
@@ -132,7 +133,7 @@ QtObject {
             sig.response.connect(function (method, payload) {
                 var m = parse(payload);
                 if (!m || m.returnValue === false) return;
-                store.values.signal = { "width": m.width, "height": m.height, "frameRate": m.frameRate, "scanType": m.scanType };
+                store.values.signal = { "HDMImode": m.HDMImode, "width": m.width, "height": m.height, "frameRate": m.frameRate, "scanType": m.scanType };
                 store.changed();
             });
             sig.call("luna://com.webos.service.tv.display", "/getHDMIInfo", JSON.stringify({ "subscribe": true }));
@@ -145,6 +146,17 @@ QtObject {
             sys.call("luna://com.webos.service.tv.systemproperty", "/getSystemInfo", JSON.stringify({ "keys": ["modelName", "firmwareVersion"] }));
             os.call("luna://com.palm.systemservice", "/osInfo/query", JSON.stringify({ "parameters": ["core_os_release"] }));
             ch.services = [sys, os];
+        } else if (name === "kit") {
+            // Read on each open: the boot hook applies some 35 s after power-on.
+            var kit = service();
+            kit.response.connect(function (method, payload) {
+                var m = parse(payload);
+                if (!m || m.returnValue === false || !m.kit) return;
+                store.values.telemetryKit = m.kit;
+                store.changed();
+            });
+            kit.call("luna://dev.themepack.look.service", "/getTelemetry", "{}");
+            ch.services = [kit];
         } else if (name === "prefs") {
             var prefs = service();
             prefs.response.connect(function (method, payload) {
@@ -266,10 +278,13 @@ QtObject {
         if (it.api && it.api.look === "style") {
             var styles = Look.available.styles || [];
             for (var i = 0; i < styles.length; i++) if (styles[i].id === v) label = styles[i].name;
-        } else if (it.id === "signal") {
+        } else if (it.id === "signal" || it.from === "signal") {
             // Only an HDMI input has a signal to describe; an unknown input may still be one.
             var input = values["dimensionInfo.input"];
-            label = input === undefined || String(input).indexOf("hdmi") === 0 ? Menu.signalLabel(v) : "";
+            label = input !== undefined && String(input).indexOf("hdmi") !== 0 ? ""
+                  : it.id === "signal" ? Menu.signalLabel(v) : Menu.valueLabel(it.id, v);
+        } else if (it.id === "telemetry") {
+            label = Menu.telemetryLabel(values.telemetryKit, v);
         } else {
             label = it.type === "info" && typeof v === "string" && !Menu.labels[it.id] ? v : Menu.valueLabel(it.id, v);
         }

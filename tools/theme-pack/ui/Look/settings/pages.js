@@ -160,7 +160,7 @@ function subtitle(sub, store) {
 }
 
 // The Settings footer, as the board has it: online or offline, and whether LG's data agreements are withdrawn.
-var footerRefs = ["internet", "telemetry"];
+var footerRefs = ["internet", "telemetryKit", "telemetry"];
 function footer(store) { return subtitle({ "from": footerRefs }, store); }
 
 function title(entry) { return entry.title || expanded(entry).title; }

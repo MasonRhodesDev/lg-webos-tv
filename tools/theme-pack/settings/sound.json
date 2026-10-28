@@ -257,7 +257,13 @@
       "params": {
        "id": "com.webos.app.customersupport",
        "params": {
-        "target": "soundTest"
+        "target": "soundTest",
+        "appReturn": {
+         "appId": "com.palm.app.settings",
+         "params": {
+          "target": "sound"
+         }
+        }
        }
       }
      },

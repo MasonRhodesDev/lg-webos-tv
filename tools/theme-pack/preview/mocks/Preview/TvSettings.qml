@@ -3,8 +3,8 @@ import QtQuick 2.4
 
 // The TV's settings services as the preview answers them (SETTINGS-PLAN.md section 4): a US TV (an OLED55B9) watching
 // HDMI 2 at 4K 120 Hz in Filmmaker mode, sound on the TV speakers, on a cable with the internet blocked, LG's data
-// agreements withdrawn (the boards' TV). Scenes and tests change `values`, `desc` and `fail` before or while they run.
-// Addresses are from the documentation ranges (RFC 5737).
+// agreements withdrawn, tools/telemetry-off in force (the boards' TV). Scenes and tests change `values`, `desc` and
+// `fail` before or while they run. Addresses are from the documentation ranges (RFC 5737).
 QtObject {
     id: fixture
 
@@ -45,6 +45,8 @@ QtObject {
     property var hdmi: ({ "returnValue": true, "HDMImode": true, "width": 3840, "height": 2160, "frameRate": 120, "scanType": true })
     // tv.systemproperty getSystemInfo and systemservice osInfo/query.
     property var system: ({ "modelName": "OLED55B9PUA", "firmwareVersion": "05.40.45", "core_os_release": "4.10.0" })
+    // The Look service's getTelemetry: tools/telemetry-off in force this boot.
+    property string telemetryKit: "active"
     // systemservice getPreferences.
     property var preferences: ({ "useNetworkTime": false, "timeZone": "America/New_York" })
     // Keys ("category.key", "sleepTimer", "volume") whose next write fails, to show the rollback.

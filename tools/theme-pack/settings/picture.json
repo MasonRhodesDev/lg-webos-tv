@@ -191,7 +191,13 @@
       "params": {
        "id": "com.webos.app.customersupport",
        "params": {
-        "target": "pictureTest"
+        "target": "pictureTest",
+        "appReturn": {
+         "appId": "com.palm.app.settings",
+         "params": {
+          "target": "picture"
+         }
+        }
        }
       }
      },

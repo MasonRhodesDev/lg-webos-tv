@@ -90,7 +90,7 @@ var pages = {
         { item: "AudioGuidance/audioGuidance", label: "Audio guidance", hint: "Reads menus aloud", icon: "ear" },
         { page: "ClosedCaption", label: "Subtitles", icon: "cc", value: "captionEnable" },
         { item: "audioDescription", label: "Audio description", icon: "speaker" },
-        { missing: "Not in our Settings yet", label: "Text size", icon: "lang", as: "value" },
+        { missing: "Not on this TV's software", label: "Text size", icon: "lang", as: "value" },
         { more: "accessibility" }
     ] },
     "Support": { category: "support", title: "Support", sub: { from: "onlineHelp" }, rows: [
@@ -98,13 +98,20 @@ var pages = {
           hintWhen: { ref: "internet", is: ["Offline"] }, hint: "Updates are blocked while the TV stays offline" },
         { action: "pictureTest", label: "Picture test", icon: "screen", drill: true },
         { action: "soundTest", label: "Sound test", icon: "speaker", drill: true },
-        { missing: "Not in our Settings yet", label: "Signal test", icon: "test" },
+        { page: "SignalTest", label: "Signal test", icon: "test" },
         { page: "AboutThisTV", label: "TV information", icon: "info", value: "tvSummary" },
         { page: "LegalNotice", label: "Privacy and terms", icon: "shield", value: "agreements" }
     ] },
     "SoftwareUpdate": { category: "support", title: "Software update", sub: { from: "tvVersion" }, rows: [
         { item: "firmwareVersion", label: "Software version", icon: "info" },
         { item: "automaticUpdate", label: "Automatic updates", hint: "An update can remove root access", icon: "update" }
+    ] },
+    // The current input's signal, as LG's Settings shows it in its HDMI diagnostics (getHDMIInfo).
+    "SignalTest": { category: "support", title: "Signal test", sub: { from: "input" }, rows: [
+        { item: "signalMode", label: "HDMI mode", icon: "port" },
+        { item: "signalResolution", label: "Resolution", icon: "screen" },
+        { item: "signalRate", label: "Frame rate", icon: "motion" },
+        { item: "signalScan", label: "Scan type", icon: "sliders" }
     ] },
     "Timers": { category: "general", title: "Timers", rows: [
         { item: "sleepTimer", label: "Sleep timer", icon: "moon" },
@@ -127,6 +134,10 @@ var extra = {
     // The current input's signal, as LG's Settings reads it for its HDMI diagnostics: { width, height, frameRate,
     // scanType }. Only an HDMI input has one.
     "signal": { id: "signal", tier: 3, type: "info", api: { service: "com.webos.service.tv.display", read: "getHDMIInfo", subscribe: true } },
+    "signalMode": { id: "signalMode", tier: 3, type: "info", from: "signal" },
+    "signalResolution": { id: "signalResolution", tier: 3, type: "info", from: "signal" },
+    "signalRate": { id: "signalRate", tier: 3, type: "info", from: "signal" },
+    "signalScan": { id: "signalScan", tier: 3, type: "info", from: "signal" },
     "wiredStatus": { id: "wiredStatus", tier: 2, type: "info", api: { service: "com.webos.service.connectionmanager", field: "wired" } },
     "wifiStatus": { id: "wifiStatus", tier: 2, type: "info", api: { service: "com.webos.service.connectionmanager", field: "wifi" } },
     "internet": { id: "internet", tier: 2, type: "info", api: { service: "com.webos.service.connectionmanager", field: "isInternetConnectionAvailable" } },
@@ -140,6 +151,8 @@ var extra = {
     "eulaStatus": { id: "eulaStatus", tier: 3, type: "info",
                     api: { service: "com.webos.settingsservice", read: "getSystemSettings", category: "", keys: ["eulaStatus"] } },
     "telemetry": { id: "telemetry", tier: 3, type: "info", from: "eulaStatus" },
+    // Whether tools/telemetry-off is in force this boot, as the Look service sees it (service.js getTelemetry).
+    "telemetryKit": { id: "telemetryKit", tier: 3, type: "info", api: { service: "dev.themepack.look.service", read: "getTelemetry" } },
     "agreements": { id: "agreements", tier: 3, type: "info", from: "eulaStatus" },
     "btSoundOut": { id: "btSoundOut", tier: 3, type: "info", from: "soundOutput" },
     "updates": { id: "updates", tier: 3, type: "info", from: "automaticUpdate" },
@@ -149,6 +162,28 @@ var extra = {
 // The agreements tools/telemetry-off withdraws (its EULA_KEYS): all false means LG's data collection is refused.
 var dataAgreements = ["acrOnAllowed", "acrAdAllowed", "customAdAllowed", "additionalDataAllowed", "voiceAllowed",
                       "voice2Allowed", "takeOnAllowed", "chpAllowed"];
+
+// An eulaStatus reply: "accepted" when any data agreement is true, "withdrawn" only when every one is there and
+// false, "" when the reply cannot say (missing keys, other types).
+function agreementState(v) {
+    if (!v || typeof v !== "object") return "";
+    var unsure = false;
+    for (var i = 0; i < dataAgreements.length; i++) {
+        var x = v[dataAgreements[i]];
+        if (x === true) return "accepted";
+        if (x !== false) unsure = true;
+    }
+    return unsure ? "" : "withdrawn";
+}
+
+// The footer's second clause. "telemetry off" needs the telemetry-off kit in force this boot (the Look service's
+// getTelemetry: "active") and no data agreement accepted; without the kit, the agreements say only what they prove.
+function telemetryLabel(kit, eula) {
+    var a = agreementState(eula);
+    if (a === "accepted") return "telemetry on";
+    if (kit === "active") return "telemetry off";
+    return a === "withdrawn" ? "agreements withdrawn" : "";
+}
 
 // The quick sheet (the gear button): the board's rows, in its order.
 var quick = { title: "Quick settings", sub: { from: ["input", "signal"] }, rows: [
@@ -193,6 +228,7 @@ var labels = {
     autoTime: { on: "Automatic", off: "Manual" },
     btSoundOut: { bt_soundbar: "On", bt_audio: "On" },
     updates: { on: "Automatic", off: "Paused" },
+    telemetryKit: { active: "", inactive: "", unknown: "" },
     onlineHelp: { Offline: "Offline: online help is unavailable", Online: "" },
     input: { hdmi1: "HDMI 1", hdmi2: "HDMI 2", hdmi3: "HDMI 3", hdmi4: "HDMI 4", atv: "Antenna", dtv: "Live TV",
              av1: "AV", comp1: "Component", default: "Apps" }
@@ -225,16 +261,16 @@ var languages = { en: "English", es: "Spanish", fr: "French", de: "German", it: 
 
 // Values that are objects, or that read as another word.
 function derived(id, v) {
-    var i, n = 0;
     if (id === "menuLanguage") {
         var ui = v && v.locales && v.locales.UI ? String(v.locales.UI) : "";
         return languages[ui.split("-")[0]] || ui;
     }
-    if ((id === "telemetry" || id === "agreements") && typeof v === "object") {
-        for (i = 0; i < dataAgreements.length; i++) if (v[dataAgreements[i]] === true) n++;
-        if (id === "agreements") return n ? "Accepted" : "Agreements withdrawn";
-        return n ? "telemetry on" : "telemetry off";
-    }
+    if (id === "telemetry") return telemetryLabel(undefined, v);
+    if (id === "agreements") { var a = agreementState(v); return a === "withdrawn" ? "Agreements withdrawn" : a === "accepted" ? "Accepted" : ""; }
+    if (id === "signalMode") return v.HDMImode === undefined ? "" : v.HDMImode ? "HDMI" : "DVI";
+    if (id === "signalResolution") return v.width && v.height ? v.width + " \u00d7 " + v.height : "";
+    if (id === "signalRate") return v.frameRate ? (Math.round(v.frameRate * 100) / 100) + " Hz" : "";
+    if (id === "signalScan") return v.scanType === undefined ? "" : v.scanType ? "Progressive" : "Interlaced";
     if (id === "btSoundOut") return labels.btSoundOut[v] || "Off";
     return undefined;
 }

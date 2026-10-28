@@ -30,6 +30,7 @@ Item {
         State { name: "general"; StateChangeScript { script: p.settings("general") } },
         State { name: "accessibility"; StateChangeScript { script: { p.settings("accessibility"); p.menu.page.list.currentIndex = 3; } } },
         State { name: "support"; StateChangeScript { script: { p.settings("support"); p.menu.page.list.currentIndex = 1; } } },
+        State { name: "signal-test"; StateChangeScript { script: p.settings("SignalTest") } },
         State { name: "look"; StateChangeScript { script: { p.settings("Look"); p.menu.page.list.currentIndex = 2; } } },
         State { name: "confirm"; StateChangeScript { script: {
             p.settings("PictureMode");

@@ -96,6 +96,15 @@ Item {
             compare(part.menu.footer.text, "Offline \u00b7 telemetry on", "and follows the agreements live");
             TvSettings.values[""].eulaStatus.voiceAllowed = false;
             TvSettings.notify("", "eulaStatus");
+            // Without the telemetry-off kit in force, the agreements claim only themselves.
+            TvSettings.telemetryKit = "inactive";
+            part.menu.close();
+            openSettings("picture", 99);
+            compare(part.menu.footer.text, "Offline \u00b7 agreements withdrawn", "no kit: the agreements, not telemetry");
+            TvSettings.telemetryKit = "active";
+            part.menu.close();
+            openSettings("picture", 100);
+            compare(part.menu.footer.text, "Offline \u00b7 telemetry off", "the kit is read again on each open");
 
             focusRow("Picture mode");
             keyClick(Qt.Key_Return);
@@ -148,7 +157,21 @@ Item {
             compare(part.menu.page.sub, "Offline: online help is unavailable");
             compare(rows().rows[rowNamed("Software update")].hint, "Updates are blocked while the TV stays offline", "offline: the hint");
             compare(rows().rows[rowNamed("Software update")].value, "Paused");
-            verify(rows().rows[rowNamed("Signal test")].disabled, "a board row with nothing behind it is greyed");
+            focusRow("Signal test");
+            keyClick(Qt.Key_Return);
+            compare(topId(), "SignalTest", "Signal test opens the live signal");
+            compare(part.menu.page.sub, "HDMI 2");
+            compare(rows().rows[rowNamed("HDMI mode")].value, "HDMI");
+            compare(rows().rows[rowNamed("Resolution")].value, "3840 \u00d7 2160");
+            compare(rows().rows[rowNamed("Frame rate")].value, "120 Hz");
+            compare(rows().rows[rowNamed("Scan type")].value, "Progressive");
+            TvSettings.hdmi.frameRate = 60;
+            TvSettings.notify("", "signal");
+            compare(rows().rows[rowNamed("Frame rate")].value, "60 Hz", "and follows the source");
+            TvSettings.hdmi.frameRate = 120;
+            TvSettings.notify("", "signal");
+            keyClick(Qt.Key_Escape);
+            compare(topId(), "Support");
             compare(rows().rows[rowNamed("Privacy and terms")].value, "Agreements withdrawn");
             TvSettings.network.isInternetConnectionAvailable = true;
             part.store.channels.network.services[0].call("luna://com.webos.service.connectionmanager", "/getstatus", "{}");

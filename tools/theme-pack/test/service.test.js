@@ -88,3 +88,30 @@ test('settings requests leave the picker alone, and the other way round', () => 
   assert.strictEqual(p[0].settings.open, true);
   assert.strictEqual(p[0].settings.target, 'Sound');
 });
+
+test('getTelemetry says active only while the telemetry-off blackhole is live and not switched off', () => {
+  const kit = fs.mkdtempSync(path.join(os.tmpdir(), 'telemetry-off-'));
+  const hosts = path.join(kit, 'hosts');
+  const marker = fs.readFileSync(path.join(dir, '..', 'telemetry-off', 'telemetry-off.sh'), 'utf8').match(/^MARKER="(.*)"$/m)[1];
+  process.env.TELEMETRY_OFF_DIR = path.join(kit, 'kit');
+  process.env.TELEMETRY_OFF_HOSTS = hosts;
+  try {
+    const { call } = start();
+    const kitState = () => call('getTelemetry')[0].kit;
+    assert.strictEqual(kitState(), 'unknown', 'no kit, no hosts file');
+    fs.writeFileSync(hosts, '127.0.0.1 localhost\n');
+    assert.strictEqual(kitState(), 'unknown', 'no kit visible');
+    fs.mkdirSync(path.join(kit, 'kit', 'state'), { recursive: true });
+    assert.strictEqual(kitState(), 'inactive', 'kit installed, blackhole not mounted');
+    fs.writeFileSync(hosts, '127.0.0.1 localhost\n' + marker + ' (3 names)\n0.0.0.0 example.invalid\n');
+    assert.strictEqual(kitState(), 'active');
+    fs.writeFileSync(path.join(kit, 'kit', 'state', 'applying'), '');
+    assert.strictEqual(kitState(), 'inactive', 'a run in progress');
+    fs.rmSync(path.join(kit, 'kit', 'state', 'applying'));
+    fs.writeFileSync(path.join(kit, 'kit', 'disabled'), '');
+    assert.strictEqual(kitState(), 'inactive', 'the off switch');
+  } finally {
+    delete process.env.TELEMETRY_OFF_DIR;
+    delete process.env.TELEMETRY_OFF_HOSTS;
+  }
+});

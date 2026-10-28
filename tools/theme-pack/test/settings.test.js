@@ -77,3 +77,23 @@ test('Settings and the quick sheet follow remote keys, Hook A and LG\'s Back', {
   const warnings = out.split('\n').filter((l) => /\.(qml|js):\d+/.test(l) && !/^\s*Loc:/.test(l));
   assert.deepStrictEqual(warnings, []);
 });
+
+test('the footer and Privacy and terms claim only what LG\'s eulaStatus reply and the telemetry-off kit prove', () => {
+  const { M } = modules();
+  const all = (v) => { const o = { generalTermsAllowed: true }; for (const k of M.dataAgreements) o[k] = v; return o; };
+  const oneTrue = Object.assign(all(false), { voiceAllowed: true });
+  const partial = all(false); delete partial.chpAllowed;
+  const strings = Object.assign(all(false), { acrOnAllowed: 'false' });
+  const cases = [
+    [{}, '', ''], [{ generalTermsAllowed: true }, '', ''], [partial, '', ''], [strings, '', ''], [null, '', ''],
+    [all(false), 'agreements withdrawn', 'Agreements withdrawn'], [oneTrue, 'telemetry on', 'Accepted']
+  ];
+  for (const [eula, footer, privacy] of cases) {
+    assert.strictEqual(M.telemetryLabel(undefined, eula), footer, JSON.stringify(eula));
+    assert.strictEqual(M.telemetryLabel('inactive', eula), footer, 'kit inactive: ' + JSON.stringify(eula));
+    assert.strictEqual(M.valueLabel('agreements', eula), privacy, 'agreements: ' + JSON.stringify(eula));
+  }
+  assert.strictEqual(M.telemetryLabel('active', all(false)), 'telemetry off', 'the kit in force and agreements withdrawn');
+  assert.strictEqual(M.telemetryLabel('active', {}), 'telemetry off', 'the kit in force, agreements unreadable');
+  assert.strictEqual(M.telemetryLabel('active', oneTrue), 'telemetry on', 'an accepted agreement wins over the kit');
+});
