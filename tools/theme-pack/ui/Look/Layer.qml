@@ -63,14 +63,18 @@ Item {
             var view = kids[i];
             if (view.viewName === undefined || view.currentView === undefined) continue;
             (function (view) {
-                view.currentViewChanged.connect(function () { offer(view.currentView, lateDepth); });
+                view.currentViewChanged.connect(function () { layer.offer(view.currentView, layer.lateDepth); });
             })(view);
             offer(view.currentView, lateDepth);
         }
         // The notification view loads late; its toast view is its sibling, first under the loader, then under host.
+        // Its parent may come only after the item does, so offer again when it moves.
         if (host.notificationViewChanged !== undefined)
             host.notificationViewChanged.connect(function () {
-                if (host.notificationView) offer(host.notificationView.parent, 0);
+                var nv = host.notificationView;
+                if (!nv) return;
+                nv.parentChanged.connect(function () { if (layer) layer.offer(nv.parent, 0); });
+                layer.offer(nv.parent, 0);
             });
     }
 

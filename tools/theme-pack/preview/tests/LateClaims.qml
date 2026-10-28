@@ -33,9 +33,10 @@ Window {
         id: notification
         // NotificationView's root and its toast view, both made under the loader.
         Item {
+            id: notificationRoot
             property Item toast: Item {
                 objectName: "toastView"
-                parent: notificationLoader
+                parent: notificationRoot.parent
                 property var model: ListModel {}
                 function close() {}
             }
@@ -58,8 +59,7 @@ Window {
     }
     function check(ok, what) {
         console.log((ok ? "PASS " : "FAIL ") + what);
-        if (!ok) Qt.exit(1);
-        return ok;
+        if (!ok) { Qt.exit(1); throw new Error("late claims: failed"); }
     }
     function windowContent() { return container.children[0].children[0]; }
 
@@ -91,7 +91,11 @@ Window {
             other.children[0].children[0].objectName = "somethingElse";
             overlay.currentView = other;
             check(part("FakeOverlay").lg === windowContent(), "a claimed part ignores later overlay changes");
-            host.notificationView = notification.createObject(notificationLoader);
+            // A native loader may hand over its item before parenting it, so the toast view is not anywhere yet.
+            var nv = notification.createObject(null);
+            host.notificationView = nv;
+            check(part("Toast").lg === null, "notification view arrives unparented: toast not claimed yet");
+            nv.parent = notificationLoader;
         },
         function () {
             var toast = host.notificationView.toast;
@@ -99,7 +103,6 @@ Window {
             check(reports("ok", "Toast") === 1, "toast: reported ok");
             // LG's onLoadedCallback then reparents it to the root; the claim is the same object and holds.
             host.notificationView.parent = host;
-            toast.parent = host;
             check(part("Toast").lg === toast, "toast view reparented to host: still claimed");
             console.log("late claims: all passed");
             Qt.quit();
