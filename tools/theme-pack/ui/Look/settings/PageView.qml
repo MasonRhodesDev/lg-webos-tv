@@ -140,7 +140,9 @@ FocusScope {
         }
         onAdjusted: {
             var r = spec(index);
-            if (r && r.kind === "item" && r.variant === "slider") view.store.set(r.ref, Pages.stepped(view.store, r.ref, delta));
+            if (!r || r.kind !== "item" || r.variant !== "slider") return;
+            var next = Pages.stepped(view.store, r.ref, delta);
+            if (next !== undefined) view.store.set(r.ref, next);
         }
         onBack: view.back()
     }

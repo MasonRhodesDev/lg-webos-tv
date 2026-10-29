@@ -6,12 +6,13 @@ import QtQuick 2.4
 // agreements withdrawn, tools/telemetry-off in force, Wi-Fi off, one soundbar paired, the PIN 0000 (the boards'
 // TV). Scenes and tests change `values`, `desc` and
 // `fail` (or `silent`) before or while they run. Addresses are from the documentation ranges (RFC 5737, and RFC 7042
-// for the Bluetooth MACs).
+// for the Bluetooth MACs). Picture's range values are strings, as the real settingsservice answers them; Sound's
+// balance stays a number, and the volume (com.webos.audio) is one, to keep both cases covered.
 QtObject {
     id: fixture
 
     property var values: ({
-        "picture": { "pictureMode": "expert1", "backlight": 50, "contrast": 85, "brightness": 50, "colorTemperature": 50,
+        "picture": { "pictureMode": "expert1", "backlight": "50", "contrast": "85", "brightness": "50", "colorTemperature": "50",
                      "truMotionMode": "off", "energySaving": "off", "eyeComfortMode": "off" },
         "aspectRatio": { "arcPerApp": "16x9" },
         "sound": { "soundMode": "standard", "soundOutput": "tv_speaker", "soundOutputDigital": "auto", "audioBalance": 0,

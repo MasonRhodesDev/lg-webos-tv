@@ -268,6 +268,37 @@ Item {
             verify(!part.quick.open);
         }
 
+        // settingsservice answers ranges as strings: a step writes the next value as a string, never the minimum.
+        function test_1c_range_values_as_strings() {
+            openSettings("picture", 98);
+            compare(topId(), "Picture");
+            compare(TvSettings.values.picture.contrast, "85");
+            var r = focusRow("Contrast");
+            compare(r.valueText, "85", "a string value reads as its number");
+            verify(Math.abs(r.fraction - 0.85) < 0.001, "and draws at its level");
+            keyClick(Qt.Key_Right);
+            wait(250);
+            compare(TvSettings.values.picture.contrast, "86", "Right writes \"86\", in the TV's own type");
+            keyClick(Qt.Key_Left);
+            keyClick(Qt.Key_Left);
+            wait(250);
+            compare(TvSettings.values.picture.contrast, "84", "Left writes \"84\"");
+            // An unreadable value: the slider refuses to move, and nothing is written.
+            TvSettings.values.picture.backlight = "n/a";
+            TvSettings.notify("picture", "backlight");
+            focusRow("Brightness");
+            var n = TvSettings.calls.length;
+            keyClick(Qt.Key_Right);
+            keyClick(Qt.Key_Left);
+            wait(250);
+            compare(TvSettings.calls.length, n, "an unreadable value is never written");
+            compare(TvSettings.values.picture.backlight, "n/a");
+            TvSettings.values.picture.backlight = "50";
+            TvSettings.notify("picture", "backlight");
+            TvSettings.values.picture.contrast = "85";
+            part.menu.close();
+        }
+
         function test_2_settings_target_and_keys() {
             openSettings("SoundOut", 2);
             verify(part.menu.open, "openSettings opens our Settings");

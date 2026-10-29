@@ -188,8 +188,11 @@ function isOn(st, spec) {
 // The values a switch writes, from its domain: on/off, true/false (as booleans or strings), enabled/disabled.
 function switchValues(it, spec, v) {
     if (spec.as === "toggle") return [spec.on, spec.off];
-    // A value the store already holds as on/off (an adapter's own form) is written back the same way.
+    // A value the store already holds is written back in the same form: on/off, booleans, "true"/"false".
     if (v === "on" || v === "off") return ["on", "off"];
+    if (v === true || v === false) return [true, false];
+    if (v === "true" || v === "false") return ["true", "false"];
+    if (v === "enabled" || v === "disabled") return ["enabled", "disabled"];
     var vals = it.domain && it.domain.values || [];
     if (vals.indexOf(true) >= 0) return [true, false];
     if (vals.indexOf("true") >= 0) return ["true", "false"];
@@ -244,6 +247,7 @@ function row(spec, store, hue) {
     if (it.type === "switch" && spec.as === "value") { r.variant = "value"; r.value = st.label; return r; }
     if (spec.as === "toggle" || it.type === "switch") { r.variant = "toggle"; r.on = isOn(st, spec); r.values = switchValues(it, spec, st.value); return r; }
     if (it.type === "range") {
+        // An unreadable value shows an empty level; it is never read as the minimum.
         var v = typeof st.value === "number" ? st.value : st.min;
         if (spec.as === "value") { r.variant = "value"; r.adjust = true; r.value = st.value === undefined ? "" : st.label; return r; }
         r.variant = "slider";
@@ -277,7 +281,7 @@ function lookRows(store, Look) {
 function pickerRows(entry, store) {
     var st = store.state(entry.ref), out = [], opts = st.options, hints = st.item && Menu.hints[st.item.id] || {};
     for (var i = 0; i < opts.length; i++) {
-        var cur = opts[i].value === st.value;
+        var cur = st.value !== undefined && String(opts[i].value) === String(st.value);
         out.push({ "variant": "choice", "label": opts[i].label, "icon": entry.icon || "", "hue": i,
                    "hint": cur ? "Current" : hints[opts[i].value] || "",
                    "checked": cur, "current": cur, "disabled": !opts[i].active, "kind": "choose", "ref": entry.ref, "choice": opts[i].value });
@@ -438,9 +442,11 @@ function drill(r, crumb) {
     return { "id": "pick:" + r.ref, "ref": r.ref, "title": r.label, "icon": r.icon, "then": it.then, "crumb": crumb, "subSpec": it.sub };
 }
 
-// A slider row's next value after Left/Right.
+// A slider row's next value after Left/Right, or undefined when its value is unknown or unreadable: then nothing is
+// written (reading it as the minimum once set a TV's contrast to 0).
 function stepped(store, ref, delta) {
-    var st = store.state(ref), v = typeof st.value === "number" ? st.value : st.min;
+    var st = store.state(ref), v = st.value;
+    if (typeof v !== "number" || !isFinite(v)) return undefined;
     return Math.max(st.min, Math.min(st.max, v + delta * st.step));
 }
 

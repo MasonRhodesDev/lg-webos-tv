@@ -222,6 +222,7 @@ QtObject {
             var key = category + "." + k;
             if (pending[key] || queued[key]) continue;
             values[key] = m.settings[k];
+            if (typeof m.settings[k] === "string" || typeof m.settings[k] === "number") wire[key] = typeof m.settings[k];
         }
         changed();
     }
@@ -498,8 +499,10 @@ QtObject {
         if (!cond) return true;
         var v = rawValue(item(cond.ref));
         if (v === undefined) return true;
-        if (cond.is) return cond.is.indexOf(v) >= 0;
-        if (cond.not) return cond.not.indexOf(v) < 0;
+        // Compared as text: the TV may answer "1" where a rule names 1, or the reverse.
+        function among(list) { for (var i = 0; i < list.length; i++) if (String(list[i]) === String(v)) return true; return false; }
+        if (cond.is) return among(cond.is);
+        if (cond.not) return !among(cond.not);
         return true;
     }
 
@@ -524,10 +527,21 @@ QtObject {
         return out;
     }
 
+    // The TV's settingsservice answers range values as strings ("85"); other services as numbers. A range value is a
+    // number in state() or, when it is unreadable, undefined (and a slider then refuses to move). Writes go back in
+    // the TV's own type (`wire`).
+    function num(v) {
+        if (typeof v === "number") return isFinite(v) ? v : undefined;
+        if (typeof v === "string" && /^\s*-?\d+(\.\d+)?\s*$/.test(v)) return Number(v);
+        return undefined;
+    }
+    property var wire: ({})
+
     function state(ref) {
         var it = item(ref);
         if (!it) return { "item": null, "visible": false, "active": false, "value": undefined, "label": "", "options": [] };
         var d = desc[keyOf(it)] || {}, range = d.range || it.domain || {}, v = rawValue(it), label = "";
+        if (it.type === "range") v = num(v);
         if (it.api && it.api.look === "style") {
             var styles = Look.available.styles || [];
             for (var i = 0; i < styles.length; i++) if (styles[i].id === v) label = styles[i].name;
@@ -554,9 +568,9 @@ QtObject {
             "visible": d.visible !== false,
             "active": d.active !== false,
             "options": it.type === "enum" || it.type === "switch" ? options(it) : [],
-            "min": range.min !== undefined ? range.min : 0,
-            "max": range.max !== undefined ? range.max : 100,
-            "step": range.step || range.interval || 1
+            "min": num(range.min) !== undefined ? num(range.min) : 0,
+            "max": num(range.max) !== undefined ? num(range.max) : 100,
+            "step": num(range.step) || num(range.interval) || 1
         };
     }
 
@@ -577,6 +591,12 @@ QtObject {
         if (it.api && it.api.look === "style") { Look.setLook({ "style": value }); return; }
         var key = keyOf(it), previous = values[key];
         if (previous === value) return;
+        if (it.type === "range") {
+            if (typeof value !== "number" || !isFinite(value)) { console.warn("settings store: " + ref + " not a number: " + value); return; }
+            if (num(previous) === value) return;
+            // Our own writes hold numbers; the type is the one the TV last answered in.
+            if (wire[key] === undefined && (typeof previous === "string" || typeof previous === "number")) wire[key] = typeof previous;
+        }
         values[key] = value;
         changed();
         if (it.type === "range") {
@@ -632,7 +652,7 @@ QtObject {
         var it = item(ref), key = keyOf(it), uri = "", method = "", params = null;
         if (isSettings(it)) {
             var settingsObj = {};
-            settingsObj[it.api.keys[0]] = value;
+            settingsObj[it.api.keys[0]] = it.type === "range" && wire[key] === "string" ? String(value) : value;
             params = { "category": it.api.category, "settings": settingsObj };
             // LG writes these per app, as its own Settings does.
             if (it.id === "truMotionMode" || it.id === "arcPerApp") params.current_app = true;
