@@ -576,3 +576,72 @@ test('deploy over a layer already in place (deployed by hand): backs up first, s
   assert.strictEqual(run('deploy', tmp('again2')).status, 0);
   assert.deepStrictEqual(state().unknown, []);
 });
+
+test('re-verify 1: deploy keeps the owner\'s look, skips a package that matches the build, and rollback restores the service data', () => {
+  const { f, run, state } = fakeFile();
+  assert.strictEqual(state().installs, 1);
+  let s = state(); s.look = { style: 'bubble', themes: ['winter'] }; s.faults = { installResetsLook: true }; s.backup = null; fs.writeFileSync(f, JSON.stringify(s));
+  const same = run('deploy', tmp('same'));
+  assert.strictEqual(same.status, 0, same.stdout + same.stderr);
+  assert.match(same.stdout, /the installed Look package matches this build \([0-9a-f]{32}\): not reinstalled/);
+  assert.match(same.stdout, /the backup on the TV was made \d{4}-\d\d-\d\dT/);
+  assert.strictEqual(state().installs, 1, 'no reinstall');
+  // A package that differs (an older build on the TV): reinstalled, and the look the reinstall lost is set back.
+  s = state(); s.packageHash = 'an-older-build'; fs.writeFileSync(f, JSON.stringify(s));
+  const re = run('deploy', tmp('re'));
+  assert.strictEqual(re.status, 0, re.stdout + re.stderr);
+  assert.match(re.stdout, /the look before installing: \{"style":"bubble","themes":\["winter"\]\}/);
+  assert.match(re.stdout, /the reinstall changed the look .*: setting it back/);
+  assert.match(re.stdout, /the look is back, read back: \{"style":"bubble","themes":\["winter"\]\}/);
+  assert.strictEqual(state().installs, 2);
+  assert.deepStrictEqual(state().look, { style: 'bubble', themes: ['winter'] });
+  // Rollback puts the backed-up service data (the look) back, and says when the backup was made.
+  s = state(); s.look = { style: 'smoke', themes: [] }; s.faults = {}; fs.writeFileSync(f, JSON.stringify(s));
+  const rb = run('rollback', tmp('rb2'));
+  assert.strictEqual(rb.status, 0, rb.stdout + rb.stderr);
+  assert.match(rb.stdout, /the backup was made \d{4}-\d\d-\d\dT/);
+  assert.match(rb.stdout, /PASS put back the Look service's data/);
+  assert.deepStrictEqual(state().look, { style: 'bubble', themes: ['winter'] });
+});
+
+test('re-verify 1: the package hash is the same from the .ipk as from its files', async () => {
+  const { digest } = await imp('lib/package.mjs');
+  assert.strictEqual(digest([{ path: 'b', md5: '2' }, { path: 'a', md5: '1' }]), require('node:crypto').createHash('md5').update('1  a\n2  b\n').digest('hex'));
+});
+
+test('re-verify 2: volume and mute are refused while the state is stale, probing is off, or an LG overlay is up', async () => {
+  const { guard } = await imp('lib/keys.mjs');
+  const base = { settings: { quick: { open: false }, menu: { open: false } }, systemUi: '' };
+  assert.strictEqual(guard('VOLUMEUP', base, { volume: true }), null);
+  for (const k of ['VOLUMEUP', 'VOLUMEDOWN', 'MUTE']) {
+    assert.match(guard(k, Object.assign({}, base, { fresh: false, stale: 'probing is off on the TV' }), { volume: true }), /stale state/, k);
+    assert.match(guard(k, Object.assign({}, base, { systemUi: 'unknown' }), { volume: true }), /LG overlay we do not know/, k);
+    assert.match(guard(k, Object.assign({}, base, { systemUi: 'com.webos.app.quicksettings' }), { volume: true }), /LG's Quick Settings is open/, k);
+    assert.match(guard(k, Object.assign({}, base, { picker: { shown: true } }), { volume: true }), /input picker is open/, k);
+  }
+});
+
+test('re-verify 3: an unreadable PIN stops every command that presses keys, and fails the preflight', async () => {
+  await assert.rejects(dryRun({ faults: { unreadable: ['systemPin'] } }, ['toast']), /the PIN \(lock\.systemPin\) is unreadable/);
+  const { run } = fakeFile({ faults: { unreadable: ['systemPin'] } });
+  const b = run('baseline');
+  assert.strictEqual(b.status, 1);
+  assert.match(b.stdout, /UNREADABLE PIN/);
+});
+
+test('re-verify 4: probes from a restarted layer instance are taken only after it sends again', async () => {
+  const fake = await imp('fake/tv.mjs');
+  const { makeTv } = await imp('lib/tv.mjs');
+  const { makeCtx } = await imp('lib/run.mjs');
+  const { guard } = await imp('lib/keys.mjs');
+  const st = fake.deployedState({ netinput: true, probingUntil: Date.now() + 600000 });
+  st.quick.open = true; st.quick.stack = [{ id: 'quick' }]; st.quick.index = 0;
+  const ctx = makeCtx({ tv: makeTv({ host: 'tv.invalid', exec: fake.inProcess(st) }), out: tmp('inst'), say: () => {}, poll: 5, sleep: (ms) => new Promise((x) => setTimeout(x, Math.min(ms, 10))) });
+  assert.ok((await ctx.state()).fresh, 'the first instance is taken');
+  st.layerInstance = (st.layerInstance || 1) + 1;
+  const after = await ctx.state();
+  assert.strictEqual(after.fresh, false);
+  assert.match(after.stale, /the layer restarted \(instance \d+ -> \d+\): waiting for its next probe/);
+  assert.match(guard('BACK', after), /stale state/);
+  assert.ok((await ctx.state()).fresh, 'its next probe confirms it');
+});

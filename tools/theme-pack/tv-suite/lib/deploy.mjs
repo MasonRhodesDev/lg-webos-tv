@@ -6,6 +6,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnCmd } from './tv.mjs';
 import { backup, BACKUP } from './backup.mjs';
+import { hashIpk, tvHashScript } from './package.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 export const THEME = path.join(here, '..', '..');
@@ -44,6 +45,7 @@ export const STEPS = [
       const r = await backup(ctx);
       if (r.error) return 'the backup failed, nothing was changed: ' + r.error;
       ctx.note('backup', r.manifest);
+      ctx.say('  the backup on the TV was made ' + r.manifest.created + (r.made ? ' (now)' : ', before this deploy; it is kept'));
       // Deployed before (by hand, or an earlier suite): the backup holds that setup, not the TV's from before the layer.
       if (r.made && (r.manifest.ourHook || r.manifest.stub)) ctx.say('  note: the TV already runs our boot hook' + (r.manifest.stub ? ' and stub' : '') +
         ', so this backup holds that setup; the TV\'s setup from before our layer is not in it (keep that one off the TV)');
@@ -64,6 +66,18 @@ export const STEPS = [
       const b = await script(ctx, 'tv/build-ipk.sh', [dist]);
       if (b.status !== 0) return 'build-ipk.sh failed: ' + lastLine(b.out);
       const ipk = lastLine(b.out);
+      // Up to date already: nothing to install (the hash leaves out data/, where the owner's look lives).
+      const want = hashIpk(ipk);
+      const have = (await ctx.tv.sh(tvHashScript(APP.id))).stdout.trim();
+      ctx.note('look.hash', { build: want, tv: have || 'not installed' });
+      if (have === want) { ctx.say('  the installed Look package matches this build (' + want + '): not reinstalled'); return null; }
+      // The owner's look, before the reinstall, and a copy of the service's data (look.json) beside the backup.
+      const look = await ctx.tv.luna('luna://dev.themepack.look.service/getLook', {}).catch(() => null);
+      ctx.lookBefore = look && look.returnValue !== false && look.look ? look.look : null;
+      if (ctx.lookBefore) ctx.say('  the look before installing: ' + JSON.stringify(ctx.lookBefore));
+      const keep = await ctx.tv.sh('# tv-suite: keep service data\nd=/media/developer/apps/usr/palm/services/' + APP.id + '.service/data; ' +
+        'rm -rf ' + BACKUP + '/service-data.last && { [ ! -d $d ] || cp -a $d ' + BACKUP + '/service-data.last; } && echo kept');
+      if (!/kept/.test(keep.stdout)) return 'could not copy the service data aside before installing: ' + (keep.stderr || keep.stdout).trim();
       const i = await script(ctx, 'tv/install-tv.sh', [ipk]);
       if (i.status !== 0) return 'install-tv.sh failed: ' + lastLine(i.out);
       if (/"failed"|errorText/.test(i.out)) return 'the TV refused the package: ' + i.out.split('\n').find((l) => /"failed"|errorText/.test(l)).trim();
@@ -72,6 +86,18 @@ export const STEPS = [
       if (!groups) return 'permissions.sh did not run (no "compositor groups:" line)';
       ctx.note('look.groups', groups.trim());
       if (/did not finish/.test(i.out)) return 'ls-control scan-services did not finish';
+      // The owner's look survives the reinstall: if the service lost it, it is set again and read back.
+      if (ctx.lookBefore) {
+        let now = null;
+        for (let k = 0; k < 10 && !now; k++) { now = await ctx.tv.luna('luna://dev.themepack.look.service/getLook', {}).then((a) => a.look, () => null); if (!now) await ctx.sleep(1000); }
+        if (JSON.stringify(now) !== JSON.stringify(ctx.lookBefore)) {
+          ctx.say('  the reinstall changed the look (' + JSON.stringify(now) + '): setting it back');
+          await ctx.tv.luna('luna://dev.themepack.look.service/setLook', ctx.lookBefore);
+          const back = await ctx.tv.luna('luna://dev.themepack.look.service/getLook', {}).then((a) => a.look, () => null);
+          if (JSON.stringify(back) !== JSON.stringify(ctx.lookBefore)) return 'the owner\'s look was not kept: it was ' + JSON.stringify(ctx.lookBefore) + ', now ' + JSON.stringify(back);
+          ctx.say('  the look is back, read back: ' + JSON.stringify(back));
+        } else ctx.say('  the look survived the reinstall: ' + JSON.stringify(now));
+      }
       return null;
     },
     async check(ctx) {
@@ -80,6 +106,7 @@ export const STEPS = [
       if (v !== APP.version) return 'getAppInfo ' + APP.id + ' says version ' + v + ', tv/appinfo.json ' + APP.version;
       const look = await ctx.tv.luna('luna://dev.themepack.look.service/getLook', {});
       if (!look.returnValue) return 'the Look service did not answer getLook: ' + (look.errorText || JSON.stringify(look));
+      if (ctx.lookBefore && JSON.stringify(look.look) !== JSON.stringify(ctx.lookBefore)) return 'the look is ' + JSON.stringify(look.look) + ', the owner had ' + JSON.stringify(ctx.lookBefore);
       return null;
     }
   },

@@ -52,7 +52,6 @@ export function guard(key, state, allow = {}) {
   const k = KEYS[key];
   if (!k) return 'unknown key ' + key;
   if (k.never) return key + ' is never pressed: ' + k.never;
-  if (['VOLUMEUP', 'VOLUMEDOWN', 'MUTE'].includes(key)) return allow.volume ? null : key + ' only in the volume scenarios';
   // Nothing is pressed on a state that cannot be trusted: a stale probe (the layer may be gone, and the key would
   // land on LG's UI or the app), or an LG overlay we do not know.
   if (state.fresh === false) return 'stale state, nothing is pressed: ' + state.stale;
@@ -62,6 +61,8 @@ export function guard(key, state, allow = {}) {
   const picker = !!(state.picker && state.picker.shown) || state.systemUi === 'com.webos.app.quickinputpicker';
   if (state.systemUi === 'com.webos.app.quicksettings') return "LG's Quick Settings is open: no key (it closes with closeByAppId)";
   if (picker) return 'the input picker is open: no key (it closes with closeByAppId)';
+  // Volume and mute only once the state is known: fresh, probing on, no LG overlay (all checked above).
+  if (['VOLUMEUP', 'VOLUMEDOWN', 'MUTE'].includes(key)) return allow.volume ? null : key + ' only in the volume scenarios';
   if (key === 'QMENU') return null;
   if (!own) return 'nothing of ours is confirmed open: ' + key + ' would reach the app underneath';
   const v = s[own];

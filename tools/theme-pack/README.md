@@ -289,7 +289,11 @@ node tools/theme-pack/tv-suite/tv-suite.mjs rollback            # puts back what
 
 - **deploy** first keeps, once, what it replaces on the TV (the boot hook, the old patched Settings, the layer and stub
   dirs, and whether LG's Settings was mounted over and the Look package installed) in
-  `/media/developer/themepack-backup`; `rollback` puts exactly that back and runs the old hook. Then it builds and installs the Look package (`tv/build-ipk.sh`, `tv/install-tv.sh`, which runs `permissions.sh`),
+  `/media/developer/themepack-backup`, with the Look package's files and the service's data (the owner's look); `rollback`
+  puts exactly that back (the service data too; the package itself stays the newer one, ours either way) and runs the
+  old hook. Both say when the backup was made. The package is reinstalled only when the TV's files differ from this
+  build (an md5 over the installed files, `lib/package.mjs`), and a reinstall keeps the owner's look: read before, set
+  back and read back if it changed. Then it builds and installs the Look package (`tv/build-ipk.sh`, `tv/install-tv.sh`, which runs `permissions.sh`),
   applies the layer (`own-layer-tv.sh apply`) and installs the boot hook and stub (`install-boot.sh install`). After
   each step it checks the TV (getAppInfo, getLook, the layer's reports, the hook's log, `mount`), prints that step's
   rollback, and stops at the first failure with the reason (the hook's own "settings left stock (...)" line, a

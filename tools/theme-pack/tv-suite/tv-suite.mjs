@@ -155,6 +155,7 @@ export async function main(argv, say = console.log) {
       say((u ? 'UNREADABLE ' : 'ok         ') + k + ': ' + (u ? v.unreadable : JSON.stringify(v)));
     }
     say((b.pin === undefined ? 'UNREADABLE ' : 'ok         ') + 'PIN (lock.systemPin; its value is never shown)');
+    if (b.pin === undefined) bad++;
     const st = await ctx.state();
     say((st.fresh ? 'ok         ' : 'STALE      ') + 'probes: ' + (st.fresh ? 'fresh' : st.stale) + '; system UI in front: ' + (st.systemUi || 'none'));
     const k = await ctx.tv.ensureKeys().then(() => '', (e) => e.message);

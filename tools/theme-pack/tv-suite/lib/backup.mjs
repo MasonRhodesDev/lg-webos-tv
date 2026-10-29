@@ -27,7 +27,9 @@ t=false; if [ -d ${ROOT}/settings-stub ]; then cp -a ${ROOT}/settings-stub $B.ne
 m=false; mount | grep -q " ${SETTINGS_APP} " && m=true
 a=false; [ -d /media/developer/apps/usr/palm/applications/${APP.id} ] && a=true
 o=false; grep -q "theme-pack boot hook" ${HOOK} 2>/dev/null && o=true
-printf '{"created":"%s","hook":%s,"ourHook":%s,"settings":%s,"layer":%s,"stub":%s,"settingsMounted":%s,"lookInstalled":%s}\\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" $h $o $s $l $t $m $a > $B.new/manifest.json
+# The Look package as it was (rollback restores its data/, the owner's look; the package itself stays the newer one).
+d=false; if $a; then tar -C /media/developer/apps -cf $B.new/look-package.tar ${['applications/' + APP.id, 'services/' + APP.id + '.service', 'packages/' + APP.id].map((x) => 'usr/palm/' + x).join(' ')} 2>/dev/null || exit 1; [ -d /media/developer/apps/usr/palm/services/${APP.id}.service/data ] && d=true; fi
+printf '{"created":"%s","lookData":'$d',"hook":%s,"ourHook":%s,"settings":%s,"layer":%s,"stub":%s,"settingsMounted":%s,"lookInstalled":%s}\\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" $h $o $s $l $t $m $a > $B.new/manifest.json
 mv $B.new $B && echo "backup made" && cat $B/manifest.json`;
 
 export async function backup(ctx) {
@@ -49,7 +51,7 @@ export function rollbackSteps() {
     ['read the backup manifest', ssh('cat ' + BACKUP + '/manifest.json'), async (ctx) => {
       const r = await remote(ctx, 'cat ' + BACKUP + '/manifest.json');
       try { manifest = JSON.parse(r.stdout); } catch (e) { return 'no backup on the TV (' + BACKUP + '): deploy makes one; nothing was rolled back'; }
-      ctx.say('  ' + JSON.stringify(manifest));
+      ctx.say('  the backup was made ' + manifest.created + ': ' + JSON.stringify(manifest));
       return '';
     }],
     ['take the stub off LG\'s Settings', ssh('sh -s') + ' < tools/theme-pack/webos/settings-unmount.sh', async (ctx) => {
@@ -74,6 +76,13 @@ export function rollbackSteps() {
         await ctx.tv.luna('luna://com.webos.appInstallService/dev/remove', { id: APP.id }, { wait: 60000 }).catch(() => null);
         const a = await ctx.tv.luna('luna://com.webos.applicationManager/getAppInfo', { id: APP.id }).catch(() => ({ returnValue: false }));
         return a.returnValue === false ? '' : 'the Look package is still installed (getAppInfo answers)';
+      }],
+    ['put back the Look service\'s data (the owner\'s look) as backed up; the package stays the newer one, ours either way',
+      ssh('tar -C /media/developer/apps -xf ' + BACKUP + '/look-package.tar usr/palm/services/' + APP.id + '.service/data'), async (ctx) => {
+        if (!manifest.lookData) return '';
+        const r = await remote(ctx, '# tv-suite: restore service data\nrm -rf /media/developer/apps/usr/palm/services/' + APP.id + '.service/data && ' +
+          'tar -C /media/developer/apps -xf ' + BACKUP + '/look-package.tar usr/palm/services/' + APP.id + '.service/data && echo restored');
+        return /restored/.test(r.stdout) ? '' : 'the service data could not be put back: ' + (r.stderr || r.stdout).trim();
       }],
     ['run the old boot hook, as a boot would (it puts back what it mounted)', ssh(HOOK), async (ctx) => {
       if (!manifest.hook) return '';

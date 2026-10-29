@@ -8,6 +8,7 @@ import path from 'node:path';
 import zlib from 'node:zlib';
 import { fileURLToPath } from 'node:url';
 import { Catalog as C, Menu as M, Pages as P, stubTarget, landing } from '../lib/expect.mjs';
+import { hashIpk } from '../lib/package.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const APP = JSON.parse(fs.readFileSync(path.join(here, '..', '..', 'tv', 'appinfo.json'), 'utf8'));
@@ -275,6 +276,7 @@ function applyLayer(s, how) {
   s.ownLayerLog = '=== ' + iso() + ' ' + how + '\n';
   if (how === 'revert') { s.layer = false; s.ownLayerLog += 'stock\ndone\n'; return; }
   s.layer = layerUp(s);
+  if (s.layer) s.layerInstance = (s.layerInstance || 1) + 1;
   s.ownLayerLog += (s.layer ? 'layer loaded after 7s' : 'layer root never reported; back to stock') + '\ndone\n';
 }
 function hook(s) {
@@ -293,7 +295,7 @@ function hook(s) {
 
 function manifestOf(s) {
   const b = s.backup;
-  return JSON.stringify({ created: b.created, hook: !!b.hook, ourHook: b.hook === 'ours', settings: !!b.settings, layer: !!b.layer, stub: !!b.stub, settingsMounted: b.settingsMounted, lookInstalled: b.lookInstalled });
+  return JSON.stringify({ created: b.created, lookData: !!b.lookData, hook: !!b.hook, ourHook: b.hook === 'ours', settings: !!b.settings, layer: !!b.layer, stub: !!b.stub, settingsMounted: b.settingsMounted, lookInstalled: b.lookInstalled });
 }
 
 // A reboot: everything the boot undoes goes (mounts, the layer, reports, /tmp), ssh is down for a few polls, then
@@ -335,7 +337,9 @@ function luna(s, uri, p) {
       s.probingUntil = Math.max(s.probingUntil, Date.now() + 600000);
       const p = s.layer && s.broken !== 'layer' ? probes(s) : {};
       if (!s.settingsHost) delete p['parts/Settings.qml'];
-      for (const k of Object.keys(p)) Object.assign(p[k], { layer: 'fake', seq: 1 });
+      // One publication per read, from the current layer instance (a restart makes a new one).
+      s.probeSeq = (s.probeSeq || 0) + 1;
+      for (const k of Object.keys(p)) Object.assign(p[k], { layer: String(s.layerInstance || 1), seq: s.probeSeq });
       return ok({ now: iso(), probing: true, probes: p });
     }
     case 'com.webos.service.tvpower/power/getPowerState': return ok({ state: 'Active' });
@@ -401,7 +405,12 @@ function luna(s, uri, p) {
     case 'dev.themepack.look.service/getTelemetry': return ok({ kit: 'unknown' });
     case 'com.webos.service.wifi/getstatus': return ok({ status: 'serviceDisabled' });
     case 'com.webos.service.btaudiosrc/getPairedDevices': return ok({ devices: s.btDevices || [{ address: '00:00:00:00:00:00', name: 'Speaker', state: 'paired' }] });
-    case 'com.webos.appInstallService/dev/install': s.installed = true; return ok({ id: p.id, details: { state: 'installed' } });
+    case 'com.webos.appInstallService/dev/install':
+      s.installed = true;
+      s.packageHash = (s.ipks || {})[p.ipkUrl] || 'unknown';
+      s.installs = (s.installs || 0) + 1;
+      if (s.faults.installResetsLook) s.look = { style: 'smoke', themes: [] };
+      return ok({ id: p.id, details: { state: 'installed' } });
     case 'com.webos.appInstallService/dev/remove': s.installed = false; return ok({});
   }
   s.unknown.push('luna ' + m);
@@ -485,12 +494,15 @@ export function ssh(s, cmd, stdin) {
   }
   if (/^date -u /.test(cmd)) return r(iso().slice(0, 19) + '\n');
   if (cmd === 'true') return r();
+  if (cmd.startsWith('# tv-suite: package hash')) return r(s.installed ? (s.packageHash || 'unknown') + '\n' : '', s.installed ? 0 : 1);
+  if (cmd.startsWith('# tv-suite: keep service data')) return r('kept\n');
+  if (cmd.startsWith('# tv-suite: restore service data')) { if (s.backup && s.backup.look) s.look = JSON.parse(JSON.stringify(s.backup.look)); return r('restored\n'); }
   if (cmd.startsWith('# tv-suite: backup')) {
     if (s.faults.backupFails) return r('', 1);
     let made = '';
     if (!s.backup) {
       s.backup = { created: iso(), hook: s.hook ? 'ours' : s.oldHook ? 'old' : null, settings: s.rootSettings, layer: s.layerFiles, stub: s.stub,
-                   settingsMounted: !!s.mounted, lookInstalled: s.installed };
+                   settingsMounted: !!s.mounted, lookInstalled: s.installed, lookData: s.installed, look: s.installed ? JSON.parse(JSON.stringify(s.look)) : null };
       made = 'backup made\n';
     } else made = 'backup kept from before\n';
     return r(made + manifestOf(s) + '\n');
@@ -558,6 +570,8 @@ export function scp(s, args) {
   if (remote(dst)) {
     const p = dst.slice(dst.indexOf(':') + 1);
     if (/60-themepack$/.test(p)) { s.hook = true; s.oldHook = false; }
+    // An uploaded package: the fake keeps the hash of what it holds, as installed files would have it.
+    if (/\.ipk$/.test(p)) { (s.ipks = s.ipks || {})[p] = hashIpk(src); }
     s.files[p] = 'uploaded';
     return 0;
   }

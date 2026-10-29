@@ -33,6 +33,21 @@ export async function systemUiFront(tv) {
   return ids.includes(QS) ? QS : ids.includes(PICKER) ? PICKER : '';
 }
 
+// A probe from another layer instance than before means the layer restarted: its state is taken only once that
+// instance has sent again (a higher sequence number), so nothing is pressed in the moment after a restart.
+function layerCheck(ctx, m) {
+  const L = ctx.layer;
+  if (!L.id) { ctx.layer = { id: m.layer, seq: m.seq, confirm: false }; return ''; }
+  if (m.layer !== L.id) {
+    ctx.layer = { id: m.layer, seq: m.seq, confirm: true };
+    return 'the layer restarted (instance ' + L.id + ' -> ' + m.layer + '): waiting for its next probe';
+  }
+  if (m.seq < L.seq) return "the probe's sequence went back (" + L.seq + ' -> ' + m.seq + ')';
+  if (L.confirm && !(m.seq > L.seq)) return 'the restarted layer has not sent again yet';
+  ctx.layer = { id: L.id, seq: m.seq, confirm: false };
+  return '';
+}
+
 export class Refused extends Error {}
 export class Skip extends Error {}
 
@@ -48,6 +63,9 @@ export function makeCtx({ tv, out, say = console.log, poll = 250, sleep }) {
     secrets: {},
     journal: null,
     keyAt: '',
+    keySeq: 0,
+    // The layer instance the probes come from, and its last sequence number (Layer.qml, service.js).
+    layer: { id: '', seq: 0, confirm: false },
     aborted: false,
     note(k, v) { ctx.notes[k] = v; },
     check(name, ok, detail = '') {
@@ -73,7 +91,8 @@ export function makeCtx({ tv, out, say = console.log, poll = 250, sleep }) {
       if (!r.probing) stale = 'probing is off on the TV, so nothing can be seen (each command turns it on first)';
       else if (!st || !m) stale = 'no probe from our Settings: the layer is not up';
       else if (!(m.age <= (open ? FRESH.open : FRESH.closed))) stale = "our Settings' probe is " + (isFinite(m.age) ? m.age.toFixed(1) + ' s' : 'of unknown age') + ' old: the layer may be gone';
-      else if (ctx.keyAt && !(m.at > ctx.keyAt)) stale = 'no probe since the last key';
+      else if (ctx.keyAt && !(m.at > ctx.keyAt && m.seq > ctx.keySeq)) stale = 'no probe since the last key';
+      else stale = layerCheck(ctx, m);
       return { settings: st, picker: p.InputPicker || null, toast: p.Toast || null, volume: p.VolumeBar || null,
                mute: p.VolumeMute || null, systemUi, fresh: !stale, stale, now: r.now };
     },
@@ -94,7 +113,7 @@ export function makeCtx({ tv, out, say = console.log, poll = 250, sleep }) {
     async key(name, allow = {}) {
       if (ctx.aborted) throw new Refused('interrupted');
       let st;
-      const end = Date.now() + 4000;
+      const end = Date.now() + 7000;
       for (;;) {
         st = await ctx.state();
         if (st.fresh || Date.now() > end) break;
@@ -104,6 +123,7 @@ export function makeCtx({ tv, out, say = console.log, poll = 250, sleep }) {
       if (why) { ctx.check('key ' + name + ' allowed', false, why); throw new Refused(why); }
       ctx.current && ctx.current.keys.push(name);
       ctx.keyAt = st.now;
+      ctx.keySeq = ctx.layer.seq;
       await tv.keys([name]);
     },
     async capture(name, { board, scene, state: shotState } = {}) {
@@ -258,6 +278,8 @@ export async function baseline(ctx) {
   const b = await snapshot(ctx);
   const bad = Object.keys(b.values).filter((k) => b.values[k] && b.values[k].unreadable);
   if (bad.length) throw new Error('no baseline: ' + bad.map((k) => k + ' is ' + shown(b.values[k])).join('; ') + '. Nothing is changed without one.');
+  // Without the PIN no change of it could be seen: nothing that presses keys runs.
+  if (b.pin === undefined) throw new Error('no baseline: the PIN (lock.systemPin) is unreadable, so a change of it could not be seen. Nothing is changed without it.');
   ctx.journal = journal.open(ctx.tv.host, ctx.out, b.values);
   ctx.secrets.pin = b.pin;
   return true;
