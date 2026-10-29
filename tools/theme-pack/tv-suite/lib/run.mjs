@@ -69,7 +69,8 @@ export function makeCtx({ tv, out, say = console.log, poll = 250, sleep }) {
       const st = p.Settings || null;
       const open = !!(st && ((st.menu && st.menu.open) || (st.quick && st.quick.open)));
       let stale = '';
-      if (!st || !m) stale = 'no probe from our Settings: the layer is not up';
+      if (!r.probing) stale = 'probing is off on the TV, so nothing can be seen (each command turns it on first)';
+      else if (!st || !m) stale = 'no probe from our Settings: the layer is not up';
       else if (!(m.age <= (open ? FRESH.open : FRESH.closed))) stale = "our Settings' probe is " + (isFinite(m.age) ? m.age.toFixed(1) + ' s' : 'of unknown age') + ' old: the layer may be gone';
       else if (ctx.keyAt && !(m.at > ctx.keyAt)) stale = 'no probe since the last key';
       return { settings: st, picker: p.InputPicker || null, toast: p.Toast || null, volume: p.VolumeBar || null,
@@ -216,6 +217,23 @@ export async function closeAll(ctx) {
   return why;
 }
 
+// Turns the service's probing on and waits for our Settings' probe: nothing is pressed or judged without it.
+export async function probingUp(ctx, timeout = 10000) {
+  try { await ctx.tv.setProbing(true); } catch (e) { throw new Error('the Look service cannot turn probing on (' + e.message + '): deploy this branch first'); }
+  const end = Date.now() + timeout;
+  for (;;) {
+    let r = null;
+    try { r = await ctx.tv.probeRead(); } catch (e) { r = null; }
+    if (r && r.probing && r.states.Settings && r.meta.Settings.age <= FRESH.open) return;
+    if (Date.now() > end) {
+      if (!r || !r.probing) throw new Error('probing did not come up on the TV: nothing can be seen, so nothing is pressed');
+      if (r.states.Settings) throw new Error("probing is on, but our Settings' probe is " + r.meta.Settings.age.toFixed(0) + ' s old: the layer is not refreshing it');
+      throw new Error('probing is on, but the layer sends no probe for our Settings: deploy this branch first (tv-suite.mjs deploy)');
+    }
+    await ctx.sleep(Math.max(ctx.poll, 200));
+  }
+}
+
 // Takes the baseline and opens the journal, unless one is already open (a nested call: coldboot's and manual's).
 export async function baseline(ctx) {
   if (ctx.journal) return false;
@@ -237,9 +255,7 @@ export async function finish(ctx, owned) {
 
 export async function runScenarios(ctx, scenarios) {
   // Every wait and the key guard read the parts' probes; without them nothing could be checked or pressed safely.
-  let probes = {};
-  try { probes = await ctx.tv.probes(); } catch (e) { throw new Error('the Look service does not answer getProbe (' + e.message + '): deploy this branch first'); }
-  if (!probes.Settings) throw new Error('the layer on the TV publishes no probe for our Settings: deploy this branch first (tv-suite.mjs deploy)');
+  await probingUp(ctx);
   ctx.tv.resetKeys();
   await ctx.tv.ensureKeys();
   const owned = await baseline(ctx);

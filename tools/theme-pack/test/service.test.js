@@ -111,6 +111,7 @@ test('getTelemetry says active only while the telemetry-off blackhole is live an
 
 test('setProbe keeps the latest state per part, without telling Look subscribers', () => {
   const { call } = start();
+  call('setProbing', { on: true });
   const sub = call('getLook', {}, true);
   call('setProbe', { from: 'parts/Settings.qml', state: { menu: { open: true } } });
   call('setProbe', { from: 'parts/Settings.qml', state: { menu: { open: false } }, layer: '17' });
@@ -127,6 +128,32 @@ test('setProbe keeps the latest state per part, without telling Look subscribers
 
 test('getProbe answers the layer instance that sent each probe', () => {
   const { call } = start();
+  call('setProbing', { on: true });
   call('setProbe', { from: 'parts/Toast.qml', state: { shown: false }, layer: 'abc' });
   assert.strictEqual(call('getProbe')[0].probes['parts/Toast.qml'].layer, 'abc');
+});
+
+test('probing is off at start, tells the layer through the Look subscription, refuses probes while off, and expires', async () => {
+  const { call } = start();
+  const sub = call('getLook', {}, true);
+  assert.strictEqual(sub[0].probing, false, 'off by default');
+  assert.strictEqual(call('setProbe', { from: 'parts/Toast.qml', state: {} })[0].returnValue, false, 'no probe is kept while off');
+  assert.deepStrictEqual(call('getProbe')[0].probes, {});
+  assert.strictEqual(call('setProbing', { on: 'yes' })[0].returnValue, false);
+  const on = call('setProbing', { on: true, seconds: 0.08 })[0];
+  assert.deepStrictEqual([on.returnValue, on.probing], [true, true]);
+  assert.strictEqual(sub[sub.length - 1].probing, true, 'subscribers (the layer) hear it');
+  call('setProbe', { from: 'parts/Toast.qml', state: { shown: false } });
+  await new Promise((r) => setTimeout(r, 50));
+  assert.strictEqual(call('getProbe')[0].probing, true, 'a read keeps it on');
+  await new Promise((r) => setTimeout(r, 50));
+  assert.strictEqual(call('getProbe')[0].probing, true);
+  await new Promise((r) => setTimeout(r, 150));
+  assert.strictEqual(sub[sub.length - 1].probing, false, 'unread, it turns itself off and says so');
+  const g = call('getProbe')[0];
+  assert.deepStrictEqual([g.probing, g.probes], [false, {}], 'and its probes are gone');
+  call('setProbing', { on: true });
+  call('setProbing', { on: false });
+  assert.strictEqual(sub[sub.length - 1].probing, false);
+  assert.ok(!require('node:fs').readFileSync(require('node:path').join(dir, 'service', 'service.js'), 'utf8').match(/probing[^\n]*writeFileSync/), 'never written to disk');
 });

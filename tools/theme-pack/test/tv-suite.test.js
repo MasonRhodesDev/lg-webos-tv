@@ -222,7 +222,7 @@ test('dry run: the suite catches BACK arriving as Backspace, a lingering stub, a
   assert.strictEqual(unmounted.run('redirect').status, 'skip');
   assert.deepStrictEqual(unmounted.state.events, [], "LG's Settings is never launched without the stub");
 
-  await assert.rejects(dryRun({ faults: { noProbe: true } }, ['toast']), /publishes no probe.*deploy this branch first/);
+  await assert.rejects(dryRun({ faults: { noProbe: true } }, ['toast']), /sends no probe for our Settings: deploy this branch first/);
 
   const muted = await dryRun({ volume: { volume: 12, muted: true, barUntil: 0, muteUntil: 0 } }, ['volume']);
   assert.strictEqual(muted.run('volume').status, 'skip');
@@ -426,16 +426,15 @@ test('blocker: SIGINT at a fallback prompt puts the good layer back', async () =
 
 test('blocker: a stale probe presses nothing, closeAll included', async () => {
   const fake = await imp('fake/tv.mjs');
-  const r = await dryRun({ faults: { staleProbe: true } }, ['quick-sheet']);
-  assert.strictEqual(r.run('quick-sheet').status, 'fail');
-  assert.ok(r.run('quick-sheet').checks.some((c) => !c.ok && /stale state, nothing is pressed: our Settings' probe is 60/.test(c.detail)));
-  assert.deepStrictEqual(r.state.keys, [], 'no key reached the TV');
+  // A run does not even start on a stale probe.
+  await assert.rejects(dryRun({ faults: { staleProbe: true } }, ['quick-sheet']), /our Settings' probe is 60 s old: the layer is not refreshing it/);
   // Our menu open, then the layer dies (its probe goes stale): closeAll's BACK is refused too.
   const { makeTv } = await imp('lib/tv.mjs');
   const { makeCtx, closeAll } = await imp('lib/run.mjs');
   const st = fake.deployedState({ netinput: true });
   st.quick.open = true; st.quick.stack = [{ id: 'quick' }];
   st.faults.staleProbe = true;
+  st.probingUntil = Date.now() + 600000;
   const ctx = makeCtx({ tv: makeTv({ host: 'tv.invalid', exec: fake.inProcess(st) }), out: tmp('stale'), say: () => {}, poll: 5, sleep: (ms) => new Promise((x) => setTimeout(x, Math.min(ms, 10))) });
   assert.match(await closeAll(ctx), /could not be closed: stale state/);
   assert.deepStrictEqual(st.keys, []);
@@ -518,4 +517,32 @@ test('an interrupt during the cold boot\'s wait restores the input from the pre-
   assert.ok(r.sent);
   assert.strictEqual(r.code, 130, r.out);
   assert.strictEqual(state().fg, 'com.webos.app.hdmi2', r.out);
+});
+
+test('probing: a run refuses to start while it has not come up, and the guard presses nothing while it is off', async () => {
+  await assert.rejects(dryRun({ faults: { probingStuckOff: true } }, ['quick-sheet']), /probing did not come up on the TV: nothing can be seen, so nothing is pressed/);
+  const fake = await imp('fake/tv.mjs');
+  const { makeTv } = await imp('lib/tv.mjs');
+  const { makeCtx } = await imp('lib/run.mjs');
+  const st = fake.deployedState({ netinput: true });
+  st.quick.open = true; st.quick.stack = [{ id: 'quick' }];
+  const ctx = makeCtx({ tv: makeTv({ host: 'tv.invalid', exec: fake.inProcess(st) }), out: tmp('poff'), say: () => {}, poll: 5, sleep: (ms) => new Promise((x) => setTimeout(x, Math.min(ms, 10))) });
+  await assert.rejects(ctx.key('BACK'), /probing is off on the TV/);
+  assert.deepStrictEqual(st.keys, []);
+});
+
+test('probing: each command turns it on first and off at the end, also when interrupted', async () => {
+  const { f, run, state } = fakeFile({ probingCalls: [] });
+  const r = run('run', tmp('pon'), '--scenario', 'toast');
+  assert.strictEqual(r.status, 0, r.stdout + r.stderr);
+  let s = state();
+  assert.strictEqual(s.probingCalls[0], true);
+  assert.strictEqual(s.probingCalls[s.probingCalls.length - 1], false, 'off at the end');
+  assert.strictEqual(s.probingUntil, 0);
+  s.faults = { slow: 15 }; s.probingCalls = []; fs.writeFileSync(f, JSON.stringify(s));
+  const i = await interrupted(f, ['run', tmp('poi'), '--scenario', 'write-name'], (x) => x.settings.deviceName === 'Living roomx', 'SIGINT');
+  assert.strictEqual(i.code, 130, i.out);
+  s = state();
+  assert.strictEqual(s.probingCalls[s.probingCalls.length - 1], false, 'off after the signal restore too');
+  assert.strictEqual(s.probingUntil, 0);
 });

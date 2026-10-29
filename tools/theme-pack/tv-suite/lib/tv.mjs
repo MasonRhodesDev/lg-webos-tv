@@ -111,7 +111,14 @@ export function makeTv({ host = process.env.TV_HOST, log = () => {}, python = pr
       states[name] = v.state;
       meta[name] = { at: v.at, layer: v.layer || '', seq: v.seq || 0, age: isFinite(t) && v.at ? (t - Date.parse(v.at)) / 1000 : Infinity };
     }
-    return { states, meta, now };
+    return { states, meta, now, probing: a.probing === true };
+  }
+  // The Look service's probing (test instrumentation, off on the household's TV): on for `seconds`, kept alive by
+  // every getProbe and by calling this again; off at the end of every command.
+  async function setProbing(on, seconds = 600) {
+    const a = await luna(svc + '/setProbing', on ? { on: true, seconds } : { on: false });
+    if (a.returnValue === false) throw new Error('setProbing: ' + (a.errorText || JSON.stringify(a)));
+    return a;
   }
   async function probes() { return (await probeRead()).states; }
   // Closes the shared connection (before a reboot).
@@ -122,5 +129,5 @@ export function makeTv({ host = process.env.TV_HOST, log = () => {}, python = pr
     const [now, up] = r.stdout.trim().split(/\s+/).map(Number);
     return r.status === 0 && now > 0 && up >= 0 ? { now, up } : null;
   }
-  return { host, target, sh, luna, pull, keys, ensureKeys, resetKeys, capture, now, reports, probes, probeRead, disconnect, clock, abort };
+  return { host, target, sh, luna, pull, keys, ensureKeys, resetKeys, capture, now, reports, probes, probeRead, setProbing, disconnect, clock, abort };
 }

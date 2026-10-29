@@ -3,7 +3,7 @@
 // logs what it saw; it drives what it can itself (opening a deep link first, breaking the layer on purpose and
 // putting it back) and asserts what it can see. The person gives the verdict: p (pass), f (fail) or s (skip), then
 // an optional note.
-import { closeAll, runScenarios, baseline, finish } from './run.mjs';
+import { closeAll, runScenarios, baseline, finish, probingUp } from './run.mjs';
 import * as journal from './journal.mjs';
 import { SCENARIOS } from './scenarios.mjs';
 import { landing, stubTarget } from './expect.mjs';
@@ -198,6 +198,7 @@ async function summary(ctx) {
 // Runs the pass. `answer(question)` returns the person's line ("p", "f note", "s"...). `only` picks item ids.
 export async function manual(ctx, { answer, only, includeLater = true, watchEvery, results = [] } = {}) {
   ctx.tv.resetKeys();
+  await probingUp(ctx);
   await ctx.tv.ensureKeys();
   const owned = await baseline(ctx);
   try {

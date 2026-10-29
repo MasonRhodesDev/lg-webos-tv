@@ -24,6 +24,8 @@ QtObject {
     // What can be chosen: { styles: [{id, name}], themes: [{id, name, description}] }.
     property var available: ({ "styles": [], "themes": [] })
     property bool online: false
+    // The TV suite's probing (service.js setProbing): parts' probes go to the service only while it is on.
+    property bool probing: false
 
     // Every token, so the kit is whole before the service answers: LG-like dark grey and magenta, Smoke's metrics.
     readonly property var stock: ({
@@ -175,6 +177,7 @@ QtObject {
         onResponse: {
             try {
                 var m = JSON.parse(payload);
+                if (m.returnValue && m.probing !== undefined) look.probing = m.probing === true;
                 if (m.returnValue && m.style && m.style.tokens) look.apply(m);
             } catch (e) {
                 console.warn("Look: unreadable response: " + e);

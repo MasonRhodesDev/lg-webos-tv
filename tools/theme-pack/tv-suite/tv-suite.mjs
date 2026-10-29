@@ -69,7 +69,16 @@ async function fake(o) {
 }
 
 // The command in flight, for the signal handler: its context and how to make a fresh connection for the restore.
-const live = { ctx: null, fresh: null, restoring: null, code: 0 };
+const live = { ctx: null, fresh: null, restoring: null, code: 0, probing: false, keepalive: null };
+
+// Probing off at the end of every command (normal, error, signal).
+export async function probingOff(ctx) {
+  if (live.keepalive) clearInterval(live.keepalive);
+  live.keepalive = null;
+  if (!live.probing || !ctx) return;
+  live.probing = false;
+  await ctx.tv.setProbing(false).catch((e) => console.error('note: probing could not be turned off (' + e.message + '); it expires by itself'));
+}
 
 // Stops the command and restores the TV from the journal (on a fresh connection; the command's own is cut off).
 export function interrupt(why, say = console.log) {
@@ -84,12 +93,15 @@ export function interrupt(why, say = console.log) {
     c2.secrets = ctx.secrets;
     const j = journal.pending(ctx.tv.host);
     try {
+      await c2.tv.setProbing(true).catch(() => {});
       if (j) await resolve(c2, j);
       else { const w = await closeAll(c2).catch((e) => e.message); if (w) say('  ' + w); say('  no journal open: nothing to restore'); }
       return 130;
     } catch (e) {
       say('NOT RESTORED: ' + e.message);
       return 3;
+    } finally {
+      await probingOff(c2);
     }
   })();
   return live.restoring;
@@ -124,7 +136,12 @@ export async function main(argv, say = console.log) {
   const ctx = fresh();
   live.ctx = ctx;
   live.fresh = fresh;
-  // An interrupted command's journal first: nothing new starts until the TV is verified back.
+  // Probing on for this command (and kept alive), off again however it ends; then an interrupted command's journal:
+  // nothing new starts until the TV is verified back.
+  live.probing = true;
+  await ctx.tv.setProbing(true).catch((e) => say('note: probing could not be turned on yet: ' + e.message));
+  live.keepalive = setInterval(() => { ctx.tv.setProbing(true).catch(() => {}); }, 120000);
+  live.keepalive.unref();
   await settle(ctx);
 
   if (o.cmd === 'baseline') {
@@ -197,12 +214,12 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, () => { interrupt(sig).then((c) => process.exit(c)); });
   process.on('uncaughtException', (e) => { console.error(e && e.stack || e); interrupt('error').then((c) => process.exit(c === 130 ? 2 : c)); });
   main(process.argv.slice(2)).then(
-    async (c) => { if (live.restoring) c = await live.restoring; process.exit(c); },
+    async (c) => { if (live.restoring) c = await live.restoring; else await probingOff(live.ctx); process.exit(c); },
     async (e) => {
       if (live.restoring) process.exit(await live.restoring);
       console.error(e.message);
-      // An error with a journal open: the TV is restored before the exit.
-      const code = live.ctx && journal.pending(live.ctx.tv.host) ? await interrupt('error') : 2;
+      // An error with a journal open: the TV is restored before the exit (interrupt turns probing off).
+      const code = live.ctx && journal.pending(live.ctx.tv.host) ? await interrupt('error') : (await probingOff(live.ctx), 2);
       process.exit(code === 130 ? 2 : code);
     });
 }

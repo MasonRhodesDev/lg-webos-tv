@@ -27,7 +27,7 @@ export function initialState(over = {}) {
     menu: { open: false, stack: [], area: 'categories', cat: 0, index: 0, editing: null, pin: null, dialog: false },
     reports: [], ownLayerLog: '', themepackLog: '',
     installed: false, layerFiles: false, layer: false, stub: false, hook: false, mounted: false, lgQs: false,
-    files: {}, events: [], writes: [], unknown: [], keys: [], bootAt: Date.now() - 3600e3, netinput: false, down: 0, oldHook: false, rootSettings: false, backup: null, boots: 0, broken: null, settingsHost: false
+    files: {}, events: [], writes: [], unknown: [], keys: [], bootAt: Date.now() - 3600e3, netinput: false, down: 0, oldHook: false, rootSettings: false, backup: null, probingUntil: 0, boots: 0, broken: null, settingsHost: false
   }, over);
 }
 
@@ -294,7 +294,7 @@ function manifestOf(s) {
 // the boot hook runs.
 function reboot(s) {
   s.boots++;
-  Object.assign(s, { mounted: false, layer: false, settingsHost: false, netinput: false, reports: [], themepackLog: '', ownLayerLog: '', files: {}, lgQs: false,
+  Object.assign(s, { mounted: false, layer: false, settingsHost: false, netinput: false, probingUntil: 0, reports: [], themepackLog: '', ownLayerLog: '', files: {}, lgQs: false,
                      down: s.faults.slowBoot ? 6 : 2, bootAt: Date.now(), fg: 'com.webos.app.livetv' });
   s.quick.open = false; closeMenu(s); s.picker.shown = false;
   if (s.oldHook) { if (s.rootSettings) s.mounted = 'patched'; }
@@ -316,14 +316,24 @@ function luna(s, uri, p) {
   if (m.startsWith(look) && !s.installed) return { returnValue: false, errorText: 'Service does not exist: dev.themepack.look.service.' };
   switch (m) {
     case look + 'getReports': return ok({ reports: s.reports });
+    case look + 'setProbing':
+      if (typeof p.on !== 'boolean') return { returnValue: false, errorText: 'on must be true or false' };
+      if (s.faults.probingStuckOff) return ok({ probing: false });
+      s.probingUntil = p.on ? Date.now() + (p.seconds || 600) * 1000 : 0;
+      (s.probingCalls = s.probingCalls || []).push(p.on);
+      return ok({ probing: p.on });
     case look + 'getProbe': {
+      // As the service: nothing while probing is off (or expired); a read keeps it on.
+      const on = Date.now() < s.probingUntil;
+      if (!on) return ok({ now: iso(), probing: false, probes: {} });
+      s.probingUntil = Math.max(s.probingUntil, Date.now() + 600000);
       const p = s.layer && s.broken !== 'layer' ? probes(s) : {};
       if (!s.settingsHost) delete p['parts/Settings.qml'];
       for (const k of Object.keys(p)) Object.assign(p[k], { layer: 'fake', seq: 1 });
-      return ok({ now: iso(), probes: p });
+      return ok({ now: iso(), probing: true, probes: p });
     }
     case 'com.webos.service.tvpower/power/getPowerState': return ok({ state: 'Active' });
-    case look + 'getLook': return ok({ look: s.look, available: { styles: STYLES, themes: THEMES } });
+    case look + 'getLook': return ok({ look: s.look, probing: Date.now() < s.probingUntil, available: { styles: STYLES, themes: THEMES } });
     case look + 'setLook':
       if (p.style !== undefined && !STYLES.some((x) => x.id === p.style)) return { returnValue: false, errorText: 'unknown style ' + p.style };
       s.look = { style: p.style !== undefined ? p.style : s.look.style, themes: p.themes !== undefined ? p.themes : s.look.themes };

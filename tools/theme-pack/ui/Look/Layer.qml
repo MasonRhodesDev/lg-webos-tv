@@ -24,16 +24,20 @@ Item {
 
     // A part may say what it shows in `probe` (a plain object); it goes to the Look service on each change, batched,
     // for the TV suite to read (getProbe). Every probe is also sent again on a heartbeat, faster while one of our menus
-    // is open, so a probe that stops being refreshed means this layer is gone, and the suite presses nothing.
-    property var probing: ({})
+    // is open, so a probe that stops being refreshed means this layer is gone, and the suite presses nothing. All of it
+    // only while the suite has probing on (Look.probing, from the Look subscription); off, not one call is made.
+    property var pending: ({})
     property var probed: []
     readonly property string instance: String(new Date().getTime())
     function watchProbe(part, file) {
         if (part.probe === undefined) return;
         probed = probed.concat([{ "part": part, "file": file }]);
-        part.probeChanged.connect(function () { layer.probing[file] = part; probeTimer.restart(); });
-        probing[file] = part;
-        probeTimer.restart();
+        part.probeChanged.connect(function () { if (!Look.probing) return; layer.pending[file] = part; probeTimer.restart(); });
+    }
+    // Probing turned on: everything at once, then on change and on the heartbeat (connected in onCompleted).
+    function probingChanged() {
+        pending = {};
+        if (Look.probing) for (var i = 0; i < probed.length; i++) publish(probed[i].file, probed[i].part);
     }
     function publish(file, part) { Look.probe(file, part.probe, instance); }
     function menuOpen() {
@@ -47,15 +51,15 @@ Item {
         id: probeTimer
         interval: 50
         onTriggered: {
-            var due = layer.probing;
-            layer.probing = {};
-            for (var f in due) layer.publish(f, due[f]);
+            var due = layer.pending;
+            layer.pending = {};
+            if (Look.probing) for (var f in due) layer.publish(f, due[f]);
         }
     }
     Timer {
         interval: layer.menuOpen() ? 1000 : 5000
         repeat: true
-        running: layer.probed.length > 0
+        running: Look.probing && layer.probed.length > 0
         onTriggered: { for (var i = 0; i < layer.probed.length; i++) layer.publish(layer.probed[i].file, layer.probed[i].part); }
     }
 
@@ -116,6 +120,7 @@ Item {
     }
 
     Component.onCompleted: {
+        Look.probingChanged.connect(layer.probingChanged);
         var late = [];
         for (var i = 0; i < parts.length; i++) {
             var c = Qt.createComponent(Qt.resolvedUrl(parts[i]));

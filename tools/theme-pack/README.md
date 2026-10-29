@@ -323,6 +323,10 @@ node tools/theme-pack/tv-suite/tv-suite.mjs rollback            # puts back what
   a value that cannot be read never counts as restored. A command that finds a journal left by an interrupted one
   restores from it first, and starts nothing until that is verified. The manual pass's fallbacks are marked in the
   journal before the layer is broken, and the pass does not go on until the good layer is verified back.
+- The probes are test instrumentation and stay off on the household's TV: the Look service's `probing` flag is off at
+  every start (never written to disk), the layer sends no probe at all while it is off (it learns the flag from the
+  Look subscription), and it turns itself off when nothing has read the probes for ten minutes. Each command turns it
+  on first, keeps it alive, and turns it off at the end, on an error and on SIGINT or SIGTERM.
 - The guard presses nothing on a probe older than the layer's heartbeat allows (Layer.qml sends every probe again
   each second while a menu of ours is open, every five seconds otherwise), nothing until a probe newer than the last
   key has arrived, nothing while LG's Quick Settings, the input picker or any other LG overlay is open (those close

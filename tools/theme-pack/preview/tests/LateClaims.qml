@@ -104,13 +104,31 @@ Window {
             // LG's onLoadedCallback then reparents it to the root; the claim is the same object and holds.
             host.notificationView.parent = host;
             check(part("Toast").lg === toast, "toast view reparented to host: still claimed");
-            // The layer publishes each part's probe to the Look service (setProbe), batched, for the TV suite.
+            // Probing is off (the household's TV): the layer sends no probe at all.
+            var sent = 0;
+            for (var i = 0; i < Fixture.commands.length; i++) if (Fixture.commands[i].method === "/setProbe") sent++;
+            check(sent === 0, "probing off: no probe is sent");
+            // The suite turns probing on: every part's probe goes out at once.
+            Fixture.load(JSON.stringify({ "returnValue": true, "probing": true }));
+        },
+        function () {
             var probe = null;
             for (var i = 0; i < Fixture.commands.length; i++) {
                 var c = Fixture.commands[i];
                 if (c.method === "/setProbe" && /Toast\.qml$/.test(c.params.from)) probe = c.params.state;
             }
-            check(probe !== null && probe.shown === false && probe.message === "", "toast: its probe reached the Look service");
+            check(probe !== null && probe.shown === false && probe.message === "", "probing on: the toast's probe reached the Look service");
+            Fixture.load(JSON.stringify({ "returnValue": true, "probing": false }));
+            Fixture.commands = [];
+        },
+        function () {
+            host.notificationView.toast.visible = !host.notificationView.toast.visible;
+            host.notificationView.toast.visible = !host.notificationView.toast.visible;
+        },
+        function () {
+            var sent = 0;
+            for (var i = 0; i < Fixture.commands.length; i++) if (Fixture.commands[i].method === "/setProbe") sent++;
+            check(sent === 0, "probing off again: nothing is sent, also when a part changes");
             console.log("late claims: all passed");
             Qt.quit();
         }

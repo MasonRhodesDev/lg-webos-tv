@@ -70,7 +70,9 @@ export async function restoreLayer(ctx, tries = 3) {
     ctx.tv.resetKeys();
     const ready = (await ctx.tv.reports(t0)).some((x) => x.text === 'settings: host ready');
     const m = await mounted(ctx);
-    const probe = !!(await ctx.tv.probes().catch(() => ({}))).Settings;
+    // The new layer subscribes and learns probing is on; its first probe follows.
+    let probe = false;
+    for (let w = 0; w < 20 && !probe; w++) { probe = !!(await ctx.tv.probes().catch(() => ({}))).Settings; if (!probe) await ctx.sleep(500); }
     why = ready && m && probe ? '' : [a.status ? 'own-layer-tv.sh apply failed' : '', b.status ? 'install-boot.sh install failed' : '',
       ready ? '' : 'no "settings: host ready"', m ? '' : 'the stub is not mounted', probe ? '' : 'no probe from our Settings'].filter(Boolean).join(', ');
     if (!why) break;

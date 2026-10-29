@@ -3,7 +3,7 @@
 // the telemetry state after the hook, and Hook A. Reports the boot's timings (seconds since power-on). Running it
 // again reboots again: it changes nothing else.
 import path from 'node:path';
-import { runScenarios, baseline, finish, restoreVerified } from './run.mjs';
+import { runScenarios, baseline, finish, restoreVerified, probingUp } from './run.mjs';
 import { SCENARIOS } from './scenarios.mjs';
 
 const HOOK_END = /^(settings stub mounted|settings already mounted|settings left stock .*)$/;
@@ -63,6 +63,8 @@ export async function coldboot(ctx, { upTimeout = 600, hookTimeout = 300 } = {})
   ctx.check('mount lists the bind over LG\'s Settings', m.stdout.includes(' ' + SETTINGS_APP + ' '));
   const running = ((await tv.luna('luna://com.webos.applicationManager/running', {})).running || []).map((a) => a.id);
   ctx.check('no stock Settings is resident after boot', !running.includes('com.palm.app.settings'), running.join(', '));
+  // The boot restarted the Look service with probing off: on again before anything is judged.
+  await probingUp(ctx, 30000);
   // The boot comes up on LG's default input: back to the baseline's first (launching the input that was in front,
   // restoring, not switching), so the redirect runs where the household was.
   out.foreground.afterBoot = await ctx.foreground().catch(() => '');

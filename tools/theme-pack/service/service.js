@@ -46,6 +46,7 @@ function payload() {
     look: look,
     subscribers: Object.keys(subscribers).length,
     settings: settings,
+    probing: probing.on,
     // Theme assets are files next to the packs; renderers resolve a recipe's `asset` against this.
     assets: 'file://' + path.join(packsDir, 'assets') + '/',
     // The styles' font files; a style's font.files are relative to this.
@@ -139,16 +140,44 @@ service.register('getReports', function (message) {
 });
 
 // What each part of the layer shows right now (its `probe`, Layer.qml), latest only, by part file. The TV suite
-// reads it to wait for a state and to check where focus is before it presses OK.
+// reads it to wait for a state and to check where focus is before it presses OK. Test instrumentation only: the layer
+// sends probes only while `probing` is on, which the suite turns on for a run (setProbing). It is off at every start
+// (never written to disk) and turns itself off when nobody has read the probes or refreshed it for a while.
 var probes = {};
+var probing = { on: false, ms: 0, timer: null };
+var PROBING_MS = 10 * 60 * 1000, PROBING_MAX_MS = 60 * 60 * 1000;
+function setProbing(on, ms) {
+  if (probing.timer) clearTimeout(probing.timer);
+  probing.timer = null;
+  var was = probing.on;
+  probing.on = !!on;
+  if (probing.on) {
+    probing.ms = Math.max(1, Math.min(PROBING_MAX_MS, ms || PROBING_MS));
+    probing.timer = setTimeout(function () { setProbing(false); }, probing.ms);
+    // The service stays up by its own activity; this timer must not hold a process open by itself.
+    if (probing.timer.unref) probing.timer.unref();
+  } else {
+    probes = {};
+  }
+  if (was !== probing.on) notify();
+}
+service.register('setProbing', function (message) {
+  var p = message.payload || {};
+  if (typeof p.on !== 'boolean') return message.respond({ returnValue: false, errorText: 'on must be true or false' });
+  setProbing(p.on, typeof p.seconds === 'number' ? p.seconds * 1000 : 0);
+  message.respond({ returnValue: true, probing: probing.on, seconds: probing.on ? probing.ms / 1000 : 0 });
+});
 service.register('setProbe', function (message) {
   var p = message.payload || {};
+  if (!probing.on) return message.respond({ returnValue: false, errorText: 'probing is off' });
   var prev = probes[String(p.from || '')];
   probes[String(p.from || '')] = { at: new Date().toISOString(), layer: String(p.layer || ''), seq: prev ? prev.seq + 1 : 1,
                                    state: p.state === undefined ? null : p.state };
   message.respond({ returnValue: true });
 });
-// `now` is the service's clock, so a reader can tell how old each probe is without trusting its own.
+// `now` is the service's clock, so a reader can tell how old each probe is without trusting its own. A read keeps
+// probing on for another while.
 service.register('getProbe', function (message) {
-  message.respond({ returnValue: true, now: new Date().toISOString(), probes: probes });
+  if (probing.on) setProbing(true, probing.ms);
+  message.respond({ returnValue: true, now: new Date().toISOString(), probing: probing.on, probes: probes });
 });
