@@ -44,6 +44,9 @@ export const STEPS = [
       const r = await backup(ctx);
       if (r.error) return 'the backup failed, nothing was changed: ' + r.error;
       ctx.note('backup', r.manifest);
+      // Deployed before (by hand, or an earlier suite): the backup holds that setup, not the TV's from before the layer.
+      if (r.made && (r.manifest.ourHook || r.manifest.stub)) ctx.say('  note: the TV already runs our boot hook' + (r.manifest.stub ? ' and stub' : '') +
+        ', so this backup holds that setup; the TV\'s setup from before our layer is not in it (keep that one off the TV)');
       return null;
     },
     async check(ctx) {

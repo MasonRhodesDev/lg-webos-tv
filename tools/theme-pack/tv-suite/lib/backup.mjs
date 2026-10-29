@@ -26,7 +26,8 @@ l=false; if [ -d ${ROOT}/layer ]; then cp -a ${ROOT}/layer $B.new/layer || exit 
 t=false; if [ -d ${ROOT}/settings-stub ]; then cp -a ${ROOT}/settings-stub $B.new/settings-stub || exit 1; t=true; fi
 m=false; mount | grep -q " ${SETTINGS_APP} " && m=true
 a=false; [ -d /media/developer/apps/usr/palm/applications/${APP.id} ] && a=true
-printf '{"created":"%s","hook":%s,"settings":%s,"layer":%s,"stub":%s,"settingsMounted":%s,"lookInstalled":%s}\\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" $h $s $l $t $m $a > $B.new/manifest.json
+o=false; grep -q "theme-pack boot hook" ${HOOK} 2>/dev/null && o=true
+printf '{"created":"%s","hook":%s,"ourHook":%s,"settings":%s,"layer":%s,"stub":%s,"settingsMounted":%s,"lookInstalled":%s}\\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" $h $o $s $l $t $m $a > $B.new/manifest.json
 mv $B.new $B && echo "backup made" && cat $B/manifest.json`;
 
 export async function backup(ctx) {

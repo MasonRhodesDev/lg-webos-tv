@@ -21,7 +21,9 @@ export function initialState(over = {}) {
     volume: { volume: 12, muted: false, barUntil: 0, muteUntil: 0 },
     look: { style: 'smoke', themes: ['halloween'] },
     settings: { pictureMode: 'expert1', energySaving: 'auto', soundOutput: 'tv_speaker', soundMode: 'standard',
-                deviceName: 'Living room', parentalControl: false, systemPin: '0000', quickStartMode: 'on' },
+                deviceName: 'Living room', parentalControl: false, systemPin: '0000', quickStartMode: 'on',
+                // As the TV answers range values: strings.
+                contrast: '85', backlight: '80' },
     fg: 'com.webos.app.hdmi2', picker: { shown: false, focus: 1 }, toast: { message: '', until: 0 },
     quick: { open: false, stack: [], index: 0, dialog: false },
     menu: { open: false, stack: [], area: 'categories', cat: 0, index: 0, editing: null, pin: null, dialog: false },
@@ -242,7 +244,11 @@ function key(s, k) {
   else if (k === 'BACK') pop(s, own);
   else if (k === 'LEFT' || k === 'RIGHT') {
     if (r && r.variant === 'slider' && r.ref === 'volume') write(s, 'volume', () => { s.volume.volume = Math.max(0, Math.min(100, s.volume.volume + (k === 'RIGHT' ? 1 : -1))); });
-    else if (r && (r.variant === 'slider' || r.variant === 'stepper')) event(s, 'changed ' + r.ref + ' (' + k + ')');
+    else if (r && r.variant === 'slider' && s.settings[idOf(r.ref)] !== undefined) {
+      // Written back in the TV's type, as the store does (3efdb97); the typeBug fault writes a number instead.
+      const id = idOf(r.ref), cur = s.settings[id], n = Number(cur) + (k === 'RIGHT' ? 1 : -1);
+      write(s, r.ref, () => { s.settings[id] = typeof cur === 'string' && !s.faults.typeBug ? String(n) : n; });
+    } else if (r && (r.variant === 'slider' || r.variant === 'stepper')) event(s, 'changed ' + r.ref + ' (' + k + ')');
     else if (own === m && k === 'LEFT') pop(s, own);
   }
 }
@@ -287,7 +293,7 @@ function hook(s) {
 
 function manifestOf(s) {
   const b = s.backup;
-  return JSON.stringify({ created: b.created, hook: !!b.hook, settings: !!b.settings, layer: !!b.layer, stub: !!b.stub, settingsMounted: b.settingsMounted, lookInstalled: b.lookInstalled });
+  return JSON.stringify({ created: b.created, hook: !!b.hook, ourHook: b.hook === 'ours', settings: !!b.settings, layer: !!b.layer, stub: !!b.stub, settingsMounted: b.settingsMounted, lookInstalled: b.lookInstalled });
 }
 
 // A reboot: everything the boot undoes goes (mounts, the layer, reports, /tmp), ssh is down for a few polls, then

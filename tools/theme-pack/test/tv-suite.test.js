@@ -178,7 +178,7 @@ test('dry run: every scenario passes against the fake TV and leaves it as it was
   for (const x of r.runs) assert.strictEqual(x.status, 'pass', x.id + ': ' + x.reason + '\n' + lines.join('\n'));
   for (const c of r.end) assert.ok(c.ok, c.name + ': ' + c.detail);
   assert.deepStrictEqual(state.events, [], 'nothing changed, switched, joined, paired or reached the app underneath');
-  assert.deepStrictEqual(state.writes.slice().sort(), ['Network/deviceName', 'Network/deviceName', 'pictureMode', 'pictureMode', 'quickStartMode', 'quickStartMode', 'volume', 'volume'],
+  assert.deepStrictEqual(state.writes.slice().sort(), ['Network/deviceName', 'Network/deviceName', 'contrast', 'contrast', 'pictureMode', 'pictureMode', 'quickStartMode', 'quickStartMode', 'volume', 'volume'],
     'the four reversible writes, each made and undone through our UI');
   const initial = (await imp('fake/tv.mjs')).initialState();
   assert.deepStrictEqual(state.settings, initial.settings, 'every setting is as it was');
@@ -545,4 +545,34 @@ test('probing: each command turns it on first and off at the end, also when inte
   s = state();
   assert.strictEqual(s.probingCalls[s.probingCalls.length - 1], false, 'off after the signal restore too');
   assert.strictEqual(s.probingUntil, 0);
+});
+
+test('settings keep their type: compared normalised, written back as read, and a type change is caught', async () => {
+  const { same, sameType, norm } = await imp('lib/run.mjs');
+  assert.ok(same('85', 85) && same({ a: '1' }, { a: 1 }) && !same('85', '86') && !same({ unreadable: 'x' }, { unreadable: 'x' }));
+  assert.ok(!sameType('85', 85) && sameType('85', '86'));
+  assert.deepStrictEqual(norm(['1', 'on', true]), [1, 'on', true]);
+  const ok = await dryRun({}, ['write-contrast']);
+  assert.strictEqual(ok.run('write-contrast').status, 'pass', ok.run('write-contrast').reason);
+  assert.ok(ok.run('write-contrast').checks.some((c) => c.ok && /Contrast keeps the TV's type \(string\)/.test(c.name) && /"85" -> "86"/.test(c.detail)));
+  assert.strictEqual(ok.state.settings.contrast, '85');
+  // A store that writes a number where the TV keeps a string: the scenario fails on the type, and the restore puts the
+  // string back (written as it was read).
+  const bug = await dryRun({ faults: { typeBug: true } }, ['write-contrast']);
+  assert.strictEqual(bug.run('write-contrast').status, 'fail');
+  assert.ok(bug.run('write-contrast').checks.some((c) => !c.ok && /Contrast keeps the TV's type \(string\)/.test(c.name) && /"85" -> 86/.test(c.detail)));
+  assert.strictEqual(bug.state.settings.contrast, '85', 'restored as the string it was');
+});
+
+test('deploy over a layer already in place (deployed by hand): backs up first, says the backup is that setup, and is idempotent', () => {
+  const { f, run, state } = fakeFile();
+  const s = state(); s.backup = null; fs.writeFileSync(f, JSON.stringify(s));
+  const d = run('deploy', tmp('again'));
+  assert.strictEqual(d.status, 0, d.stdout + d.stderr);
+  assert.match(d.stdout, /backup made/);
+  assert.match(d.stdout, /the TV already runs our boot hook and stub, so this backup holds that setup; the TV's setup from before our layer is not in it/);
+  const after = state();
+  assert.ok(after.installed && after.layer && after.mounted && after.settingsHost);
+  assert.strictEqual(run('deploy', tmp('again2')).status, 0);
+  assert.deepStrictEqual(state().unknown, []);
 });

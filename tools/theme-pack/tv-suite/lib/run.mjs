@@ -14,7 +14,8 @@ const QS = 'com.webos.app.quicksettings', PICKER = 'com.webos.app.quickinputpick
 
 // What a scenario must leave as it found it. The volume, the Look and the write scenarios' settings are changed on
 // purpose, and put back by the scenario; anything still different afterwards fails it and is restored here.
-export const WATCHED = ['pictureMode', 'energySaving', 'soundOutput', 'soundMode', 'deviceName', 'parentalControl', 'quickStartMode'];
+export const WATCHED = ['pictureMode', 'energySaving', 'soundOutput', 'soundMode', 'deviceName', 'parentalControl', 'quickStartMode',
+  'contrast', 'backlight'];
 
 // How old our Settings' probe may be (seconds by the service's clock): the layer sends it again every second while
 // a menu of ours is open and every five seconds otherwise (Layer.qml).
@@ -164,7 +165,17 @@ export async function snapshot(ctx) {
   try { const a = await ctx.tv.luna(SS + '/getSystemSettings', { category: 'lock', keys: ['systemPin'] }); pin = a.settings ? a.settings.systemPin : undefined; } catch (e) { pin = undefined; }
   return { values: v, pin };
 }
-export const same = (a, b) => !(a && a.unreadable) && !(b && b.unreadable) && JSON.stringify(a) === JSON.stringify(b);
+// settingsservice answers range values as strings on the TV ("85"); a value is compared normalised (a numeric string
+// equals its number), and its type is checked apart, since a restore must write it back in the type it was read in.
+export function norm(v) {
+  if (typeof v === 'string' && /^-?\d+(\.\d+)?$/.test(v.trim())) return Number(v);
+  if (Array.isArray(v)) return v.map(norm);
+  if (v && typeof v === 'object') { const o = {}; for (const k of Object.keys(v).sort()) o[k] = norm(v[k]); return o; }
+  return v;
+}
+const typeOf = (v) => (v === null ? 'null' : Array.isArray(v) ? 'array' : typeof v);
+export const same = (a, b) => !(a && a.unreadable) && !(b && b.unreadable) && JSON.stringify(norm(a)) === JSON.stringify(norm(b));
+export const sameType = (a, b) => typeOf(a) === typeOf(b);
 const shown = (x) => (x && x.unreadable ? 'unreadable (' + x.unreadable + ')' : JSON.stringify(x));
 
 // Puts the TV back to `baseline` (a snapshot's values) and reads everything again: { acted, left }. `left` is what is
@@ -174,7 +185,9 @@ export async function restoreVerified(ctx, baseline, pin) {
   if (ctx.foregroundOverride) baseline = Object.assign({}, baseline, { foreground: ctx.foregroundOverride });
   const cur = (await snapshot(ctx)).values, acted = [];
   for (const k of Object.keys(baseline)) {
-    if (same(baseline[k], cur[k]) || (baseline[k] && baseline[k].unreadable)) continue;
+    // A setting back at its value but in another type (85 for the TV's "85") is written back too.
+    const typeOnly = WATCHED.includes(k) && same(baseline[k], cur[k]) && !sameType(baseline[k], cur[k]);
+    if ((same(baseline[k], cur[k]) && !typeOnly) || (baseline[k] && baseline[k].unreadable)) continue;
     const was = baseline[k];
     try {
       if (k === 'look') { await ctx.setLook(was); acted.push(k); }
@@ -189,6 +202,7 @@ export async function restoreVerified(ctx, baseline, pin) {
         acted.push(k);
       } else if (WATCHED.includes(k)) {
         const sk = settingKey(k);
+        // Written back exactly as it was read, in its own type (a string stays a string).
         await ctx.luna(SS + '/setSystemSettings', { category: sk.category, settings: { [sk.key]: was } });
         acted.push(k);
       }
@@ -197,6 +211,10 @@ export async function restoreVerified(ctx, baseline, pin) {
   const after = await snapshot(ctx);
   const left = Object.keys(baseline).filter((k) => !same(baseline[k], after.values[k]))
     .map((k) => k + ': was ' + shown(baseline[k]) + ', now ' + shown(after.values[k]));
+  for (const k of WATCHED) {
+    if (same(baseline[k], after.values[k]) && !sameType(baseline[k], after.values[k]))
+      left.push(k + ': back to ' + shown(after.values[k]) + ', but as a ' + typeOf(after.values[k]) + '; the TV had a ' + typeOf(baseline[k]) + ' (' + shown(baseline[k]) + ')');
+  }
   if (pin !== undefined && String(after.pin) !== String(pin)) left.push(after.pin === undefined ? 'the PIN could not be read back' : 'the PIN changed (the suite never writes it)');
   return { acted, left };
 }

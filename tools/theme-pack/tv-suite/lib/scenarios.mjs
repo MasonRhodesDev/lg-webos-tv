@@ -68,6 +68,12 @@ async function typeKey(ctx, label) {
 
 // Waits for a write to land on the TV. If it does not, the finding is what our Settings reported about it (the
 // store reports "settings: <ref> not saved: <why>" when the TV refuses or never answers).
+// The setting as the TV answers it, and a check that a write kept the type the TV had (settingsservice answers range
+// values as strings: Contrast 85 is "85", and one step right must read back "86").
+const kind = (v) => (v === null ? 'null' : Array.isArray(v) ? 'array' : typeof v);
+function typeKept(ctx, what, was, now) {
+  ctx.check(what + ' keeps the TV\'s type (' + kind(was) + ')', kind(now) === kind(was), JSON.stringify(was) + ' -> ' + JSON.stringify(now));
+}
 async function written(ctx, what, ref, pred, t0) {
   const ok = await ctx.wait(what, pred, { timeout: 8000 }).catch(() => null);
   if (ok) { ctx.check(what, true); return true; }
@@ -391,6 +397,7 @@ export const SCENARIOS = [
       await typeKey(ctx, 'Done');
       await own(ctx, 'menu', (w) => !w.editing, 'Done to close the keyboard');
       await written(ctx, 'the TV name is written as typed', 'deviceName', async () => (await ctx.setting('deviceName')) === name + 'x', t0);
+      typeKept(ctx, 'the TV name', name, await ctx.setting('deviceName'));
       await toRow(ctx, 'menu', 'TV name');
       await ctx.key('ENTER', { text: true });
       e = (await own(ctx, 'menu', (w) => !!w.editing, 'the keyboard again')).editing;
@@ -398,6 +405,7 @@ export const SCENARIOS = [
       await own(ctx, 'menu', (w) => w.editing && w.editing.length === e.length - 1, 'the x erased');
       await typeKey(ctx, 'Done');
       await written(ctx, 'the TV name is back', 'deviceName', async () => (await ctx.setting('deviceName')) === name, t0);
+      typeKept(ctx, 'the TV name, restored', name, await ctx.setting('deviceName'));
       await backOut(ctx, 'menu');
     }
   },
@@ -416,9 +424,11 @@ export const SCENARIOS = [
       await toRow(ctx, 'menu', 'Quick Start+');
       await ctx.key('ENTER', { write: { ref: 'quickStartMode' } });
       await written(ctx, 'Quick Start+ is flipped on the TV', 'quickStartMode', async () => (await ctx.setting('quickStartMode')) !== v0, t0);
+      typeKept(ctx, 'Quick Start+', v0, await ctx.setting('quickStartMode'));
       await ctx.capture('quick-start-flipped', { board: 'SmokeSettingsGeneral', scene: 'Settings' });
       await ctx.key('ENTER', { write: { ref: 'quickStartMode' } });
       await written(ctx, 'Quick Start+ is back', 'quickStartMode', async () => (await ctx.setting('quickStartMode')) === v0, t0);
+      typeKept(ctx, 'Quick Start+, restored', v0, await ctx.setting('quickStartMode'));
       await backOut(ctx, 'menu');
     }
   },
@@ -437,6 +447,7 @@ export const SCENARIOS = [
       const other = await toChoice(ctx, 'quick', (f) => f.kind === 'choose' && f.choice !== String(pm), 'other than ' + pm);
       await ctx.key('ENTER', { write: { ref: 'pictureMode' } });
       await written(ctx, 'Picture mode is ' + other.focus.choice + ' on the TV', 'pictureMode', async () => String(await ctx.setting('pictureMode')) === other.focus.choice, t0);
+      typeKept(ctx, 'Picture mode', pm, await ctx.setting('pictureMode'));
       await ctx.capture('picture-mode-changed', { board: 'SmokeQuickSettings', scene: 'QuickSheet' });
       await own(ctx, 'quick', (v) => top(v) === 'quick', 'the sheet after choosing');
       await ctx.key('ENTER');
@@ -444,6 +455,7 @@ export const SCENARIOS = [
       await toChoice(ctx, 'quick', (f) => f.kind === 'choose' && f.choice === String(pm), String(pm));
       await ctx.key('ENTER', { write: { ref: 'pictureMode' } });
       await written(ctx, 'Picture mode is back', 'pictureMode', async () => (await ctx.setting('pictureMode')) === pm, t0);
+      typeKept(ctx, 'Picture mode, restored', pm, await ctx.setting('pictureMode'));
       await backOut(ctx, 'quick');
     }
   },
@@ -465,7 +477,35 @@ export const SCENARIOS = [
       await ctx.capture('volume-row', { board: 'SmokeQuickSettings', scene: 'QuickSheet' });
       await ctx.key(back, { write: { ref: 'volume' } });
       await written(ctx, 'the volume is back', 'volume', async () => (await ctx.volume()).volume === v0.volume, t0);
+      typeKept(ctx, 'the volume, restored', v0.volume, (await ctx.volume()).volume);
       await backOut(ctx, 'quick');
+    }
+  },
+  {
+    // A range setting through our slider: the bug this guards against wrote the owner's Contrast to 0.
+    id: 'write-contrast',
+    title: 'Step Contrast one to the right in Picture, then back',
+    tvChecks: ['host-reads', 'ls-hubd-refuses'],
+    writes: true,
+    async run(ctx) {
+      const c0 = await ctx.setting('contrast');
+      const n0 = Number(c0);
+      if (!isFinite(n0)) ctx.skip('Contrast is unreadable or not a number: ' + JSON.stringify(c0));
+      const [there, back] = n0 >= 100 ? ['LEFT', 'RIGHT'] : ['RIGHT', 'LEFT'];
+      const d = there === 'RIGHT' ? 1 : -1;
+      const t0 = await ctx.tv.now();
+      await openSettings(ctx, 'Picture');
+      await toRow(ctx, 'menu', 'Contrast');
+      await ctx.key(there, { write: { ref: 'contrast' } });
+      await written(ctx, 'Contrast is ' + (n0 + d) + ' on the TV', 'contrast', async () => Number(await ctx.setting('contrast')) === n0 + d, t0);
+      const c1 = await ctx.setting('contrast');
+      typeKept(ctx, 'Contrast', c0, c1);
+      ctx.check('one step, not a jump', Number(c1) === n0 + d, JSON.stringify(c0) + ' -> ' + JSON.stringify(c1));
+      await ctx.capture('contrast-stepped', { board: 'SmokeSettings', scene: 'Settings' });
+      await ctx.key(back, { write: { ref: 'contrast' } });
+      await written(ctx, 'Contrast is back', 'contrast', async () => Number(await ctx.setting('contrast')) === n0, t0);
+      typeKept(ctx, 'Contrast, restored', c0, await ctx.setting('contrast'));
+      await backOut(ctx, 'menu');
     }
   },
   {
