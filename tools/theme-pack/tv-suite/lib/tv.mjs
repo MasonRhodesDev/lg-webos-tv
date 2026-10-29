@@ -26,6 +26,16 @@ function run(cmd, args, { input, env, timeout = 120000 } = {}) {
 }
 export { run as spawnCmd };
 
+// A luna-send answer: one JSON document, on one line or pretty-printed over several (systemUIManager and
+// webappmanager answer that way), taken from the first `{` to the last `}` of the CR-stripped output.
+export function parseAnswer(uri, stdout, stderr = '') {
+  const text = String(stdout).replace(/\r/g, '');
+  const a = text.indexOf('{'), b = text.lastIndexOf('}');
+  if (a < 0 || b < a) throw new Error(uri + ': no answer' + (String(stderr).trim() ? ' (' + String(stderr).trim().split('\n').pop() + ')' : ''));
+  const doc = text.slice(a, b + 1);
+  try { return JSON.parse(doc); } catch (e) { throw new Error(uri + ': unreadable answer (' + e.message.replace(/\s+/g, ' ') + '): ' + doc.replace(/\s+/g, ' ').slice(0, 200)); }
+}
+
 // `exec` runs ssh and scp; a test gives the fake TV's in-process one (fake/tv.mjs inProcess).
 export function makeTv({ host = process.env.TV_HOST, log = () => {}, python = process.env.TV_PYTHON || 'python', exec = run } = {}) {
   if (!host) throw new Error('set TV_HOST to the TV address');
@@ -50,9 +60,7 @@ export function makeTv({ host = process.env.TV_HOST, log = () => {}, python = pr
   // luna-send prints nothing without a terminal over ssh, hence -tt; its stdout then has CRs.
   async function luna(uri, payload = {}, { wait = 5000 } = {}) {
     const r = await sh('luna-send -n 1 -w ' + wait + ' ' + uri + ' ' + quote(JSON.stringify(payload)) + ' 2>/dev/null', { tty: true, timeout: wait + 15000 });
-    const line = r.stdout.replace(/\r/g, '').split('\n').find((l) => l.trim().startsWith('{'));
-    if (!line) throw new Error(uri + ': no answer' + (r.stderr.trim() ? ' (' + r.stderr.trim().split('\n').pop() + ')' : ''));
-    try { return JSON.parse(line); } catch (e) { throw new Error(uri + ': unreadable answer ' + line.slice(0, 200)); }
+    return parseAnswer(uri, r.stdout, r.stderr);
   }
   async function pull(remote, local) {
     if (aborted) throw new Error('interrupted: this command no longer talks to the TV');

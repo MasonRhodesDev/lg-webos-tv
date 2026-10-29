@@ -668,3 +668,22 @@ test('an older Look service on the TV (setProbing unknown): baseline and run say
   assert.match(b.stdout, /DEPLOY {5}the Look service on the TV predates probing \(setProbing is unknown there\): run deploy first/);
   assert.match(b.stdout, /ok {9}bluetooth: \{"paired":/);
 });
+
+test('luna answers are parsed whole: one line or pretty-printed over several, as the TV sends them', async () => {
+  const { parseAnswer, makeTv } = await imp('lib/tv.mjs');
+  const { systemUiFront } = await imp('lib/run.mjs');
+  // systemUIManager's answer exactly as the live TV printed it over ssh -tt (CRLF line ends).
+  const live = '{\r\n    "foregroundAppInfo": [\r\n    ],\r\n    "returnValue": true\r\n}\r\n';
+  assert.deepStrictEqual(parseAnswer('luna://x', live), { foregroundAppInfo: [], returnValue: true });
+  assert.deepStrictEqual(parseAnswer('luna://x', '{"returnValue":true,"appId":"com.webos.app.hdmi1"}\r\n'), { returnValue: true, appId: 'com.webos.app.hdmi1' });
+  assert.deepStrictEqual(parseAnswer('luna://x', '{\n  "returnValue": true,\n  "apps": [\n    { "id": "a", "processid": "1" }\n  ]\n}\n'), { returnValue: true, apps: [{ id: 'a', processid: '1' }] });
+  assert.throws(() => parseAnswer('luna://x', '', 'Connection refused'), /luna:\/\/x: no answer \(Connection refused\)/);
+  assert.throws(() => parseAnswer('luna://x', '{\n  "returnValue": tru\n}'), /luna:\/\/x: unreadable answer \(.*\): \{ "returnValue": tru \}/);
+  // Through the transport: the pretty-printed empty list reads as nothing in front, not unknown.
+  const exec = async () => ({ status: 0, stdout: live, stderr: '' });
+  const tv = makeTv({ host: 'tv.invalid', exec });
+  assert.deepStrictEqual(await tv.luna('luna://com.webos.service.systemUIManager/getForegroundAppInfo', {}), { foregroundAppInfo: [], returnValue: true });
+  assert.strictEqual(await systemUiFront(tv), '');
+  const qs = '{\r\n    "foregroundAppInfo": [\r\n        {\r\n            "appId": "com.webos.app.quicksettings"\r\n        }\r\n    ],\r\n    "returnValue": true\r\n}\r\n';
+  assert.strictEqual(await systemUiFront(makeTv({ host: 'tv.invalid', exec: async () => ({ status: 0, stdout: qs, stderr: '' }) })), 'com.webos.app.quicksettings');
+});
