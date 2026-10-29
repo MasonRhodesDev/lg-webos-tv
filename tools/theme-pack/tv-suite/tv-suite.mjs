@@ -19,7 +19,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import readline from 'node:readline';
 import { makeTv } from './lib/tv.mjs';
 import { deploy } from './lib/deploy.mjs';
-import { makeCtx, runScenarios, closeAll, snapshot } from './lib/run.mjs';
+import { makeCtx, runScenarios, closeAll, snapshot, predatesProbing, DEPLOY_FIRST } from './lib/run.mjs';
 import { SCENARIOS } from './lib/scenarios.mjs';
 import { writeReport } from './lib/report.mjs';
 import { coldboot } from './lib/coldboot.mjs';
@@ -139,7 +139,8 @@ export async function main(argv, say = console.log) {
   // Probing on for this command (and kept alive), off again however it ends; then an interrupted command's journal:
   // nothing new starts until the TV is verified back.
   live.probing = true;
-  await ctx.tv.setProbing(true).catch((e) => say('note: probing could not be turned on yet: ' + e.message));
+  const probingWhy = await ctx.tv.setProbing(true).then(() => '', (e) => e.message);
+  if (probingWhy) say(predatesProbing(probingWhy) ? 'note: ' + DEPLOY_FIRST : 'note: probing could not be turned on yet: ' + probingWhy);
   live.keepalive = setInterval(() => { ctx.tv.setProbing(true).catch(() => {}); }, 120000);
   live.keepalive.unref();
   await settle(ctx);
@@ -156,7 +157,12 @@ export async function main(argv, say = console.log) {
     }
     say((b.pin === undefined ? 'UNREADABLE ' : 'ok         ') + 'PIN (lock.systemPin; its value is never shown)');
     if (b.pin === undefined) bad++;
-    const st = await ctx.state();
+    if (predatesProbing(probingWhy)) {
+      say('DEPLOY     ' + DEPLOY_FIRST + '. The values above are read; the probes and keys are checked after the deploy.');
+      return 4;
+    }
+    let st = await ctx.state();
+    for (let w = 0; w < 20 && !st.fresh; w++) { await ctx.sleep(500); st = await ctx.state(); }
     say((st.fresh ? 'ok         ' : 'STALE      ') + 'probes: ' + (st.fresh ? 'fresh' : st.stale) + '; system UI in front: ' + (st.systemUi || 'none'));
     const k = await ctx.tv.ensureKeys().then(() => '', (e) => e.message);
     say((k ? 'MISSING    ' : 'ok         ') + 'key socket' + (k ? ': ' + k : ''));

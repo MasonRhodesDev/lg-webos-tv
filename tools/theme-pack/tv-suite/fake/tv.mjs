@@ -325,6 +325,7 @@ function luna(s, uri, p) {
   switch (m) {
     case look + 'getReports': return ok({ reports: s.reports });
     case look + 'setProbing':
+      if (s.faults.oldService) return { returnValue: false, errorCode: -1, errorText: 'Unknown method "setProbing" for category "/"' };
       if (typeof p.on !== 'boolean') return { returnValue: false, errorText: 'on must be true or false' };
       if (s.faults.probingStuckOff) return ok({ probing: false });
       s.probingUntil = p.on ? Date.now() + (p.seconds || 600) * 1000 : 0;
@@ -404,7 +405,11 @@ function luna(s, uri, p) {
     case 'com.palm.systemservice/getPreferences': return ok({ useNetworkTime: true });
     case 'dev.themepack.look.service/getTelemetry': return ok({ kit: 'unknown' });
     case 'com.webos.service.wifi/getstatus': return ok({ status: 'serviceDisabled' });
-    case 'com.webos.service.btaudiosrc/getPairedDevices': return ok({ devices: s.btDevices || [{ address: '00:00:00:00:00:00', name: 'Speaker', state: 'paired' }] });
+    // As on the TV: btaudiosrc does not answer; bluetooth2 lists the devices (a speaker and the magic remote).
+    case 'com.webos.service.bluetooth2/device/getStatus':
+      return ok({ devices: s.btDevices || [
+        { name: 'Speaker', address: '00:00:00:00:00:01', paired: true, connectedProfiles: ['a2dp'], typeOfDevice: 'bredr' },
+        { name: 'Remote', address: '00:00:00:00:00:02', paired: true, connectedProfiles: ['hid'], typeOfDevice: 'ble' }] });
     case 'com.webos.appInstallService/dev/install':
       s.installed = true;
       s.packageHash = (s.ipks || {})[p.ipkUrl] || 'unknown';

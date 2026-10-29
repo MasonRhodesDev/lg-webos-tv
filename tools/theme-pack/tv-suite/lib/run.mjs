@@ -176,11 +176,8 @@ export async function snapshot(ctx) {
     if (c.returnValue === false) throw new Error(c.errorText || 'refused');
     return { wired: c.wired && c.wired.state, wifi: c.wifi && c.wifi.state, ssid: c.wifi && c.wifi.ssid };
   });
-  await read('bluetooth', async () => {
-    const b = await ctx.tv.luna('luna://com.webos.service.btaudiosrc/getPairedDevices', {});
-    if (!Array.isArray(b.devices)) throw new Error(b.errorText || 'no devices list');
-    return b.devices.map((d) => String(d.address) + ' ' + String(d.name)).sort();
-  });
+  // The paired devices and their connected profiles, from bluetooth2 (btaudiosrc does not answer on this firmware).
+  await read('bluetooth', async () => ({ paired: await btPaired(ctx.tv) }));
   let pin;
   try { const a = await ctx.tv.luna(SS + '/getSystemSettings', { category: 'lock', keys: ['systemPin'] }); pin = a.settings ? a.settings.systemPin : undefined; } catch (e) { pin = undefined; }
   return { values: v, pin };
@@ -197,6 +194,18 @@ const typeOf = (v) => (v === null ? 'null' : Array.isArray(v) ? 'array' : typeof
 export const same = (a, b) => !(a && a.unreadable) && !(b && b.unreadable) && JSON.stringify(norm(a)) === JSON.stringify(norm(b));
 export const sameType = (a, b) => typeOf(a) === typeOf(b);
 const shown = (x) => (x && x.unreadable ? 'unreadable (' + x.unreadable + ')' : JSON.stringify(x));
+
+// bluetooth2's paired devices as "address profile,profile" lines, sorted (the magic remote is one of them).
+export async function btPaired(tv) {
+  const b = await tv.luna('luna://com.webos.service.bluetooth2/device/getStatus', {});
+  if (b.returnValue === false || !Array.isArray(b.devices)) throw new Error(b.errorText || 'no devices list');
+  return b.devices.filter((d) => d.paired === true)
+    .map((d) => String(d.address) + ' ' + (Array.isArray(d.connectedProfiles) ? d.connectedProfiles.slice().sort().join(',') : '')).sort();
+}
+
+// The Look service on the TV is older than probing (setProbing unknown): deploy installs the one this suite needs.
+export const DEPLOY_FIRST = 'the Look service on the TV predates probing (setProbing is unknown there): run deploy first';
+export const predatesProbing = (e) => /unknown method|no such method|method .*not found|setProbing.*(unknown|not)/i.test(String(e && e.message || e));
 
 // Puts the TV back to `baseline` (a snapshot's values) and reads everything again: { acted, left }. `left` is what is
 // still not verified as the baseline after the restore, by that second read.
@@ -257,7 +266,7 @@ export async function closeAll(ctx) {
 
 // Turns the service's probing on and waits for our Settings' probe: nothing is pressed or judged without it.
 export async function probingUp(ctx, timeout = 10000) {
-  try { await ctx.tv.setProbing(true); } catch (e) { throw new Error('the Look service cannot turn probing on (' + e.message + '): deploy this branch first'); }
+  try { await ctx.tv.setProbing(true); } catch (e) { throw new Error(predatesProbing(e) ? DEPLOY_FIRST : 'the Look service cannot turn probing on (' + e.message + '): deploy this branch first'); }
   const end = Date.now() + timeout;
   for (;;) {
     let r = null;

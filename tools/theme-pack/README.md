@@ -322,7 +322,7 @@ node tools/theme-pack/tv-suite/tv-suite.mjs rollback            # puts back what
   gear opens LG's Quick Settings, and puts the good layer and the stub back. Verdicts go to `manual.json`.
 - Safety: before changing anything the suite writes a journal (`OUT_DIR/journal.json`, found again through
   `$TV_SUITE_STATE`, default `~/.local/state/tv-suite/`) of the TV's baseline: the Look, the volume, the input in
-  front, the watched settings (Contrast and Brightness among them), the network state and the paired Bluetooth devices
+  front, the watched settings (Contrast and Brightness among them), the network state and the paired Bluetooth devices (bluetooth2 `device/getStatus`: addresses and connected profiles)
   (the PIN is compared in memory, never written). settingsservice answers range values as strings (`"85"`): values are
   compared normalised, written back exactly as read, and a setting left in another type is a failure the restore
   fixes. Each scenario's end, SIGINT, SIGTERM and an error put the TV back to it and read every value again;

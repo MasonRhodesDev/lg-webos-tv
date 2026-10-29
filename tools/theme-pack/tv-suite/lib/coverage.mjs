@@ -59,7 +59,7 @@ export const COVERAGE = [
   { id: 'wifi-join', match: 'A join with a wrong password answers `errorCode` 10', how: NO, reason: 'the suite joins no network' },
   { id: 'wifi-scan', match: 'The Wi-Fi page starts `findnetworks` as soon as it opens', how: PT, by: 'pages-view', reason: 'the connection state is compared before and after; the scan\'s start and cancel are not observable from outside' },
   { id: 'wifi-groups', match: 'Our bus identity holds the wifi and btaudiosrc groups', how: A, by: 'reads (recorded groups)' },
-  { id: 'bt-shape', match: '`com.webos.service.btaudiosrc`: `getPairedDevices`', how: PT, by: 'reads', reason: 'getPairedDevices is read; discovery and connect pair devices and are not run' },
+  { id: 'bt-shape', match: '`com.webos.service.btaudiosrc`: `getPairedDevices`', how: PT, by: 'reads', reason: 'btaudiosrc does not answer on this firmware; the suite reads bluetooth2 device/getStatus (devices with paired and connectedProfiles) instead; discovery and connect pair devices and are not run' },
   { id: 'pin-read', match: '`getSystemSettings {category: "lock", keys: ["systemPin"]}` is readable', how: PT, by: 'pin', reason: 'read as root; whether our identity can read it shows in the prompt\'s error text' },
   { id: 'pin-write', match: 'Writing `lock.systemPin` with `initialPinCode: false`', how: NO, reason: 'the suite changes no PIN' },
   { id: 'pin-no-limit', match: 'Owner decision: our PIN prompt has no limit', how: MAN, by: 'manual decisions', reason: 'an owner decision, not a check' },

@@ -645,3 +645,26 @@ test('re-verify 4: probes from a restarted layer instance are taken only after i
   assert.match(guard('BACK', after), /stale state/);
   assert.ok((await ctx.state()).fresh, 'its next probe confirms it');
 });
+
+test('bluetooth2: the baseline holds the paired devices and their connected profiles; a change is caught', async () => {
+  const fake = await imp('fake/tv.mjs');
+  const { makeTv } = await imp('lib/tv.mjs');
+  const { makeCtx, snapshot } = await imp('lib/run.mjs');
+  const st = fake.deployedState({ netinput: true });
+  const ctx = makeCtx({ tv: makeTv({ host: 'tv.invalid', exec: fake.inProcess(st) }), out: tmp('bt'), say: () => {} });
+  assert.deepStrictEqual((await snapshot(ctx)).values.bluetooth, { paired: ['00:00:00:00:00:01 a2dp', '00:00:00:00:00:02 hid'] });
+  const r = await dryRun({ btDevices: [{ name: 'Speaker', address: '00:00:00:00:00:01', paired: true, connectedProfiles: [] }] }, ['toast']);
+  assert.strictEqual(r.run('toast').status, 'pass', 'a baseline taken as found');
+  assert.ok(r.run('reads') === undefined);
+  const reads = await dryRun({}, ['reads']);
+  assert.ok(reads.run('reads').checks.some((c) => c.ok && /bluetooth2 device\/getStatus gives devices/.test(c.name)));
+});
+
+test('an older Look service on the TV (setProbing unknown): baseline and run say to deploy first', async () => {
+  await assert.rejects(dryRun({ faults: { oldService: true } }, ['toast']), /predates probing \(setProbing is unknown there\): run deploy first/);
+  const { run } = fakeFile({ faults: { oldService: true } });
+  const b = run('baseline');
+  assert.strictEqual(b.status, 4, b.stdout + b.stderr);
+  assert.match(b.stdout, /DEPLOY {5}the Look service on the TV predates probing \(setProbing is unknown there\): run deploy first/);
+  assert.match(b.stdout, /ok {9}bluetooth: \{"paired":/);
+});

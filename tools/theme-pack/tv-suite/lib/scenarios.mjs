@@ -534,8 +534,10 @@ export const SCENARIOS = [
       const wifi = await get('luna://com.webos.service.wifi/getstatus', {});
       ctx.note('reads.wifi', { status: wifi.status, returnValue: wifi.returnValue });
       ctx.check('wifi getstatus answers', wifi.returnValue !== false, JSON.stringify(wifi).slice(0, 200));
-      const bt = await get('luna://com.webos.service.btaudiosrc/getPairedDevices', {});
-      ctx.check('btaudiosrc getPairedDevices gives devices [{address, name}]', Array.isArray(bt.devices) && bt.devices.every((d) => d.address !== undefined && d.name !== undefined), JSON.stringify(bt).slice(0, 200));
+      const bt = await get('luna://com.webos.service.bluetooth2/device/getStatus', {});
+      ctx.check('bluetooth2 device/getStatus gives devices [{address, name, paired, connectedProfiles}]',
+        Array.isArray(bt.devices) && bt.devices.every((d) => d.address !== undefined && d.name !== undefined && typeof d.paired === 'boolean'), JSON.stringify(bt).slice(0, 200));
+      ctx.note('reads.bluetooth', (bt.devices || []).map((d) => ({ name: d.name, paired: d.paired, type: d.typeOfDevice, profiles: d.connectedProfiles })));
       const perm = await ctx.tv.sh('cat /var/luna-service2-dev/client-permissions.d/dev.themepack.look.service.compositor.json');
       let groups = [];
       try { groups = JSON.parse(perm.stdout)['com.webos.surfacemanager.systemui'] || []; } catch (e) { /* none */ }
