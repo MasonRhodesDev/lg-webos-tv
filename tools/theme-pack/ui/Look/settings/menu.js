@@ -102,17 +102,11 @@ var pages = {
         { more: "accessibility" }
     ] },
     "Support": { category: "support", title: "Support", sub: { from: "onlineHelp" }, rows: [
-        { page: "SoftwareUpdate", label: "Software update", icon: "update", value: "updates",
-          hintWhen: { ref: "internet", is: ["Offline"] }, hint: "Updates are blocked while the TV stays offline" },
         { action: "pictureTest", label: "Picture test", icon: "screen", drill: true },
         { action: "soundTest", label: "Sound test", icon: "speaker", drill: true },
         { page: "SignalTest", label: "Signal test", icon: "test" },
         { page: "AboutThisTV", label: "TV information", icon: "info", value: "tvSummary" },
         { page: "LegalNotice", label: "Privacy and terms", icon: "shield", value: "agreements" }
-    ] },
-    "SoftwareUpdate": { category: "support", title: "Software update", sub: { from: "tvVersion" }, rows: [
-        { item: "firmwareVersion", label: "Software version", icon: "info" },
-        { item: "automaticUpdate", label: "Automatic updates", hint: "An update can remove root access", icon: "update" }
     ] },
     // The current input's signal, as LG's Settings shows it in its HDMI diagnostics (getHDMIInfo).
     "SignalTest": { category: "support", title: "Signal test", sub: { from: "input" }, rows: [
@@ -207,7 +201,6 @@ var extra = {
     "telemetryKit": { id: "telemetryKit", tier: 3, type: "info", api: { service: "dev.themepack.look.service", read: "getTelemetry" } },
     "agreements": { id: "agreements", tier: 3, type: "info", from: "eulaStatus" },
     "btSoundOut": { id: "btSoundOut", tier: 3, type: "info", from: "soundOutput" },
-    "updates": { id: "updates", tier: 3, type: "info", from: "automaticUpdate" },
     "look.style": { id: "look.style", tier: 1, type: "enum", api: { look: "style" } },
     // Connection's Wi-Fi value: Off, or the network it is on (Store.state).
     "wifiSummary": { id: "wifiSummary", tier: 2, type: "info", api: { service: "com.webos.service.wifi", read: "getstatus" } },
@@ -284,7 +277,6 @@ var labels = {
     avSync: { on: "On", off: "Off" },
     autoTime: { on: "Automatic", off: "Manual" },
     btSoundOut: { bt_soundbar: "On", bt_audio: "On" },
-    updates: { on: "Automatic", off: "Paused" },
     telemetryKit: { active: "", inactive: "", unknown: "" },
     onlineHelp: { Offline: "Offline: online help is unavailable", Online: "" },
     input: { hdmi1: "HDMI 1", hdmi2: "HDMI 2", hdmi3: "HDMI 3", hdmi4: "HDMI 4", atv: "Antenna", dtv: "Live TV",

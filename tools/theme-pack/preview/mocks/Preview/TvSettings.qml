@@ -22,7 +22,7 @@ QtObject {
         "option": { "highContrast": "off", "quickStartMode": "off", "country": "USA", "audioGuidance": "on" },
         "other": { "simplinkEnable": "on", "simplinkAutoPowerOn": "on" },
         "general": { "screenSaverEnabled": "on" },
-        "support": { "automaticUpdate": "off" },
+        "support": {},
         "": { "localeInfo": { "locales": { "UI": "en-US", "TV": "en-US", "FMT": "en-US", "NLP": "en-US" } },
               "eulaStatus": { "generalTermsAllowed": true, "networkAllowed": true, "acrOnAllowed": false, "acrAdAllowed": false,
                               "customAdAllowed": false, "additionalDataAllowed": false, "voiceAllowed": false, "voice2Allowed": false,

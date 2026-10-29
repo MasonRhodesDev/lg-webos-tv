@@ -52,7 +52,7 @@ FocusScope {
         "menu": { "open": menu.open, "stack": probeIds(menu.stack), "area": menu.area, "category": menu.category,
                   "dialog": menu.confirming !== null,
                   "focus": menu.area === "categories" ? probeRow(menu.categories.spec(menu.categories.currentIndex), menu.categories.currentIndex)
-                                                      : probeRow(menu.page.focusedRow, menu.page.list.currentIndex),
+                                                      : menu.page ? probeRow(menu.page.focusedRow, menu.page.list.currentIndex) : null,
                   "editing": menu.editing ? probeKeyboard() : null,
                   "pin": menu.pinning ? { "mode": menu.pinning.mode, "length": menu.pin.pin.length, "error": menu.pin.error,
                                           "pad": menu.pin.pad.currentIndex } : null }

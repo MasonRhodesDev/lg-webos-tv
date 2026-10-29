@@ -19,7 +19,7 @@
   "settingsservice": "LG reads with luna://com.webos.settingsservice/batch {operations:[{method:getSystemSettings, params:{category, keys, dimension?}}, {method:getSystemSettingDesc, params:{category, keys}}]} and keeps getSystemSettings {category, keys, subscribe:true} open. Writes are setSystemSettings {category, settings:{key:value}, dimension?}; resets are resetSystemSettings {category, keys, dimension?}. getSystemSettingValues {category, key} lists values for dynamic keys.",
   "visibility": "LG decides most row visibility at runtime from getSystemSettingDesc: ui.visible hides a row, ui.active greys it, and each arrayExt entry has its own visible/active. A few rules are coded on top (visibleWhen).",
   "dimensions": "Picture keys are stored per input x pictureMode x _3dStatus (and pictureMode per dynamicRange). Reading without a dimension returns the current input's values. Subscriptions fire when the input or HDR state changes.",
-  "otherServices": "Sleep timer: com.webos.service.tv.time getSleepTimeInfo {subscribe:true} / setSleepTimeInfo {sleepTimeMinute}. Network: com.webos.service.connectionmanager getstatus {subscribe:true}; com.webos.service.wifi findnetworks/connect/setstate/deleteprofile. Bluetooth audio: com.webos.service.btaudiosrc. Time: com.palm.systemservice getPreferences/setPreferences {useNetworkTime, timeZone}. Updates: com.webos.service.update."
+  "otherServices": "Sleep timer: com.webos.service.tv.time getSleepTimeInfo {subscribe:true} / setSleepTimeInfo {sleepTimeMinute}. Network: com.webos.service.connectionmanager getstatus {subscribe:true}; com.webos.service.wifi findnetworks/connect/setstate/deleteprofile. Bluetooth audio: com.webos.service.btaudiosrc. Time: com.palm.systemservice getPreferences/setPreferences {useNetworkTime, timeZone}."
  },
  "identity": {
   "ours": "The compositor's QML calls the bus as whatever appId its WebOSServices Service declares. Our layer uses com.webos.surfacemanager.systemui, which is in no permission group (commit 6d1b402).",
@@ -381,7 +381,7 @@
    "lgTarget": "general",
    "file": "general.json",
    "pages": 19,
-   "items": 83
+   "items": 81
   },
   {
    "id": "safety",

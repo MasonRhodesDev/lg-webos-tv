@@ -201,6 +201,15 @@ Item {
             compare(rows().rows[rowNamed("Language")].value, "English", "a link shows its setting's value");
             compare(rows().rows[rowNamed("Time and date")].value, "Manual");
             compare(rows().rows[rowNamed("About this TV")].value, "OLED55B9PUA");
+            focusRow("About this TV");
+            keyClick(Qt.Key_Return);
+            compare(topId(), "AboutThisTV");
+            var about = rows().rows;
+            verify(about.length > 0, "About this TV has rows");
+            for (var u = 0; u < about.length; u++)
+                verify(!/update/i.test((about[u].label || "") + " " + (about[u].ref || "")), "the TV is never updated: no " + about[u].label);
+            keyClick(Qt.Key_Escape);
+            compare(topId(), "General");
             compare(rowNamed("Look"), 7, "Look follows the board's seven rows");
             r = focusRow("Reset to initial settings");
             compare(r.variant, "nav", "an action that opens something has a chevron");
@@ -223,8 +232,7 @@ Item {
 
             openSettings("support", 104);
             compare(part.menu.page.sub, "Offline: online help is unavailable");
-            compare(rows().rows[rowNamed("Software update")].hint, "Updates are blocked while the TV stays offline", "offline: the hint");
-            compare(rows().rows[rowNamed("Software update")].value, "Paused");
+            compare(rowNamed("Software update"), -1, "the TV is never updated: no update row");
             focusRow("Signal test");
             keyClick(Qt.Key_Return);
             compare(topId(), "SignalTest", "Signal test opens the live signal");
@@ -251,7 +259,6 @@ Item {
             compare(rows().rows[rowNamed("Privacy and terms")].value, "Agreements withdrawn");
             TvSettings.network.isInternetConnectionAvailable = true;
             part.store.channels.network.services[0].call("luna://com.webos.service.connectionmanager", "/getstatus", "{}");
-            compare(rows().rows[rowNamed("Software update")].hint, "", "online: no hint");
             compare(part.menu.footer.text, "Online \u00b7 telemetry off");
             TvSettings.network.isInternetConnectionAvailable = false;
             part.store.channels.network.services[0].call("luna://com.webos.service.connectionmanager", "/getstatus", "{}");

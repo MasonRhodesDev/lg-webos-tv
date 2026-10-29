@@ -22,8 +22,6 @@ FocusScope {
     // The open category's page. Each category's page is made the first time it shows and kept while Settings lives,
     // so moving between categories shows a page instead of making its rows again (a row costs the TV tens of ms).
     property Item page: null
-    property var visited: ({})
-    property bool prefetch: false
     property alias categories: cats
     property alias dialog: dialog
     property alias footer: foot
@@ -71,20 +69,22 @@ FocusScope {
     // Whether the stack is in this category: read from the stack itself, so a page's bindings never see the stack
     // of one category with the category of another.
     function owns(cat) { return stack.length > 0 && Pages.categoryFor(stack[0].id) === cat; }
-    Timer { id: prefetching; interval: Look.px("motion-enter") * 2; onTriggered: menu.prefetch = true }
+    // The other categories' pages are made a little at a time once Settings is up, so a first visit to them is as
+    // quick as a return.
+    Timer {
+        id: prefetching
+        interval: Look.px("motion-enter") * 2
+        onTriggered: { for (var i = 0; i < pages.count; i++) { var p = pages.itemAt(i); if (p && !p.active) p.active = true; } }
+    }
     onStackChanged: { for (var i = 0; i < pages.count; i++) { var p = pages.itemAt(i); if (p && p.item) p.item.follow(); } }
     onCategoryChanged: showPage()
-    Component.onCompleted: showPage()
+    // The open category's page is made now if it is not made yet, or finished now if it is still being made.
     function showPage() {
-        var c = category;
-        if (!visited[c]) {
-            var v = {};
-            for (var k in visited) v[k] = true;
-            v[c] = true;
-            visited = v;
-        }
-        var slot = pages.itemAt(indexOfCategory(c));
-        if (slot && slot.item) page = slot.item;
+        var slot = pages.itemAt(indexOfCategory(category));
+        if (!slot) return;
+        slot.asynchronous = false;
+        slot.active = true;
+        if (slot.item) page = slot.item;
     }
     function indexOfCategory(id) {
         var c = Pages.categories(id);
@@ -225,10 +225,8 @@ FocusScope {
                 x: rule.x + rule.width + Look.px("space-xl")
                 width: parent.width - x
                 height: parent.height
-                // The open category's page is made at once; the rest are made a little at a time once Settings is
-                // up, so a first visit to them is as quick as a return. Asked for before it is done, it finishes now.
-                active: !!menu.visited[cat] || menu.prefetch
-                asynchronous: menu.category !== cat
+                active: false
+                asynchronous: true
                 visible: menu.category === cat
                 sourceComponent: PageView {
                     // Follows the stack while it is in this category; out of it, keeps its last page as it was.
@@ -260,7 +258,8 @@ FocusScope {
                     onUnlock: menu.pinning = { "mode": "check", "row": row }
                     onChangePin: { menu.pinning = { "mode": "new" }; pin.reset(); }
                 }
-                onLoaded: if (menu.category === cat) menu.page = item
+                // Made after it was asked for: it takes over as the page, focus included.
+                onLoaded: if (menu.category === cat && menu.page !== item) { menu.page = item; if (menu.open) menu.focusArea(); }
             }
         }
     }

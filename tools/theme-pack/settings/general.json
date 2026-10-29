@@ -932,46 +932,6 @@
      "notes": "also com.palm.systemservice/osInfo/query"
     },
     {
-     "id": "checkUpdate",
-     "meaning": "Check for a software update",
-     "tier": 2,
-     "api": {
-      "service": "com.webos.service.update",
-      "write": "checkUpdate",
-      "status": "getCurStatus / getProgress",
-      "start": "startUpdate",
-      "cancel": "cancelUpdate"
-     },
-     "type": "action",
-     "sideEffects": [
-      "installing reboots the TV"
-     ],
-     "notes": "useless offline; a rooted TV may want updates blocked anyway"
-    },
-    {
-     "id": "automaticUpdate",
-     "meaning": "Install updates automatically",
-     "tier": 2,
-     "api": {
-      "service": "com.webos.settingsservice",
-      "read": "getSystemSettings",
-      "write": "setSystemSettings",
-      "category": "support",
-      "keys": [
-       "automaticUpdate"
-      ]
-     },
-     "type": "switch",
-     "domain": {
-      "values": [
-       "on",
-       "off"
-      ]
-     },
-     "domainSource": "description.json, base variant",
-     "notes": "on a rooted TV an update can remove root; keep off"
-    },
-    {
      "id": "tvInformation",
      "meaning": "Model, serial, MAC addresses",
      "tier": 2,
