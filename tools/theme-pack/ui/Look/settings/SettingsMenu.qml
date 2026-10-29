@@ -19,7 +19,11 @@ FocusScope {
     readonly property var topEntry: stack.length ? stack[stack.length - 1] : null
     readonly property string category: topEntry ? Pages.categoryFor(stack[0].id) : "picture"
     signal closed()
-    property alias page: page
+    // The open category's page. Each category's page is made the first time it shows and kept while Settings lives,
+    // so moving between categories shows a page instead of making its rows again (a row costs the TV tens of ms).
+    property Item page: null
+    property var visited: ({})
+    property bool prefetch: false
     property alias categories: cats
     property alias dialog: dialog
     property alias footer: foot
@@ -32,9 +36,11 @@ FocusScope {
         for (var i = 0; i < ids.length; i++) s.push({ "id": ids[i] });
         if (!s.length) s = [{ "id": Pages.topOf("picture") }];
         stack = s;
+        showPage();
         area = ids.length ? "page" : "categories";
         cats.currentIndex = indexOfCategory(category);
         open = true;
+        prefetching.restart();
         focusArea();
         guard();
     }
@@ -61,6 +67,24 @@ FocusScope {
         if (stack.length > 1) { stack = stack.slice(0, stack.length - 1); return; }
         area = "categories";
         focusArea();
+    }
+    // Whether the stack is in this category: read from the stack itself, so a page's bindings never see the stack
+    // of one category with the category of another.
+    function owns(cat) { return stack.length > 0 && Pages.categoryFor(stack[0].id) === cat; }
+    Timer { id: prefetching; interval: Look.px("motion-enter") * 2; onTriggered: menu.prefetch = true }
+    onStackChanged: { for (var i = 0; i < pages.count; i++) { var p = pages.itemAt(i); if (p && p.item) p.item.follow(); } }
+    onCategoryChanged: showPage()
+    Component.onCompleted: showPage()
+    function showPage() {
+        var c = category;
+        if (!visited[c]) {
+            var v = {};
+            for (var k in visited) v[k] = true;
+            v[c] = true;
+            visited = v;
+        }
+        var slot = pages.itemAt(indexOfCategory(c));
+        if (slot && slot.item) page = slot.item;
     }
     function indexOfCategory(id) {
         var c = Pages.categories(id);
@@ -165,11 +189,17 @@ FocusScope {
                 focusShown: menu.area === "categories"
                 rows: Pages.categories(menu.category)
                 model: rows.length
-                onCurrentIndexChanged: {
-                    var c = spec(currentIndex);
-                    if (menu.open && menu.area === "categories" && c && c.category !== menu.category) menu.stack = [{ "id": Pages.topOf(c.category) }];
+                function show(c) {
+                    if (!c || c.category === menu.category) return;
+                    // The category's first page as its kept page holds it, so the page shows without changing.
+                    var top = Pages.topOf(c.category), kept = pages.itemAt(menu.indexOfCategory(c.category));
+                    kept = kept && kept.item ? kept.item.entry : null;
+                    menu.stack = [kept && kept.id === top ? kept : { "id": top }];
                 }
-                onActivated: { menu.area = "page"; menu.focusArea(); }
+                // Keys walk the categories and show each page; the pointer only points at one, and a click opens it.
+                onCurrentIndexChanged: if (menu.open && menu.area === "categories" && !pointing) show(spec(currentIndex))
+                onPointed: if (menu.area !== "categories") { menu.area = "categories"; menu.focusArea(); }
+                onActivated: { show(row); menu.area = "page"; menu.focusArea(); }
                 onBack: menu.close()
             }
             Label {
@@ -186,31 +216,52 @@ FocusScope {
             vertical: true
             x: side.width + Look.px("space-xl")
         }
-        PageView {
-            id: page
-            x: rule.x + rule.width + Look.px("space-xl")
-            width: parent.width - x
-            height: parent.height
-            headerInset: Look.px("space-s")
-            store: menu.store
-            pointer: menu.pointer
-            active: menu.open
-            entry: menu.topEntry
-            crumb: menu.stack.length > 1 ? Pages.title(menu.stack[menu.stack.length - 2]) : ""
-            sub: {
-                var rev = menu.store.revision, e = menu.topEntry;
-                if (!e) return "";
-                return e.subSpec ? Pages.subtitle(e.subSpec, menu.store) : e.sub || Pages.subtitle(Pages.expanded(e).sub, menu.store);
+        Repeater {
+            id: pages
+            model: Pages.categories("")
+            Loader {
+                id: slot
+                readonly property string cat: modelData.category
+                x: rule.x + rule.width + Look.px("space-xl")
+                width: parent.width - x
+                height: parent.height
+                // The open category's page is made at once; the rest are made a little at a time once Settings is
+                // up, so a first visit to them is as quick as a return. Asked for before it is done, it finishes now.
+                active: !!menu.visited[cat] || menu.prefetch
+                asynchronous: menu.category !== cat
+                visible: menu.category === cat
+                sourceComponent: PageView {
+                    // Follows the stack while it is in this category; out of it, keeps its last page as it was.
+                    // Made ahead of a visit, it holds its category's first page.
+                    function follow() {
+                        var s = menu.stack;
+                        if (menu.owns(slot.cat)) entry = s[s.length - 1];
+                        else if (!entry) entry = { "id": Pages.topOf(slot.cat) };
+                    }
+                    Component.onCompleted: follow()
+                    headerInset: Look.px("space-s")
+                    store: menu.store
+                    pointer: menu.pointer
+                    active: menu.open && menu.owns(slot.cat)
+                    crumb: { var s = menu.stack; return menu.owns(slot.cat) && s.length > 1 ? Pages.title(s[s.length - 2]) : ""; }
+                    sub: {
+                        var rev = active ? menu.store.revision : 0, e = entry;
+                        if (!e) return "";
+                        return e.subSpec ? Pages.subtitle(e.subSpec, menu.store) : e.sub || Pages.subtitle(Pages.expanded(e).sub, menu.store);
+                    }
+                    list.focusShown: menu.area === "page"
+                    onPointed: if (menu.area !== "page" && menu.editing === null && menu.pinning === null) { menu.area = "page"; menu.focusArea(); }
+                    onOpen: menu.push(entry)
+                    onDone: menu.pop()
+                    onBack: menu.pop()
+                    onAllSettings: {}
+                    onConfirm: menu.confirming = row
+                    onEdit: menu.startEdit(request)
+                    onUnlock: menu.pinning = { "mode": "check", "row": row }
+                    onChangePin: { menu.pinning = { "mode": "new" }; pin.reset(); }
+                }
+                onLoaded: if (menu.category === cat) menu.page = item
             }
-            list.focusShown: menu.area === "page"
-            onOpen: menu.push(entry)
-            onDone: menu.pop()
-            onBack: menu.pop()
-            onAllSettings: {}
-            onConfirm: menu.confirming = row
-            onEdit: menu.startEdit(request)
-            onUnlock: menu.pinning = { "mode": "check", "row": row }
-            onChangePin: { menu.pinning = { "mode": "new" }; pin.reset(); }
         }
     }
 

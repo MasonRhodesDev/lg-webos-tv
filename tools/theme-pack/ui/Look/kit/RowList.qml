@@ -22,6 +22,9 @@ ListView {
     signal activated(int index, var row)
     signal adjusted(int index, int delta)
     signal back()
+    // The pointer came onto a row and focused it; `pointing` is true while that moves currentIndex.
+    signal pointed(int index)
+    property bool pointing: false
 
     readonly property int length: rows ? rows.length : model && model.length !== undefined ? model.length : 0
     function spec(i) { return i >= 0 && i < length ? (rows ? rows[i] : model[i]) : null; }
@@ -137,8 +140,20 @@ ListView {
             anchors.fill: parent
             enabled: list.pointer && list.focusable(slot.at)
             hoverEnabled: enabled
-            onEntered: list.currentIndex = slot.at
-            onClicked: { list.currentIndex = slot.at; list.activated(slot.at, slot.r); }
+            onEntered: { list.pointing = true; list.currentIndex = slot.at; list.pointing = false; list.pointed(slot.at); }
+            onClicked: { list.pointing = true; list.currentIndex = slot.at; list.pointing = false; list.activated(slot.at, slot.r); }
+            // The magic remote's wheel steps a slider row: one notch (120) is one step, away from you is up.
+            property real wheelRest: 0
+            onWheel: {
+                var r = slot.r;
+                if (!r || r.variant !== "slider") { wheel.accepted = false; return; }
+                wheelRest += wheel.angleDelta.y;
+                var steps = wheelRest > 0 ? Math.floor(wheelRest / 120) : Math.ceil(wheelRest / 120);
+                wheelRest -= steps * 120;
+                list.currentIndex = slot.at;
+                for (var i = 0; i < Math.abs(steps); i++) list.adjusted(slot.at, steps > 0 ? 1 : -1);
+                wheel.accepted = true;
+            }
         }
     }
 }

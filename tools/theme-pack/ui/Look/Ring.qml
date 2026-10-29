@@ -35,32 +35,44 @@ Item {
     // Decoration on a disabled component recedes with it.
     opacity: (recipe.opacity !== undefined ? recipe.opacity : 1) * (host.disabled ? 0.5 : 1)
 
-    Image {
-        visible: !!ring.recipe.asset
+    // Only the piece the recipe draws is made, and only once the ring first shows: a row carries a ring per theme
+    // recipe, and making every glow up front cost the TV tens of milliseconds a row.
+    property bool wanted: false
+    onVisibleChanged: if (visible) wanted = true
+    Component.onCompleted: wanted = visible
+
+    Loader {
+        active: ring.wanted && !!ring.recipe.asset
         anchors.fill: parent
-        source: ring.recipe.asset && Look.assets ? Look.assets + ring.theme + "/" + ring.recipe.asset : ""
-        fillMode: Image.PreserveAspectFit
-        smooth: true
-        mipmap: true
+        sourceComponent: Image {
+            source: ring.recipe.asset && Look.assets ? Look.assets + ring.theme + "/" + ring.recipe.asset : ""
+            fillMode: Image.PreserveAspectFit
+            smooth: true
+            mipmap: true
+        }
     }
 
     // RectangularGlow spreads its blur outside its own box, so the box is inset by the blur to stay inside the ring.
-    RectangularGlow {
-        visible: !!ring.recipe.fill
+    Loader {
+        active: ring.wanted && !!ring.recipe.fill
         anchors.fill: parent
         anchors.margins: ring.recipe.blur || 0
-        glowRadius: ring.recipe.blur || 0
-        spread: 0.2
-        cornerRadius: ring.radius
-        color: ring.recipe.fill ? Look.fill(ring.recipe.fill) : "transparent"
+        sourceComponent: RectangularGlow {
+            glowRadius: ring.recipe.blur || 0
+            spread: 0.2
+            cornerRadius: ring.radius
+            color: ring.recipe.fill ? Look.fill(ring.recipe.fill) : "transparent"
+        }
     }
 
-    Rectangle {
-        visible: !!ring.recipe.stroke
+    Loader {
+        active: ring.wanted && !!ring.recipe.stroke
         anchors.fill: parent
-        color: "transparent"
-        border.width: ring.recipe.strokeWidth || 1
-        border.color: ring.recipe.stroke ? Look.fill(ring.recipe.stroke) : "transparent"
-        radius: Math.min(ring.radius, width / 2, height / 2)
+        sourceComponent: Rectangle {
+            color: "transparent"
+            border.width: ring.recipe.strokeWidth || 1
+            border.color: ring.recipe.stroke ? Look.fill(ring.recipe.stroke) : "transparent"
+            radius: Math.min(ring.radius, width / 2, height / 2)
+        }
     }
 }

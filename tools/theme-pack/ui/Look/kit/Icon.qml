@@ -18,6 +18,10 @@ Canvas {
     onColorChanged: requestPaint()
     onStrokeChanged: requestPaint()
     onWidthChanged: requestPaint()
+    // On the TV a paint made while hidden or before the canvas is ready may never reach the screen, so it paints
+    // again whenever it becomes ready or shows.
+    onAvailableChanged: if (available) requestPaint()
+    onVisibleChanged: if (visible) requestPaint()
 
     onPaint: {
         var ctx = getContext("2d");

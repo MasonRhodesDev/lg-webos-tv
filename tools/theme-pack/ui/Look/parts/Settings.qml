@@ -19,7 +19,9 @@ FocusScope {
     readonly property int layerNumber: 7
     readonly property bool shown: quick.open || menu.open
     // LG's key filter knows when the magic remote's pointer is showing.
-    readonly property bool pointer: !!(host && host.keyFilter && host.keyFilter.cursorVisible)
+    // Our menus always take the pointer while open. LG's cursorVisible flag drops back to false within a second or two
+    // even while the magic remote is in use, so gating on it let clicks fall through to the app underneath.
+    readonly property bool pointer: true
     property alias quick: quick
     property alias menu: menu
     property alias store: store
@@ -66,8 +68,40 @@ FocusScope {
 
     property bool holding: false
     onShownChanged: {
-        if (shown && !holding) { holding = true; focusLink.request(part); }
-        else if (!shown && holding) { holding = false; focusLink.release(part); }
+        if (shown && !holding) { holding = true; borrowPopupPlane(); focusLink.request(part); }
+        else if (!shown && holding) { holding = false; focusLink.release(part); returnPopupPlane(); }
+    }
+
+    // LG's key filter hands Back to the focused item only in a few cases; one is "LG's popup plane has focus and no
+    // popup in it claims Back" (KeyFilters/systemUi.js). Otherwise it emits backReleased and LG goes Home. So while a
+    // menu of ours is open it lives inside the popup plane, which is shown for the time (it hides itself when empty).
+    property Item plane: null
+    property Item home: null
+    property real planeZ: 0
+    function findPopupPlane() {
+        var kids = host ? host.children : [];
+        for (var i = 0; i < kids.length; i++)
+            if (kids[i].backKeyFilter !== undefined && kids[i].currentView !== undefined && kids[i].layerNumber === 6) return kids[i];
+        return null;
+    }
+    function borrowPopupPlane() {
+        var p = findPopupPlane();
+        if (!p) { Look.report("gap", "settings: LG's popup plane not found; Back goes to LG"); return; }
+        plane = p;
+        home = part.parent;
+        planeZ = p.z;
+        // Raised to our layer's height too: in its own place LG's views above it would take the pointer.
+        p.z = home ? home.z : p.z;
+        p.visible = true;
+        part.parent = p;
+    }
+    function returnPopupPlane() {
+        if (!plane) return;
+        var p = plane;
+        plane = null;
+        part.parent = home;
+        p.z = planeZ;
+        p.visible = Qt.binding(function () { return p.model.count > 0; });
     }
 
     // A gear press while the sheet is still arriving is the remote repeating a held key, not a second press.
@@ -104,6 +138,17 @@ FocusScope {
         Look.report("ready", "settings: host ready");
     }
     function closeAll() { quick.close(); menu.close(); }
+
+    // Behind our menus while one is open: a click outside them closes ours instead of reaching the app underneath
+    // (the HDMI app's banner took such clicks), and the pointer never falls through.
+    MouseArea {
+        anchors.fill: parent
+        enabled: part.shown
+        hoverEnabled: enabled
+        acceptedButtons: Qt.AllButtons
+        onClicked: part.closeAll()
+        onWheel: wheel.accepted = true
+    }
 
     QuickSheet {
         id: quick

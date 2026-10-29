@@ -16,7 +16,12 @@ FocusScope {
     property real headerInset: 0
     property bool pointer: false
     property alias list: list
-    readonly property var rows: { var rev = store ? store.revision : 0; return entry && store ? Pages.model(entry, store, Look) : []; }
+    // Live while shown; a hidden page makes its rows once and leaves them, rather than following every change.
+    readonly property var rows: {
+        if (!entry || !store) return [];
+        if (active) var rev = store.revision;
+        return Pages.model(entry, store, Look);
+    }
     readonly property var focusedRow: list.spec(list.currentIndex)
     signal open(var entry)
     signal done()
@@ -27,6 +32,8 @@ FocusScope {
     signal unlock(var row)
     signal changePin()
     signal back()
+    // The pointer came onto one of the rows.
+    signal pointed()
 
     // Subscribed only while shown: a closed sheet or Settings holds nothing open on the bus.
     property bool active: true
@@ -145,5 +152,6 @@ FocusScope {
             if (next !== undefined) view.store.set(r.ref, next);
         }
         onBack: view.back()
+        onPointed: view.pointed()
     }
 }

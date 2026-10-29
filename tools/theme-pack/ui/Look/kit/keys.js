@@ -9,6 +9,7 @@ function nav(event, Qt) {
     case Qt.Key_Right: return "right";
     case Qt.Key_Return: case Qt.Key_Enter: case Qt.Key_Select: return "ok";
     case Qt.Key_Back: case Qt.Key_Escape: case Qt.Key_Backspace: return "back";
+    case 0x01200003: return "back"; // the remote's Back on webOS (WebOS.Key_webOS_Back)
     }
     return "";
 }
