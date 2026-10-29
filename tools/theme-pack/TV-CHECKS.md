@@ -180,3 +180,15 @@ Known gaps against the Settings boards (every row that differs from its board, a
   app straight away, without LG's toast when the sound is not on the TV speakers.
 - Quick sheet: none (Energy saving's state is the fixture's).
 - Look follows General's seven board rows (the boards have no Look category).
+
+Bluetooth (bluetooth2 for status, btaudiosrc for actions)
+- [ ] The Bluetooth page lists the paired speakers from `luna://com.webos.service.bluetooth2/device/getStatus`
+      (subscribed), with Connected where `connectedProfiles` is not empty, and follows a speaker turned on or off.
+- [ ] The magic remote ("LGE MR19", BLE) is never listed and does not count in "N paired"; Bluetooth surround stays
+      greyed with only the remote paired.
+- [ ] These btaudiosrc calls, LG's own Settings' methods, answer from our identity (TV-unverified; a silent one rolls
+      back after the timeout with a toast): `startDiscovery {subscribe}`, `connect {address}` (pair and connect),
+      `disconnect {address}`, `removePairedDevice {address}`. If they go unanswered like `getPairedDevices`, the
+      bluetooth2 equivalents to try are `adapter/startDiscovery`, `adapter/pair`, `a2dp/connect`, `a2dp/disconnect`,
+      `adapter/unpair`.
+

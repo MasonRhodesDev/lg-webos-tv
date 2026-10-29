@@ -64,10 +64,20 @@ QtObject {
         { "ssid": "Garage", "signalBars": 2, "availableSecurityTypes": ["psk"], "password": "wrench12" }
     ]
     property int nextProfile: 3
-    // Bluetooth audio as com.webos.service.btaudiosrc answers it; `nearby` is what a search finds.
-    property var btPaired: [
-        { "address": "00:00:5E:00:53:01", "name": "Living room soundbar", "state": "connected" }
+    // Bluetooth as the real TV answers com.webos.service.bluetooth2/device/getStatus: paired devices with their class
+    // (major class 4 is audio), the magic remote among them (BLE, "LGE MR19"). Connected means connectedProfiles is
+    // not empty. Actions go to com.webos.service.btaudiosrc, as LG's Settings sends them; `nearby` is what its search
+    // finds.
+    property var btDevices: [
+        { "address": "00:00:5E:00:53:01", "name": "Living room soundbar", "paired": true, "typeOfDevice": "bredr",
+          "classOfDevice": 2360320, "connectedProfiles": ["a2dp"], "trusted": false, "blocked": false, "rssi": 0 },
+        { "address": "00:00:5E:00:53:0A", "name": "LGE MR19", "paired": true, "typeOfDevice": "ble", "classOfDevice": 7936,
+          "connectedProfiles": ["hid"], "trusted": true, "blocked": false, "rssi": 0 }
     ]
+    function btPair(name, address, connected) {
+        btDevices.push({ "address": address, "name": name, "paired": true, "typeOfDevice": "bredr", "classOfDevice": 2360320,
+                         "connectedProfiles": connected ? ["a2dp"] : [], "trusted": false, "blocked": false, "rssi": 0 });
+    }
     property var btNearby: [{ "address": "00:00:5E:00:53:03", "name": "Headphones", "type": "headset" }]
     // Keys ("category.key", "sleepTimer", "volume", "wifi.connect", "wifi.forget", "wifi.state", "bt.connect",
     // "bt.disconnect", "bt.forget", "bt.search") whose next write fails, to show the rollback.
@@ -112,7 +122,7 @@ QtObject {
             if (s.kind === "prefs" && key === "prefs") answer(s.svc, "/getPreferences", { "returnValue": true, "useNetworkTime": preferences.useNetworkTime });
             if (s.kind === "wifi" && key === "wifi") answer(s.svc, "/getstatus", { "returnValue": true, "status": wifiState });
             if (s.kind === "networks" && key === "wifi") answer(s.svc, "/findnetworks", foundNetworks());
-            if (s.kind === "bt" && key === "bt") answer(s.svc, "/getDeviceStatus", { "returnValue": true, "listType": "paired", "state": "paired" });
+            if (s.kind === "bt" && key === "bt") answer(s.svc, "/device/getStatus", btStatus());
         }
     }
     function cancel(svc) {
@@ -142,9 +152,10 @@ QtObject {
         return true;
     }
     function device(address) {
-        for (var i = 0; i < btPaired.length; i++) if (btPaired[i].address === address) return btPaired[i];
+        for (var i = 0; i < btDevices.length; i++) if (btDevices[i].address === address) return btDevices[i];
         return null;
     }
+    function btStatus() { return { "returnValue": true, "adapterAddress": "00:00:5E:00:53:FF", "devices": btDevices }; }
     function handleWifi(svc, method, p) {
         if (method === "/getstatus") {
             if (p.subscribe) subs.push({ "svc": svc, "kind": "wifi" });
@@ -178,13 +189,21 @@ QtObject {
             answer(svc, method, { "returnValue": true });
         }
     }
+    function handleBt2(svc, method, p) {
+        if (method === "/device/getStatus") {
+            if (p.subscribe) subs.push({ "svc": svc, "kind": "bt" });
+            answer(svc, method, btStatus());
+        } else if (method === "/adapter/getStatus") {
+            answer(svc, method, { "returnValue": true, "adapters": [{ "powered": true, "name": "TV", "discovering": false }] });
+        } else {
+            answer(svc, method, { "returnValue": false, "errorText": "not mocked" });
+        }
+    }
     function handleBt(svc, method, p) {
         var i, d;
         if (method === "/getPairedDevices") {
-            answer(svc, method, { "returnValue": true, "count": btPaired.length, "devices": btPaired });
-        } else if (method === "/getDeviceStatus") {
-            if (p.subscribe) subs.push({ "svc": svc, "kind": "bt" });
-            answer(svc, method, { "returnValue": true, "subscribed": true });
+            // The real TV leaves this unanswered; nothing of ours may need it.
+            return;
         } else if (method === "/startDiscovery") {
             if (failing("bt.search", svc, method)) return;
             answer(svc, method, { "returnValue": true, "timeOut": 60 });
@@ -193,23 +212,24 @@ QtObject {
             if (failing("bt.connect", svc, method, "Pairing failed")) return;
             d = device(p.address);
             if (!d) {
-                for (i = 0; i < btNearby.length; i++) if (btNearby[i].address === p.address) d = { "address": p.address, "name": btNearby[i].name };
+                for (i = 0; i < btNearby.length; i++) if (btNearby[i].address === p.address) d = btNearby[i];
                 if (!d) { answer(svc, method, { "returnValue": false, "errorText": "No such device" }); return; }
-                btPaired.push(d);
+                btPair(d.name, d.address, false);
+                d = device(p.address);
             }
-            for (i = 0; i < btPaired.length; i++) btPaired[i].state = "disconnected";
-            d.state = "connected";
+            for (i = 0; i < btDevices.length; i++) if (btDevices[i].classOfDevice === 2360320) btDevices[i].connectedProfiles = [];
+            d.connectedProfiles = ["a2dp"];
             answer(svc, method, { "returnValue": true });
             notify("", "bt");
         } else if (method === "/disconnect") {
             if (failing("bt.disconnect", svc, method)) return;
             d = device(p.address);
-            if (d) d.state = "disconnected";
+            if (d) d.connectedProfiles = [];
             answer(svc, method, { "returnValue": true });
             notify("", "bt");
         } else if (method === "/removePairedDevice") {
             if (failing("bt.forget", svc, method)) return;
-            for (i = 0; i < btPaired.length; i++) if (btPaired[i].address === p.address) btPaired.splice(i, 1);
+            for (i = 0; i < btDevices.length; i++) if (btDevices[i].address === p.address) btDevices.splice(i, 1);
             answer(svc, method, { "returnValue": true });
             notify("", "bt");
         } else {
@@ -224,7 +244,7 @@ QtObject {
         if (["com.webos.settingsservice", "com.webos.service.tv.time", "com.webos.service.connectionmanager", "com.webos.audio",
              "com.webos.service.tv.display", "com.webos.service.tvpower", "com.webos.applicationManager",
              "com.webos.service.tv.systemproperty", "com.palm.systemservice",
-             "com.webos.service.wifi", "com.webos.service.btaudiosrc", "com.webos.notification"].indexOf(service) < 0) return false;
+             "com.webos.service.wifi", "com.webos.service.btaudiosrc", "com.webos.service.bluetooth2", "com.webos.notification"].indexOf(service) < 0) return false;
         calls.push({ "uri": uri, "method": method, "params": p });
         var key;
         if (service === "com.webos.settingsservice") {
@@ -259,6 +279,8 @@ QtObject {
             handleWifi(svc, method, p);
         } else if (service === "com.webos.service.btaudiosrc") {
             handleBt(svc, method, p);
+        } else if (service === "com.webos.service.bluetooth2") {
+            handleBt2(svc, method, p);
         } else if (service === "com.webos.service.connectionmanager") {
             answer(svc, method, network);
         } else if (service === "com.webos.audio") {

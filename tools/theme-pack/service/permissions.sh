@@ -28,7 +28,7 @@ com.palm.systemservice/osInfo/query com.palm.systemservice/getPreferences com.pa
 com.webos.service.tv.systemproperty/doUserDefault
 com.webos.service.wifi/getstatus com.webos.service.wifi/setstate com.webos.service.wifi/findnetworks
 com.webos.service.wifi/connect com.webos.service.wifi/deleteprofile
-com.webos.service.btaudiosrc/getPairedDevices com.webos.service.btaudiosrc/getDeviceStatus
+com.webos.service.bluetooth2/device/getStatus
 com.webos.service.btaudiosrc/startDiscovery com.webos.service.btaudiosrc/connect com.webos.service.btaudiosrc/disconnect
 com.webos.service.btaudiosrc/removePairedDevice'
 node -e '

@@ -66,7 +66,7 @@ QtObject {
         if (it.api.look) return "look";
         // Wi-Fi's on/off is cheap to watch; the scan of the air runs only while a page lists the networks.
         if (it.api.service === "com.webos.service.wifi") return it.api.read === "findnetworks" ? "wifiScan" : "wifi";
-        if (it.api.service === "com.webos.service.btaudiosrc") return "bluetooth";
+        if (it.api.service === "com.webos.service.btaudiosrc" || it.api.service === "com.webos.service.bluetooth2") return "bluetooth";
         return "";
     }
 
@@ -206,10 +206,9 @@ QtObject {
             ch.services = [scan];
         } else if (name === "bluetooth") {
             var dev = service();
-            dev.response.connect(function (method, payload) { store.onDeviceStatus(payload); });
-            dev.call(bt, "/getDeviceStatus", JSON.stringify({ "subscribe": true }));
+            dev.response.connect(function (method, payload) { store.onBtStatus(store.parse(payload)); });
+            dev.call(bt2, "/device/getStatus", JSON.stringify({ "subscribe": true }));
             ch.services = [dev];
-            readPaired();
         }
     }
 
@@ -268,6 +267,7 @@ QtObject {
 
     readonly property string wifi: "luna://com.webos.service.wifi"
     readonly property string bt: "luna://com.webos.service.btaudiosrc"
+    readonly property string bt2: "luna://com.webos.service.bluetooth2"
     // Live lists by ref, and which of them are scanning.
     property var lists: ({ "wifiNetworks": [], "btDevices": [] })
     property var scanning: ({})
@@ -371,27 +371,44 @@ QtObject {
         }, function () { store.restore("wifiNetworks", "ssid", before); store.refused("wifiForget", "Not forgotten: the TV did not answer"); });
     }
 
-    // Bluetooth audio (com.webos.service.btaudiosrc): getPairedDevices { devices: [{ address, name, state }] };
-    // getDeviceStatus pushes { listType: paired|discovered, state, address }; startDiscovery is a subscription that
-    // says { state: "started", device } per device found and { state: "stopped" } at the end.
-    function readPaired() {
-        request(bt, "/getPairedDevices", "{}", function (m) {
-            if (!m || m.returnValue === false) return;
-            var devices = m.devices || [], out = [], l = store.list("btDevices"), i;
-            for (i = 0; i < devices.length; i++) {
-                var d = devices[i], s = d.state === "connected" ? "connected" : d.state === "connecting" ? "connecting" : "paired";
-                out.push({ "address": d.address, "name": d.name || d.address, "type": d.type || "", "paired": true, "status": s });
-            }
-            for (i = 0; i < l.length; i++) if (!l[i].paired && !store.findIn(out, l[i].address)) out.push(l[i]);
-            store.values.btPairedCount = devices.length;
-            store.replace("btDevices", out);
-        }, null);
+    // Bluetooth. What is paired, and connected, comes from com.webos.service.bluetooth2/device/getStatus
+    // { devices: [{ address, name, paired, typeOfDevice, classOfDevice, connectedProfiles }] } (btaudiosrc's
+    // getPairedDevices goes unanswered on the TV). Search, pair, connect, disconnect and forget go to
+    // com.webos.service.btaudiosrc, as LG's own Settings sends them: startDiscovery says { state: "started", device }
+    // per device found and { state: "stopped" } at the end.
+    //
+    // The magic remote is paired over Bluetooth too. It is never listed and never acted on: forgetting or
+    // disconnecting it would leave the household without a remote. Only audio devices are listed and counted.
+    function isRemote(d) {
+        if (!d) return false;
+        if (/^LGE\s?MR/i.test(d.name || "")) return true;
+        return d.typeOfDevice === "ble" && !isAudio(d);
     }
+    // Bluetooth's class of device: major class 4 is audio and video. Unknown is taken as audio, unless it is the remote.
+    function isAudio(d) { return d.classOfDevice === undefined || ((d.classOfDevice >> 8) & 0x1f) === 4; }
+    function audible(d) { return !!d && !!d.address && !isRemote(d) && isAudio(d); }
+    function onBtStatus(m) {
+        if (!m || m.returnValue === false || !m.devices) return;
+        var devices = m.devices, out = [], l = list("btDevices"), paired = 0, i;
+        for (i = 0; i < devices.length; i++) {
+            var d = devices[i];
+            if (!audible(d)) continue;
+            var connected = !!(d.connectedProfiles && d.connectedProfiles.length);
+            if (d.paired) paired++;
+            out.push({ "address": d.address, "name": d.name || d.address, "type": d.typeOfDevice || "", "classOfDevice": d.classOfDevice,
+                       "paired": !!d.paired, "status": connected ? "connected" : d.paired ? "paired" : "new" });
+        }
+        for (i = 0; i < l.length; i++) if (!l[i].paired && !findIn(out, l[i].address)) out.push(l[i]);
+        values.btPairedCount = paired;
+        replace("btDevices", out);
+    }
+    function readPaired() { request(bt2, "/device/getStatus", "{}", function (m) { store.onBtStatus(m); }, null); }
     function findIn(l, address) { for (var i = 0; i < l.length; i++) if (l[i].address === address) return l[i]; return null; }
-    function onDeviceStatus(payload) {
-        var m = parse(payload);
-        if (!m || m.returnValue === false || m.state === undefined) return;
-        if (m.listType === "paired") readPaired();
+    // The hard rule, checked again at every action: never the remote.
+    function protectedDevice(dev, text) {
+        if (!isRemote(dev)) return false;
+        refused("btDevices", text + ": that is the TV's remote");
+        return true;
     }
     property var discovery: null
     property var discoveryWatch: Timer {
@@ -409,7 +426,7 @@ QtObject {
             if (!d) return;
             d.answered = true;
             if (!m || m.returnValue === false) { store.btStop(); store.refused("btDevices", "Not searching: " + (m && m.errorText || "the TV refused")); return; }
-            if (m.state === "started" && m.device && m.device.address && !store.lookup("btDevices", "address", m.device.address)) {
+            if (m.state === "started" && m.device && m.device.address && !store.isRemote(m.device) && !store.lookup("btDevices", "address", m.device.address)) {
                 var l = store.list("btDevices").slice();
                 l.push({ "address": m.device.address, "name": m.device.name || m.device.address, "type": m.device.type || "", "paired": false, "status": "new" });
                 store.replace("btDevices", l);
@@ -429,6 +446,7 @@ QtObject {
     }
     // One device action: the device shows `during` at once, and goes back to what it was if the TV says no.
     function btAction(dev, method, during, done, text) {
+        if (protectedDevice(dev, text)) return;
         var before = patch("btDevices", "address", dev.address, { "status": during });
         function rollback(why) { store.restore("btDevices", "address", before); store.refused("btDevices", text + ": " + why); }
         request(bt, method, JSON.stringify({ "address": dev.address }), function (m) {
@@ -457,6 +475,7 @@ QtObject {
         }, "Still connected to " + dev.name);
     }
     function btForget(dev) {
+        if (protectedDevice(dev, "Not forgotten")) return;
         var before = lookup("btDevices", "address", dev.address), l = list("btDevices").slice();
         for (var i = 0; i < l.length; i++) if (l[i].address === dev.address) l.splice(i, 1);
         replace("btDevices", l);

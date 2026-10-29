@@ -162,6 +162,10 @@ export const CHECKLIST = [
     { id: 'telemetry-revert', covers: ['telemetry'], later: true,
       press: "Optional, with tools/telemetry-off: run its revert, then: luna-send -n 1 luna://dev.themepack.look.service/getTelemetry '{}'; re-apply it afterwards.",
       look: 'kit', pass: '"inactive" after the revert, "active" again after re-applying and a boot.' },
+    { id: 'bluetooth', covers: ['bt2-status', 'bt-remote-hidden', 'bt-actions'], later: true,
+      press: "With a Bluetooth speaker of the household's at hand: open Settings > Connection > Bluetooth devices. Turn the speaker on, then off. Search, pair it, disconnect it, connect it again; forget it only if you are happy to pair it again.",
+      look: 'The device rows, their values and the toasts.',
+      pass: 'The speaker shows Connected while it is on and plays; the magic remote is never listed and is not in "N paired"; each action does what it says, or rolls back with a toast.' },
     { id: 'decisions', covers: ['pin-no-limit', 'input-locks', 'app-locks'], later: true,
       press: 'Owner decisions and research, nothing to press: a limit on wrong PIN tries; the lockable-input list and the app-lock call for the pages still to build.',
       look: '-', pass: 'Decided, or recorded as still open.' }

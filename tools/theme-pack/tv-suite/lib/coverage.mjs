@@ -78,7 +78,11 @@ export const COVERAGE = [
   { id: 'eula', match: '`getSystemSettings \'{"category":"","keys":["eulaStatus","localeInfo"]}\'`', how: A, by: 'reads' },
   { id: 'telemetry', match: 'luna://dev.themepack.look.service/getTelemetry', how: PT, by: 'reads, coldboot, manual telemetry-revert', reason: 'the revert is the owner\'s tool, run by hand' },
   { id: 'device-connector', match: "Device connector opens LG's connection wizard", how: MAN, by: 'manual leave-for-lg', reason: 'it leaves for LG\'s apps; the suite logs the app in front' },
-  { id: 'groups-reads', match: '`permissions.sh` lists groups covering the new reads', how: A, by: 'reads (recorded groups)' }
+  { id: 'groups-reads', match: '`permissions.sh` lists groups covering the new reads', how: A, by: 'reads (recorded groups)' },
+  // Bluetooth: bluetooth2 for status, btaudiosrc for actions
+  { id: 'bt2-status', match: 'The Bluetooth page lists the paired speakers from `luna://com.webos.service.bluetooth2/device/getStatus`', how: MAN, by: 'manual bluetooth', reason: 'turning a speaker on and off is a person\'s' },
+  { id: 'bt-remote-hidden', match: 'The magic remote ("LGE MR19", BLE) is never listed', how: MAN, by: 'manual bluetooth', reason: 'the suite does not yet read the Bluetooth page\'s rows' },
+  { id: 'bt-actions', match: 'These btaudiosrc calls, LG\'s own Settings\' methods, answer from our identity', how: MAN, by: 'manual bluetooth', reason: 'pairing and forgetting a real speaker change the household\'s devices' }
 ];
 
 // TV-CHECKS.md's items: a "- [ ]" line and its indented continuation lines, as one line.

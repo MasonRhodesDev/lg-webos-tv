@@ -581,12 +581,24 @@ Item {
         }
 
         function test_8c_bluetooth_pair_and_disconnect() {
-            TvSettings.btPaired.push({ "address": "00:00:5E:00:53:02", "name": "Kitchen speaker", "state": "disconnected" });
+            TvSettings.btPair("Kitchen speaker", "00:00:5E:00:53:02", false);
             openSettings("bluetooth", 11);
             compare(topId(), "Bluetooth");
             compare(part.menu.stack[0].id, "Network", "under Connection, as the board has it");
             compare(specNamed("Living room soundbar").value, "Connected");
-            compare(part.store.state("btPairedCount").label, "2 paired", "the paired count, for other pages");
+            compare(part.store.state("btPairedCount").label, "2 paired", "the paired count, for other pages: audio only, not the remote");
+            compare(specNamed("LGE MR19"), null, "the magic remote is never listed");
+            compare(called("/getPairedDevices"), null, "btaudiosrc's paired list (unanswered on the TV) is not read");
+            verify(called("/device/getStatus") !== null, "bluetooth2's device status is");
+            // The hard rule: whatever asks, the remote is never forgotten or disconnected.
+            var remote = { "address": "00:00:5E:00:53:0A", "name": "LGE MR19", "type": "ble", "classOfDevice": 7936, "paired": true, "status": "connected" };
+            var n = TvSettings.calls.length;
+            part.store.btForget(remote);
+            part.store.btDisconnect(remote);
+            part.store.btForget({ "address": "00:00:5E:00:53:0B", "name": "Remote", "typeOfDevice": "ble", "classOfDevice": 1344 });
+            compare(TvSettings.calls.length, n + 3, "no Bluetooth call for the remote; only the three refusal toasts");
+            verify(toasted("Not forgotten: that is the TV's remote"));
+            verify(TvSettings.device("00:00:5E:00:53:0A") !== null, "the remote stays paired");
             compare(called("/startDiscovery"), null, "no search until asked");
             down("Search for devices");
             keyClick(Qt.Key_Return);
@@ -750,7 +762,8 @@ Item {
             compare(part.menu.entry.keyboard.layout, "letters", "a name opens on the letters");
             keyClick(Qt.Key_Escape);
             // Nothing paired: Bluetooth surround waits for a speaker, Connection says so.
-            TvSettings.btPaired = [];
+            // Only the magic remote stays paired: it does not count as a speaker.
+            TvSettings.btDevices = [TvSettings.device("00:00:5E:00:53:0A")];
             openSettings("sound", 24);
             verify(specNamed("Bluetooth surround").disabled, "Bluetooth surround is greyed with nothing paired");
             compare(specNamed("Bluetooth surround").hint, "Pair a Bluetooth speaker first");

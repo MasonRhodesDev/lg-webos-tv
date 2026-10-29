@@ -74,7 +74,7 @@ Item {
             p.menu.pinning = { "mode": "check", "row": p.menu.page.focusedRow };
             p.menu.pinEntered("1234");
         } } },
-        State { name: "sound-none-paired"; StateChangeScript { script: { TvSettings.btPaired = []; p.settings("sound"); } } },
+        State { name: "sound-none-paired"; StateChangeScript { script: { TvSettings.btDevices = []; p.settings("sound"); } } },
         State { name: "keyboard-input"; StateChangeScript { script: p.settings("keyboard-input") } },
         State { name: "tv-name"; StateChangeScript { script: {
             p.settings("keyboard-input");

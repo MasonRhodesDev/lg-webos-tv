@@ -212,7 +212,7 @@ var extra = {
     // Connection's Wi-Fi value: Off, or the network it is on (Store.state).
     "wifiSummary": { id: "wifiSummary", tier: 2, type: "info", api: { service: "com.webos.service.wifi", read: "getstatus" } },
     // How many Bluetooth audio devices are paired (the Connection board's "1 paired"; 0 greys Bluetooth surround).
-    "btPairedCount": { id: "btPairedCount", tier: 2, type: "info", api: { service: "com.webos.service.btaudiosrc", read: "getPairedDevices" } }
+    "btPairedCount": { id: "btPairedCount", tier: 2, type: "info", api: { service: "com.webos.service.bluetooth2", read: "device/getStatus" } }
 };
 
 // The agreements tools/telemetry-off withdraws (its EULA_KEYS): all false means LG's data collection is refused.
