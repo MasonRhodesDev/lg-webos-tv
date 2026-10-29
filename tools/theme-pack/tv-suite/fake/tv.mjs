@@ -15,6 +15,8 @@ const APP = JSON.parse(fs.readFileSync(path.join(here, '..', '..', 'tv', 'appinf
 const STYLES = [{ id: 'smoke', name: 'Smoke' }, { id: 'bubble', name: 'Bubble' }];
 const THEMES = [{ id: 'glow', name: 'Glow' }, { id: 'halloween', name: 'Halloween' }, { id: 'winter', name: 'Winter' }];
 const SHOW_MS = 3000;
+// The installed apps the back-refusing-app scenario may launch (launch points), standing in for a streaming app.
+const APPS = ['com.webos.app.browser', 'org.webosbrew.hbchannel'];
 
 export function initialState(over = {}) {
   return Object.assign({
@@ -30,7 +32,7 @@ export function initialState(over = {}) {
     menu: { open: false, stack: [], area: 'categories', cat: 0, index: 0, editing: null, pin: null, dialog: false },
     reports: [], ownLayerLog: '', themepackLog: '',
     installed: false, layerFiles: false, layer: false, stub: false, hook: false, mounted: false, lgQs: false,
-    files: {}, events: [], writes: [], unknown: [], keys: [], bootAt: Date.now() - 3600e3, netinput: false, down: 0, oldHook: false, rootSettings: false, backup: null, probingUntil: 0, boots: 0, broken: null, settingsHost: false
+    files: {}, events: [], writes: [], unknown: [], keys: [], launched: [], home: false, power: 'Active', bootAt: Date.now() - 3600e3, netinput: false, down: 0, oldHook: false, rootSettings: false, backup: null, probingUntil: 0, boots: 0, broken: null, settingsHost: false
   }, over);
 }
 
@@ -158,10 +160,28 @@ function run(s, v, r) {
   else if (r.kind === 'theme') { const t = s.look.themes.slice(), i = t.indexOf(r.choice); if (i >= 0) t.splice(i, 1); else t.push(r.choice); s.look = { style: s.look.style, themes: t }; }
   else if (r.kind === 'text') s.menu.editing = { label: r.label, ref: r.ref, text: String(s.settings[idOf(r.ref)] || ''), row: 0, col: 0 };
   else if (r.kind === 'changePin') s.menu.pin = { mode: 'new', pin: '', error: '', pad: 0 };
+  else if (r.kind === 'action' && LEAVES[r.ref]) leave(s, LEAVES[r.ref]);
   else event(s, which + ': ran ' + (r.kind || '?') + ' ' + (r.ref || r.label));
 }
 function move(s, v, list, d) {
   for (let i = v.index + d; i >= 0 && i < list.length; i += d) if (focusable(list[i])) { v.index = i; return; }
+}
+
+// LG's apps our action rows open, with the appReturn LG's app launches when Back leaves it (catalog). As on the TV,
+// our Settings stays open over them.
+const LEAVES = { deviceConnector: ['com.webos.app.connectionwizard', 'network'], pictureTest: ['com.webos.app.customersupport', 'picture'],
+                 soundTest: ['com.webos.app.customersupport', 'sound'] };
+function leave(s, [app, ret]) { s.launched.push(app); s.lgApp = { app, ret, was: s.fg }; s.fg = app; }
+
+// The quick sheet as LG's Quick Settings launch opens it (QuickSheet.openWith): a hotkey's activateType opens that
+// row's picker.
+function quickWith(s, params) {
+  const q = s.quick, ref = params && params.activateType ? M.activateTypes[params.activateType] : '';
+  closeMenu(s);
+  q.open = true; q.stack = [{ id: 'quick' }]; landOn(s, q);
+  if (!ref) return;
+  const list = rows(s, q.stack[0]), i = list.findIndex((r) => r && r.ref === ref);
+  if (i >= 0) { q.index = i; push(s, q, P.drill(list[i], '')); }
 }
 
 const PAD = ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'Clear', '0', 'Delete'];
@@ -172,13 +192,23 @@ function key(s, k) {
     if (!s.faults.volumeStuck) s.volume.volume = Math.max(0, Math.min(100, s.volume.volume + (k === 'VOLUMEUP' ? 1 : -1)));
     s.volume.muted = false; s.volume.barUntil = now + SHOW_MS; return;
   }
+  // As on the TV: LG's key filter takes Home and Exit. Home shows over everything and our menus stay open; Exit
+  // over our menus does nothing.
+  if (k === 'HOME') { s.home = true; return; }
+  if (k === 'EXIT') { if (!q.open && !m.open) event(s, 'the app underneath got EXIT'); return; }
   if (k === 'MUTE') { s.volume.muted = !s.volume.muted; s.volume.muteUntil = s.volume.muted ? now + 60000 : 0; s.volume.barUntil = now + SHOW_MS; return; }
   if (k === 'QMENU') {
     if (s.faults.lgQuickSettings || !s.settingsHost) { s.lgQs = !s.lgQs; return; }
     if (q.open || m.open) { q.open = false; closeMenu(s); return; }
     q.open = true; q.stack = [{ id: 'quick' }]; landOn(s, q); return;
   }
-  if (s.lgQs) { if (k === 'BACK') s.lgQs = false; else event(s, "LG's Quick Settings got " + k); return; }
+  // LG's own Quick Settings (the fallback): it moves and opens its picker, and nothing in it is chosen here.
+  if (s.lgQs) {
+    if (k === 'ENTER') s.lgQsPicker = true;
+    else if (k === 'BACK') { if (s.lgQsPicker) s.lgQsPicker = false; else s.lgQs = false; }
+    else if (k !== 'UP' && k !== 'DOWN') event(s, "LG's Quick Settings got " + k);
+    return;
+  }
   const own = m.open ? m : q.open ? q : null;
   if (!own) {
     if (s.picker.shown) {
@@ -187,6 +217,9 @@ function key(s, k) {
       else event(s, 'picker got ' + k + (k === 'ENTER' ? ': input switched' : ''));
       return;
     }
+    if (k === 'BACK' && s.home) { s.home = false; return; }
+    // Back in LG's app: it launches its appReturn, the Settings stub, and the input that was in front comes back.
+    if (k === 'BACK' && s.lgApp && s.fg === s.lgApp.app) { const a = s.lgApp; s.lgApp = null; s.fg = a.was; launchSettings(s, { target: a.ret }); return; }
     event(s, 'the app underneath got ' + k);
     return;
   }
@@ -310,7 +343,13 @@ function reboot(s) {
 }
 
 function launchSettings(s, params) {
-  if (!s.mounted) { if (s.allowLgSettings) { s.lgSettingsOpened = (s.lgSettingsOpened || 0) + 1; return; } s.fg = 'com.palm.app.settings'; event(s, "LG's Settings opened"); return; }
+  if (!s.mounted) {
+    // On purpose only in a fallback (the layer broken, the stub removed); anywhere else it is an event.
+    if (!s.broken && s.stub) event(s, "LG's Settings opened");
+    s.launched.push('com.palm.app.settings');
+    s.lgSettingsWas = s.fg; s.fg = 'com.palm.app.settings';
+    return;
+  }
   const t = params && typeof params.target === 'string' ? params.target : undefined;
   const page = stubTarget(t);
   if (s.menu.open && JSON.stringify(s.menu.stack.map((e) => e.id)) === JSON.stringify(landing(page).stack)) return;
@@ -343,7 +382,7 @@ function luna(s, uri, p) {
       for (const k of Object.keys(p)) Object.assign(p[k], { layer: String(s.layerInstance || 1), seq: s.probeSeq });
       return ok({ now: iso(), probing: true, probes: p });
     }
-    case 'com.webos.service.tvpower/power/getPowerState': return ok({ state: 'Active' });
+    case 'com.webos.service.tvpower/power/getPowerState': return ok({ state: s.power || 'Active' });
     case look + 'getLook': return ok({ look: s.look, probing: Date.now() < s.probingUntil, available: { styles: STYLES, themes: THEMES } });
     case look + 'setLook':
       if (p.style !== undefined && !STYLES.some((x) => x.id === p.style)) return { returnValue: false, errorText: 'unknown style ' + p.style };
@@ -375,9 +414,15 @@ function luna(s, uri, p) {
       else if (p.id === APP.id) { if (s.settingsHost) openAt(s, 'Look'); }
       // An input coming back to the front (a restore) is no event; any other launch is.
       else if (/^com\.webos\.app\.(hdmi\d|livetv)$/.test(p.id)) { s.fg = p.id; (s.inputLaunches = s.inputLaunches || []).push(p.id); }
+      else if (APPS.includes(p.id)) { s.launched.push(p.id); s.fg = p.id; }
       else { s.fg = p.id; event(s, 'launched ' + p.id); }
       return ok({});
-    case 'com.webos.applicationManager/closeByAppId': return ok({});
+    case 'com.webos.applicationManager/closeByAppId':
+      if (p.id === 'com.palm.app.settings' && s.fg === p.id) s.fg = s.lgSettingsWas || 'com.webos.app.livetv';
+      return ok({});
+    case 'com.webos.applicationManager/listLaunchPoints': return ok({ launchPoints: APPS.map((id) => ({ id })) });
+    case 'com.webos.surfacemanager/getForegroundAppInfo':
+      return ok({ foregroundAppInfo: [{ appId: s.fg, windowType: '_WEBOS_WINDOW_TYPE_CARD' }].concat(s.home ? [{ appId: 'com.webos.app.home', windowType: '_WEBOS_WINDOW_TYPE_HOME' }] : []) });
     // The TV's shape: a list, not one appId.
     case 'com.webos.service.systemUIManager/getForegroundAppInfo':
       if (s.faults.oddSystemUi) return ok({ foreground: 'quicksettings' });
@@ -388,16 +433,21 @@ function luna(s, uri, p) {
       return ok({ socketPath: '/tmp/netinput.pointer.sock' });
     case 'com.webos.service.systemUIManager/launch':
       if (p.appId === 'com.webos.app.quickinputpicker') { if (s.picker.shown) event(s, 'picker launched while open: input switched'); s.picker.shown = true; }
+      if (p.appId === 'com.webos.app.quicksettings') { if (s.layer && s.settingsHost && !s.faults.lgQuickSettings) quickWith(s, p.params); else s.lgQs = true; }
       return ok({});
+    // As on the TV: the input picker and Home stay open; LG's Quick Settings closes.
     case 'com.webos.service.systemUIManager/closeByAppId':
-      if (p.id === 'com.webos.app.quickinputpicker') s.picker.shown = false;
-      if (p.id === 'com.webos.app.quicksettings') s.lgQs = false;
+      if (p.id === 'com.webos.app.quicksettings') { s.lgQs = false; s.lgQsPicker = false; }
       return ok({});
     case 'com.webos.surfacemanager/showQuickSettings':
       if (s.layer && !s.faults.lgQuickSettings) { s.quick.open = true; s.quick.stack = [{ id: 'quick' }]; landOn(s, s.quick); } else s.lgQs = true;
       return ok({});
     case 'com.webos.surfacemanager/captureCompositorOutput': s.files[p.output] = surface(s); return ok({});
-    case 'com.webos.notification/createToast': s.toast = { message: p.message, until: Date.now() + SHOW_MS }; return ok({});
+    case 'com.webos.notification/createToast':
+      s.toast = { message: p.message, until: Date.now() + SHOW_MS };
+      // An HDMI device turning the TV off through CEC in the middle of a scenario.
+      if (s.faults.standbyOnToast) { s.power = 'ActiveStandby'; s.fg = ''; }
+      return ok({});
     case 'com.webos.service.connectionmanager/getstatus': return ok({ wired: { state: 'connected' }, wifi: { state: 'disconnected' } });
     case 'com.webos.service.tv.display/getHDMIInfo': return ok({ width: 3840, height: 2160, frameRate: 120, scanType: true, HDMImode: true });
     case 'com.webos.service.tv.systemproperty/getSystemInfo': return ok({ modelName: 'OLED00X0', firmwareVersion: '00.00.00' });

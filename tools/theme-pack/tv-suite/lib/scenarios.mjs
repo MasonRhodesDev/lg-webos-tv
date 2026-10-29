@@ -4,12 +4,19 @@
 // (the TV name, Quick Start+, Picture mode, the Volume row) and undo it the same way, checked on the TV. Nothing else
 // is written, and nothing ever resets, changes the PIN, joins or forgets a network, pairs, connects or forgets a
 // Bluetooth device, switches the input or scans channels: the guard refuses the keys that could (keys.mjs).
+// The scenarios that leave for LG (Home, Exit, LG's apps) put the app that was in front back themselves; the fallback
+// ones run only when named (`optIn`): they restart the compositor with a broken layer and put the good one back.
 import { landing, stubTarget, categories, catalog, locked } from './expect.mjs';
+import { HOME_APP } from './run.mjs';
+import * as journal from './journal.mjs';
+import { breakLayer, rerunHook, mounted, restoreLayer, removeStub, installStub } from './fallbacks.mjs';
 
 const SVC = 'luna://dev.themepack.look.service';
 const SAM = 'luna://com.webos.applicationManager';
 const SYSUI = 'luna://com.webos.service.systemUIManager';
 const PICKER = 'com.webos.app.quickinputpicker';
+const QS = 'com.webos.app.quicksettings';
+const LG_SETTINGS = 'com.palm.app.settings';
 const SETTINGS_APP = '/usr/palm/applications/com.palm.app.settings';
 // Another look for the theme-swap checks; any style and theme other than the current one would do.
 const SWAP = { style: 'bubble', themes: ['winter'] };
@@ -24,7 +31,7 @@ async function own(ctx, which, pred, what, opts) {
     return pred(v) ? v : JSON.stringify({ open: v.open, stack: v.stack, area: v.area, focus: v.focus && v.focus.label });
   }, opts);
 }
-const closed = (ctx, which) => own(ctx, which, (v) => !v.open, 'our ' + which + ' to close');
+const closed = (ctx, which, opts) => own(ctx, which, (v) => !v.open, 'our ' + which + ' to close', opts);
 
 // Opens our Settings the way the stub does (openSettings), and waits for it to land where SettingsMenu.openAt does.
 async function openSettings(ctx, target) {
@@ -169,8 +176,9 @@ export const SCENARIOS = [
     }
   },
   {
+    // closeByAppId does not close the picker on the TV; Back does, as for a person. OK is never pressed in it.
     id: 'input-picker',
-    title: 'Input picker: launch, capture, close with closeByAppId; no key is pressed in it',
+    title: 'Input picker: launch, capture, focus moved Right and back Left, closed with Back; the input does not change',
     tvChecks: [],
     async run(ctx) {
       const st = await ctx.state();
@@ -179,10 +187,19 @@ export const SCENARIOS = [
       if (st.systemUi !== '') ctx.skip('systemUIManager does not confirm that nothing is open (' + st.systemUi + '): a launch over an open picker switches the input');
       const fg = await ctx.foreground();
       await ctx.luna(SYSUI + '/launch', { appId: PICKER });
-      await ctx.wait('our input picker', async () => { const s = await ctx.state(); return s.picker && s.picker.shown ? s.picker : null; });
+      const p0 = await ctx.wait('our input picker', async () => { const s = await ctx.state(); return s.picker && s.picker.shown && s.picker.tiles > 0 ? s.picker : null; });
       await ctx.capture('picker', { board: 'SmokeInputPicker', scene: 'InputPicker' });
-      await ctx.luna(SYSUI + '/closeByAppId', { id: PICKER });
-      await ctx.wait('the picker to close', async () => { const s = await ctx.state(); return !(s.picker && s.picker.shown) && s.systemUi !== PICKER; });
+      // Toward the side with a tile, then back to the tile it opened on (the input in front).
+      const [there, back] = p0.focus + 1 < p0.tiles ? ['RIGHT', 'LEFT'] : ['LEFT', 'RIGHT'];
+      await ctx.key(there, { picker: true });
+      const p1 = await ctx.wait('the picker focus to move ' + there, async () => { const s = await ctx.state(); return s.picker && s.picker.shown && s.picker.focus !== p0.focus ? s.picker : null; }, { timeout: 3000 });
+      ctx.check(there + ' moves the focus one tile', Math.abs(p1.focus - p0.focus) === 1, p0.focus + ' -> ' + p1.focus);
+      await ctx.capture('picker-moved', { board: 'SmokeInputPicker', scene: 'InputPicker' });
+      await ctx.key(back, { picker: true });
+      await ctx.wait('the focus back on its tile', async () => { const s = await ctx.state(); return !!(s.picker && s.picker.focus === p0.focus); }, { timeout: 3000 });
+      await ctx.key('BACK', { picker: true });
+      // systemUIManager lists the picker a moment after it has gone.
+      await ctx.wait('Back to close the picker', async () => { const s = await ctx.state(); return !(s.picker && s.picker.shown) && s.systemUi !== PICKER; }, { timeout: 12000 });
       // An accidental Input press would switch after 5 s.
       await ctx.sleep(6000);
       ctx.check('the input did not change', (await ctx.foreground()) === fg, fg);
@@ -663,8 +680,8 @@ export const SCENARIOS = [
         await ctx.luna(SYSUI + '/launch', { appId: PICKER });
         await ctx.wait('our input picker', async () => { const s = await ctx.state(); return !!(s.picker && s.picker.shown); });
         await swap('picker', 'SmokeInputPicker', 'InputPicker');
-        await ctx.luna(SYSUI + '/closeByAppId', { id: PICKER });
-        await ctx.wait('the picker to close', async () => { const s = await ctx.state(); return !(s.picker && s.picker.shown); });
+        await ctx.key('BACK', { picker: true });
+        await ctx.wait('the picker to close', async () => { const s = await ctx.state(); return !(s.picker && s.picker.shown) && s.systemUi !== PICKER; }, { timeout: 12000 });
       }
       const message = 'TV suite swap ' + Date.now();
       await ctx.luna('luna://com.webos.notification/createToast', { sourceId: 'dev.themepack.look', message });
@@ -675,8 +692,250 @@ export const SCENARIOS = [
       await ctx.setLook(look0);
       ctx.check('the look restored', same(await ctx.look(), look0));
     }
+  },
+  {
+    // The hotkeys reach LG's system UI as a Quick Settings launch with an activateType (appLaunch.js handleHotkeys);
+    // the network input has no key name for them, so the suite makes that launch.
+    id: 'hotkeys',
+    title: "The picture-mode and sleep hotkeys' launch opens our sheet on their pickers; Back steps out, nothing changes",
+    tvChecks: ['hotkeys'],
+    async run(ctx) {
+      const pm = await ctx.setting('pictureMode');
+      for (const [type, ref] of [['picture-mode', 'pictureMode'], ['sleep', 'sleepTimer']]) {
+        await ctx.luna(SYSUI + '/launch', { appId: QS, params: { activateType: type } });
+        const q = await own(ctx, 'quick', (v) => v.open && top(v) === 'pick:' + ref, 'the sheet on the ' + ref + ' picker');
+        ctx.check(type + ' opens the sheet on the ' + ref + ' picker', same(q.stack, ['quick', 'pick:' + ref]), q.stack.join('/'));
+        if (ref === 'pictureMode') ctx.check('the picker lands on the current mode', q.focus && q.focus.choice === String(pm), q.focus && q.focus.choice);
+        const st = await ctx.state();
+        ctx.check("no LG Quick Settings window", st.systemUi !== QS && st.systemUi !== 'unknown', st.systemUi || 'none');
+        await ctx.capture('hotkey-' + type, { board: 'SmokeQuickSettings', scene: 'QuickSheet' });
+        await ctx.key('BACK');
+        await own(ctx, 'quick', (v) => v.open && top(v) === 'quick', 'Back to the sheet');
+        await backOut(ctx, 'quick');
+      }
+      ctx.check('Picture mode unchanged', (await ctx.setting('pictureMode')) === pm, String(pm));
+    }
+  },
+  {
+    id: 'exit-home',
+    title: 'EXIT, then HOME, over our Settings deep-linked at About this TV: each closes it; Home is put away again',
+    tvChecks: ['exit-home'],
+    async run(ctx) {
+      const why = await SCENARIOS.find((x) => x.id === 'redirect').needs(ctx);
+      if (why) ctx.skip(why);
+      const fg = await ctx.foreground();
+      await openViaSam(ctx, 'AboutThisTV');
+      await ctx.key('EXIT', { exit: true });
+      const shut = await closed(ctx, 'menu', { timeout: 4000 }).then(() => true, () => false);
+      ctx.check('EXIT closes our Settings from About this TV', shut, shut ? '' : 'still open at ' + (await ctx.settings()).menu.stack.join('/'));
+      const st = await ctx.state(), front = await ctx.front();
+      ctx.check('and nothing else opens', st.systemUi === '' && !front.includes(HOME_APP) && (await ctx.foreground()) === fg, front.join(', ') + (st.systemUi ? ', system UI ' + st.systemUi : ''));
+      await ctx.capture('after-exit', { scene: 'Settings' });
+      if (!shut) await backOut(ctx, 'menu');
+      await openViaSam(ctx, 'AboutThisTV');
+      await ctx.key('HOME', { home: true });
+      const home = await ctx.wait("LG's Home", async () => (await ctx.front()).includes(HOME_APP)).then(() => true, () => false);
+      ctx.check('HOME shows LG\'s Home', home, (await ctx.front()).join(', '));
+      const shut2 = await closed(ctx, 'menu', { timeout: 4000 }).then(() => true, () => false);
+      ctx.check('HOME closes our Settings', shut2, shut2 ? '' : 'still open at ' + (await ctx.settings()).menu.stack.join('/') + ', over Home');
+      await ctx.capture('after-home');
+      if (!shut2) await backOut(ctx, 'menu');
+      if (home) await putHomeAway(ctx);
+      await noLgSettings(ctx, 'after Exit and Home');
+      ctx.check('the app in front is as it was', (await ctx.foreground()) === fg, fg);
+    },
+    cleanup: (ctx) => frontBack(ctx)
+  },
+  {
+    // What a person judges from it: the Settings and Look tiles' icons (the launch itself is redirect's and look-app's).
+    id: 'home-tile',
+    title: "HOME over the app in front: LG's Home captured for its tiles, then put away with Back",
+    tvChecks: ['home-tile', 'look-app-launch'],
+    async run(ctx) {
+      const fg = await ctx.foreground();
+      await ctx.key('HOME', { home: true });
+      await ctx.wait("LG's Home", async () => (await ctx.front()).includes(HOME_APP));
+      // Home's tiles slide in after the window shows.
+      await ctx.sleep(1500);
+      await ctx.capture('home');
+      await putHomeAway(ctx);
+      ctx.check('the app in front is as it was', (await ctx.foreground()) === fg, fg);
+    },
+    cleanup: (ctx) => frontBack(ctx)
+  },
+  {
+    // Each action row opens LG's app with appReturn to Settings, which the stub sends back to ours.
+    id: 'leave-for-lg',
+    title: "Device connector, Picture test and Sound test open LG's apps; Back comes back to our Settings",
+    tvChecks: ['device-connector'],
+    async run(ctx) {
+      const why = await SCENARIOS.find((x) => x.id === 'redirect').needs(ctx);
+      if (why) ctx.skip(why);
+      const fg = await ctx.foreground();
+      for (const [page, label, ref, app, ret] of LEAVES) {
+        await openSettings(ctx, page);
+        await toRow(ctx, 'menu', label);
+        await ctx.key('ENTER', { launch: { ref } });
+        await ctx.wait(app + ' in front', async () => (await ctx.foreground()) === app, { timeout: 10000 });
+        await ctx.sleep(1500);
+        await ctx.capture(ref);
+        const m = (await ctx.settings()).menu;
+        ctx.check(label + ": our Settings gives way to LG's app", !m.open, m.open ? 'still open at ' + m.stack.join('/') + ' over ' + app : '');
+        if (m.open) await backOut(ctx, 'menu');
+        await ctx.key('BACK', { over: app });
+        await ctx.wait('Back to leave ' + app, async () => (await ctx.foreground()) !== app, { timeout: 10000 });
+        const want = landing(stubTarget(ret));
+        const v = await own(ctx, 'menu', (w) => w.open && same(w.stack, want.stack), 'our Settings at ' + want.stack.join('/'), { timeout: 6000 }).catch(() => null);
+        const now = await ctx.foreground();
+        ctx.note('leave-for-lg.' + ref, { back: now, settings: v ? v.stack : null });
+        ctx.check(label + ': Back comes back to ' + fg + ' with our Settings at ' + want.stack.join('/'), now === fg && !!v, now + (v ? '' : ', our Settings ' + JSON.stringify((await ctx.settings()).menu.stack)));
+        await backOut(ctx, 'menu');
+      }
+    },
+    cleanup: (ctx) => frontBack(ctx)
+  },
+  {
+    // No streaming app is installed on the TV: one of LG's own apps stands in, and where Back lands is recorded.
+    id: 'back-refusing-app',
+    title: 'Over an app: the gear, All settings, Back until our Settings closes; no Settings window is left',
+    tvChecks: ['back-refusing-app'],
+    async run(ctx) {
+      const lps = ((await ctx.luna(SAM + '/listLaunchPoints', {})).launchPoints || []).map((x) => x.id);
+      const app = APPS.find((x) => lps.includes(x));
+      if (!app) ctx.skip('none of ' + APPS.join(', ') + ' is installed');
+      await ctx.luna(SAM + '/launch', { id: app });
+      await ctx.wait(app + ' in front', async () => (await ctx.foreground()) === app, { timeout: 15000 });
+      // The app's own first screen settles before the gear.
+      await ctx.sleep(3000);
+      await gear(ctx);
+      await toRow(ctx, 'quick', 'All settings');
+      await ctx.key('ENTER');
+      await own(ctx, 'menu', (v) => v.open, 'All settings to open our Settings');
+      await ctx.capture('over-' + app, { scene: 'Settings' });
+      const steps = await backOut(ctx, 'menu');
+      await ctx.sleep(1500);
+      const s = await ctx.settings();
+      ctx.check('Back closed our Settings (' + steps + ' Backs), no window left', !s.menu.open && !s.quick.open);
+      await noLgSettings(ctx, 'after Back');
+      const now = await ctx.front();
+      ctx.note('back-refusing-app', { app, after: now });
+      ctx.check('Home or the app is in front', now.includes(app) || now.includes(HOME_APP), now.join(', '));
+    },
+    cleanup: (ctx) => frontBack(ctx)
+  },
+  // The fallbacks, on purpose: run only when named. Each marks the journal before the break, so an interrupted run
+  // puts the good layer (or the stub) back first.
+  {
+    id: 'fallback-layer-broken',
+    optIn: true,
+    title: "Our layer deployed broken: the hook leaves LG's Settings, and the Home tile's launch opens LG's own",
+    tvChecks: ['stub-left-stock'],
+    async run(ctx) {
+      journal.mark(ctx.journal, { layer: 'broken' });
+      await breakLayer(ctx, 'layer');
+      const log = await rerunHook(ctx);
+      ctx.check("with the layer broken, the hook leaves LG's Settings", /settings left stock \(our Settings host never reported ready\)/.test(log), log.trim().split('\n').pop());
+      ctx.check('and nothing is mounted over it', !(await mounted(ctx)));
+      await lgSettings(ctx, 'layer-broken');
+    },
+    cleanup: (ctx) => layerBack(ctx)
+  },
+  {
+    id: 'fallback-part-removed',
+    optIn: true,
+    title: "Our layer without its Settings part: the gear opens LG's Quick Settings, which moves, opens a picker and closes",
+    tvChecks: ['part-removed', 'qs-entry'],
+    async run(ctx) {
+      const pm = await ctx.setting('pictureMode');
+      journal.mark(ctx.journal, { layer: 'broken' });
+      const { t0 } = await breakLayer(ctx, 'part');
+      ctx.note('fallback-part-removed.reports', (await ctx.tv.reports(t0)).map((x) => x.kind + ' ' + x.text));
+      ctx.fallback = 'part';
+      await ctx.key('QMENU');
+      await ctx.wait("LG's Quick Settings", async () => (await ctx.state()).systemUi === QS, { timeout: 8000 });
+      ctx.check("the gear opens LG's Quick Settings", true);
+      await ctx.sleep(1000);
+      await ctx.capture('lg-quick-settings');
+      // It opens on its first row, Picture mode: OK opens LG's picker of it, Back leaves it unchosen.
+      await ctx.key('ENTER', { lgQuick: true });
+      await ctx.sleep(1500);
+      await ctx.capture('lg-picker');
+      await ctx.key('BACK', { lgQuick: true });
+      await ctx.sleep(1000);
+      await ctx.key('DOWN', { lgQuick: true });
+      await ctx.key('UP', { lgQuick: true });
+      await ctx.sleep(800);
+      await ctx.capture('lg-moved');
+      ctx.check("LG's Quick Settings is still up after the picker and the moves", (await ctx.state()).systemUi === QS);
+      await ctx.luna(SYSUI + '/closeByAppId', { id: QS });
+      await ctx.wait("LG's Quick Settings to close", async () => (await ctx.state()).systemUi === '', { timeout: 6000 });
+      ctx.check('Picture mode unchanged', (await ctx.setting('pictureMode')) === pm, String(pm));
+    },
+    cleanup: async (ctx) => { ctx.fallback = ''; await layerBack(ctx); }
+  },
+  {
+    id: 'fallback-stub-removed',
+    optIn: true,
+    title: "The stub removed (install-boot.sh remove): the Home tile's launch opens LG's Settings without a reboot",
+    tvChecks: ['stub-remove'],
+    async run(ctx) {
+      journal.mark(ctx.journal, { stub: 'removed' });
+      await removeStub(ctx);
+      ctx.check('install-boot.sh remove unmounts the stub', !(await mounted(ctx)));
+      await lgSettings(ctx, 'stub-removed');
+    },
+    async cleanup(ctx) {
+      await installStub(ctx);
+      const ok = await mounted(ctx);
+      ctx.check('the stub is back', ok);
+      if (!ok) { ctx.aborted = true; throw new Error('STOP: the stub could not be mounted again. The journal ' + ctx.journal.file + ' stays open.'); }
+      journal.mark(ctx.journal, { stub: null });
+    }
   }
 ];
+
+// The action rows that leave for LG's apps: [page, row, action, LG's app, appReturn's target].
+const LEAVES = [['Network', 'Device connector', 'deviceConnector', 'com.webos.app.connectionwizard', 'network'],
+  ['Support', 'Picture test', 'pictureTest', 'com.webos.app.customersupport', 'picture'],
+  ['Support', 'Sound test', 'soundTest', 'com.webos.app.customersupport', 'sound']];
+// Apps that stand in for a streaming app, in order of preference: none plays anything when it opens.
+const APPS = ['org.webosbrew.hbchannel', 'com.webos.app.browser'];
+
+// LG's Home put away the way a person does it, with Back, and checked gone.
+async function putHomeAway(ctx) {
+  await ctx.key('BACK', { over: HOME_APP });
+  await ctx.wait("LG's Home to go", async () => !(await ctx.front()).includes(HOME_APP), { timeout: 6000 });
+}
+
+// The app that was in front at the baseline, back in front, as the runner's restore does it (a launch of the same id).
+async function frontBack(ctx) {
+  const want = ctx.journal && ctx.journal.baseline.foreground;
+  if (!want || (await ctx.foreground()) === want) return;
+  await ctx.luna(SAM + '/launch', { id: want });
+  await ctx.wait(want + ' back in front', async () => (await ctx.foreground()) === want, { timeout: 15000 });
+}
+
+// LG's own Settings launched as Home's tile does, captured, closed, and the app in front back.
+async function lgSettings(ctx, name) {
+  const fg = await ctx.foreground();
+  await ctx.luna(SAM + '/launch', { id: LG_SETTINGS });
+  await ctx.wait("LG's Settings in front", async () => (await ctx.foreground()) === LG_SETTINGS, { timeout: 20000 });
+  await ctx.sleep(2000);
+  await ctx.capture(name + '-lg-settings');
+  ctx.check("the launch opens LG's own Settings", true, LG_SETTINGS);
+  await ctx.luna(SAM + '/closeByAppId', { id: LG_SETTINGS });
+  await ctx.wait("LG's Settings to close", async () => !((await ctx.luna(SAM + '/running', {})).running || []).some((a) => a.id === LG_SETTINGS), { timeout: 10000 });
+  ctx.note(name + '.afterClose', await ctx.foreground());
+  await frontBack(ctx);
+  ctx.check('the app in front is as it was', (await ctx.foreground()) === fg, fg);
+}
+
+// The good layer back after a fallback scenario; if it cannot be, the run stops and the journal stays open.
+async function layerBack(ctx) {
+  const why = await restoreLayer(ctx);
+  if (why) { ctx.aborted = true; throw new Error('STOP: the good layer could not be put back (' + why + '). The journal ' + ctx.journal.file + ' stays open; run any tv-suite command to retry.'); }
+  journal.mark(ctx.journal, { layer: null });
+}
 
 async function openViaSam(ctx, t) {
   const want = landing(stubTarget(t));

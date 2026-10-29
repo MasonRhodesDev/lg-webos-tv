@@ -79,17 +79,21 @@ export function makeCtx({ tv, out, say = console.log, poll = 250, sleep }) {
     must(name, ok, detail) { if (!ctx.check(name, ok, detail)) throw new Error(name + (detail ? ': ' + detail : '')); },
     skip(why) { throw new Skip(why); },
     async luna(uri, payload, opts) { return tv.luna(uri, payload, opts); },
+    // A fallback scenario that deploys the layer without our Settings part sets `fallback` to 'part': the layer's
+    // liveness is then read from the input picker's probe, which every layer sends.
+    fallback: '',
     // What the TV shows, and whether that can be trusted: `fresh` needs our Settings' probe recent by the service's
     // clock, and newer than the last key pressed.
     async state() {
       const r = await tv.probeRead();
-      const p = r.states, m = r.meta.Settings;
+      const p = r.states, m = ctx.fallback === 'part' ? r.meta.InputPicker : r.meta.Settings;
       const systemUi = await systemUiFront(tv);
       const st = p.Settings || null;
       const open = !!(st && ((st.menu && st.menu.open) || (st.quick && st.quick.open)));
       let stale = '';
       if (!r.probing) stale = 'probing is off on the TV, so nothing can be seen (each command turns it on first)';
-      else if (!st || !m) stale = 'no probe from our Settings: the layer is not up';
+      else if (ctx.fallback === 'part' && !m) stale = 'no probe from the layer: it is not up';
+      else if (!ctx.fallback && (!st || !m)) stale = 'no probe from our Settings: the layer is not up';
       else if (!(m.age <= (open ? FRESH.open : FRESH.closed))) stale = "our Settings' probe is " + (isFinite(m.age) ? m.age.toFixed(1) + ' s' : 'of unknown age') + ' old: the layer may be gone';
       else if (ctx.keyAt && !(m.at > ctx.keyAt && m.seq > ctx.keySeq)) stale = 'no probe since the last key';
       else stale = layerCheck(ctx, m);
@@ -119,6 +123,7 @@ export function makeCtx({ tv, out, say = console.log, poll = 250, sleep }) {
         if (st.fresh || Date.now() > end) break;
         await ctx.sleep(ctx.poll);
       }
+      if (allow.over) st.front = await ctx.front();
       const why = guard(name, st, allow);
       if (why) { ctx.check('key ' + name + ' allowed', false, why); throw new Refused(why); }
       ctx.current && ctx.current.keys.push(name);
@@ -148,6 +153,12 @@ export function makeCtx({ tv, out, say = console.log, poll = 250, sleep }) {
     async look() { return (await tv.luna(SVC + '/getLook', {})).look; },
     async setLook(look) { return tv.luna(SVC + '/setLook', { style: look.style, themes: look.themes }); },
     async foreground() { return (await tv.luna('luna://com.webos.applicationManager/getForegroundAppInfo', {})).appId || ''; },
+    // Every app in front: SAM's foreground app and the compositor's windows (LG's Home shows only there).
+    async front() {
+      const ids = [await ctx.foreground().catch(() => '')];
+      try { for (const w of (await tv.luna('luna://com.webos.surfacemanager/getForegroundAppInfo', {})).foregroundAppInfo || []) ids.push(w.appId); } catch (e) { /* SAM's alone */ }
+      return ids.filter(Boolean).filter((x, i, a) => a.indexOf(x) === i);
+    },
     async volume() {
       const v = await tv.luna('luna://com.webos.audio/getVolume', {});
       return { volume: v.volume, muted: !!v.muted };
@@ -169,6 +180,12 @@ export async function snapshot(ctx) {
   const read = async (k, fn) => { try { const x = await fn(); v[k] = x === undefined ? unreadable('no value') : x; } catch (e) { v[k] = unreadable(e); } };
   await read('look', () => ctx.look());
   await read('volume', () => ctx.volume());
+  // Whether the TV is on: someone may turn it off (or an HDMI device may, through CEC) while the suite runs.
+  await read('power', async () => {
+    const p = await ctx.luna('luna://com.webos.service.tvpower/power/getPowerState', {});
+    if (typeof p.state !== 'string') throw new Error(p.errorText || 'no state');
+    return p.state;
+  });
   await read('foreground', () => ctx.foreground());
   for (const id of WATCHED) await read(id, () => ctx.setting(id));
   await read('network', async () => {
@@ -213,6 +230,12 @@ export async function restoreVerified(ctx, baseline, pin) {
   // The manual pass's Back steps run on the input the person chose; the person restores the baseline's afterwards.
   if (ctx.foregroundOverride) baseline = Object.assign({}, baseline, { foreground: ctx.foregroundOverride });
   const cur = (await snapshot(ctx)).values, acted = [];
+  // Turned off (or on) meanwhile: nothing is put back over the household's choice, and the run stops; the journal
+  // stays open for a command run once the TV is as it was. (Unreadable is a TV still booting: restored as before.)
+  if (baseline.power !== undefined && !(cur.power && cur.power.unreadable) && !same(baseline.power, cur.power)) {
+    ctx.aborted = true;
+    return { acted, left: ['power: was ' + shown(baseline.power) + ', now ' + shown(cur.power) + ' (the TV was turned off or on meanwhile): nothing is restored and the run stops'] };
+  }
   for (const k of Object.keys(baseline)) {
     // A setting back at its value but in another type (85 for the TV's "85") is written back too.
     const typeOnly = WATCHED.includes(k) && same(baseline[k], cur[k]) && !sameType(baseline[k], cur[k]);
@@ -248,8 +271,10 @@ export async function restoreVerified(ctx, baseline, pin) {
   return { acted, left };
 }
 
-// Closes whatever of ours is open with Back, through the guard (so never on a stale probe or over LG's UI), and
-// LG's Quick Settings and input picker with closeByAppId. Returns why something could not be closed, or ''.
+// Closes whatever of ours is open with Back, through the guard (so never on a stale probe or over LG's UI); LG's
+// Quick Settings with closeByAppId; the input picker and LG's Home with Back (closeByAppId leaves both open on the
+// TV), once the guard confirms each is what is in front. Returns why something could not be closed, or ''.
+export const HOME_APP = 'com.webos.app.home';
 export async function closeAll(ctx) {
   let why = '';
   for (let i = 0; i < 12; i++) {
@@ -260,7 +285,19 @@ export async function closeAll(ctx) {
   }
   const st = await ctx.state();
   if (st.systemUi === QS) await ctx.luna('luna://com.webos.service.systemUIManager/closeByAppId', { id: QS });
-  if ((st.picker && st.picker.shown) || st.systemUi === PICKER) await ctx.luna('luna://com.webos.service.systemUIManager/closeByAppId', { id: PICKER });
+  if (!why && st.picker && st.picker.shown) {
+    try {
+      await ctx.key('BACK', { picker: true });
+      // systemUIManager lists it a moment after it has gone.
+      await ctx.wait('the input picker to close', async () => { const s = await ctx.state(); return !(s.picker || {}).shown && s.systemUi !== PICKER; }, { timeout: 12000 });
+    } catch (e) { why = 'the input picker could not be closed: ' + e.message; }
+  }
+  if (!why && (await ctx.front()).includes(HOME_APP)) {
+    try {
+      await ctx.key('BACK', { over: HOME_APP });
+      await ctx.wait("LG's Home to close", async () => !(await ctx.front()).includes(HOME_APP), { timeout: 5000 });
+    } catch (e) { why = "LG's Home could not be closed: " + e.message; }
+  }
   return why;
 }
 
@@ -287,6 +324,7 @@ export async function baseline(ctx) {
   const b = await snapshot(ctx);
   const bad = Object.keys(b.values).filter((k) => b.values[k] && b.values[k].unreadable);
   if (bad.length) throw new Error('no baseline: ' + bad.map((k) => k + ' is ' + shown(b.values[k])).join('; ') + '. Nothing is changed without one.');
+  if (b.values.power !== 'Active') throw new Error('the TV is not on (power state ' + shown(b.values.power) + '): nothing is pressed while it is off');
   // Without the PIN no change of it could be seen: nothing that presses keys runs.
   if (b.pin === undefined) throw new Error('no baseline: the PIN (lock.systemPin) is unreadable, so a change of it could not be seen. Nothing is changed without it.');
   ctx.journal = journal.open(ctx.tv.host, ctx.out, b.values);
@@ -297,6 +335,9 @@ export async function baseline(ctx) {
 // Restores to the journal's baseline and closes the journal once that is verified.
 export async function finish(ctx, owned) {
   const r = await restoreVerified(ctx, ctx.journal.baseline, ctx.secrets.pin);
+  // A broken layer or a removed stub the journal still marks is not undone by a restore of values.
+  if (ctx.journal.layer) r.left.push('the layer is still marked broken on purpose');
+  if (ctx.journal.stub) r.left.push('the stub is still marked removed');
   if (owned && !r.left.length) { journal.close(ctx.journal); ctx.journal = null; }
   else if (owned) ctx.say('the journal stays open (' + ctx.journal.file + '): the next command restores from it first');
   return r;

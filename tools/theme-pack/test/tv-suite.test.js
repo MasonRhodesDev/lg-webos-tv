@@ -24,7 +24,7 @@ async function dryRun(over = {}, ids) {
   const lines = [];
   const tv = makeTv({ host: 'tv.invalid', exec: fake.inProcess(state) });
   const ctx = makeCtx({ tv, out, say: (l) => lines.push(l), poll: 10, sleep: (ms) => new Promise((r) => setTimeout(r, Math.min(ms, 30))) });
-  const r = await runScenarios(ctx, ids ? SCENARIOS.filter((s) => ids.includes(s.id)) : SCENARIOS);
+  const r = await runScenarios(ctx, ids ? SCENARIOS.filter((s) => ids.includes(s.id)) : SCENARIOS.filter((s) => !s.optIn));
   return { r, state, out, lines, run: (id) => r.runs.find((x) => x.id === id) };
 }
 
@@ -89,6 +89,35 @@ test('the guard lets through only keys that change nothing', async () => {
   const odd = Object.assign({}, menu(row('item', 'value')), { systemUi: 'unknown' });
   for (const k of ['QMENU', 'UP', 'ENTER', 'LEFT', 'BACK']) assert.match(guard(k, odd), /LG overlay we do not know/, k + ' with systemUIManager unreadable');
   assert.ok(Object.keys(KEYS).every((k) => ['proven', 'table', 'unverified'].includes(KEYS[k].from)));
+  // Home and Exit only with their own allowance, never through another; nothing else that is never pressed has one.
+  const deep = menu(row('page', 'nav', 'Legal notice'));
+  assert.strictEqual(guard('EXIT', deep, { exit: true }), null);
+  assert.strictEqual(guard('HOME', deep, { home: true }), null);
+  assert.strictEqual(guard('HOME', none, { home: true }), null, 'Home over the app, for its capture');
+  assert.match(guard('HOME', deep, { exit: true, write: { ref: 'x' }, over: 'com.webos.app.home' }), /never pressed/);
+  assert.match(guard('EXIT', stale, { exit: true }), /stale state/);
+  assert.match(guard('HOME', Object.assign({}, none, { systemUi: 'com.webos.app.quicksettings' }), { home: true }), /LG's Quick Settings is open/);
+  for (const k of ['INPUT_HUB', 'POWER', 'CHANNELUP', 'CHANNELDOWN', '0']) {
+    assert.match(guard(k, deep, { home: true, exit: true, picker: true, lgQuick: true, over: 'x', launch: { ref: 'deviceConnector' } }), /never pressed/, k);
+  }
+  // OK on an action row that only opens LG's app, named; never on another action, whatever is named.
+  const leave = (ref) => menu(Object.assign(row('action', 'nav', ref), { ref }));
+  assert.strictEqual(guard('ENTER', leave('deviceConnector'), { launch: { ref: 'deviceConnector' } }), null);
+  assert.match(guard('ENTER', leave('deviceConnector'), { launch: { ref: 'pictureTest' } }), /would change/);
+  assert.match(guard('ENTER', leave('deviceConnector')), /would change/);
+  assert.match(guard('ENTER', leave('resetToInitial'), { launch: { ref: 'resetToInitial' } }), /would change/);
+  assert.match(guard('ENTER', leave('screenOff'), { launch: { ref: 'screenOff' } }), /would change/);
+  // The input picker: Left, Right and Back when allowed, never OK; LG's Quick Settings: moves, OK and Back.
+  const pk = Object.assign({}, none, { picker: { shown: true } });
+  for (const k of ['LEFT', 'RIGHT', 'BACK']) assert.strictEqual(guard(k, pk, { picker: true }), null, 'picker ' + k);
+  for (const k of ['ENTER', 'UP', 'QMENU']) assert.match(guard(k, pk, { picker: true }), /only Left, Right and Back/, 'picker ' + k);
+  const lgqs = Object.assign({}, none, { systemUi: 'com.webos.app.quicksettings' });
+  for (const k of ['UP', 'DOWN', 'ENTER', 'BACK']) assert.strictEqual(guard(k, lgqs, { lgQuick: true }), null, 'LG QS ' + k);
+  for (const k of ['LEFT', 'RIGHT', 'QMENU']) assert.match(guard(k, lgqs, { lgQuick: true }), /LG's Quick Settings is open/, 'LG QS ' + k);
+  // Back over LG's app only while that app is in front and nothing of ours is open.
+  assert.strictEqual(guard('BACK', Object.assign({}, none, { front: ['com.webos.app.hdmi2', 'com.webos.app.home'] }), { over: 'com.webos.app.home' }), null);
+  assert.match(guard('BACK', Object.assign({}, none, { front: ['com.webos.app.hdmi2'] }), { over: 'com.webos.app.home' }), /nothing of ours/);
+  assert.match(guard('ENTER', Object.assign({}, none, { front: ['com.webos.app.home'] }), { over: 'com.webos.app.home' }), /nothing of ours/);
 });
 
 test('every TV-CHECKS item has exactly one coverage entry, and the scenarios name only known ones', async () => {
@@ -173,11 +202,23 @@ test('dry run: deploy runs the real scripts against the fake TV, step by step, a
   assert.match(noLayer.out, /FAIL boot: the boot hook: settings left stock \(the stub needs our layer and the Look service\)/);
 });
 
+// Our layer's open defects, as the fake models them from the TV: Exit and Home leave our Settings open, and so does
+// leaving for LG's apps. Their scenarios fail on exactly these checks until the layer closes itself.
+const DEFECTS = { 'exit-home': [/^EXIT closes our Settings/, /^HOME closes our Settings/], 'leave-for-lg': [/: our Settings gives way to LG's app$/] };
+
 test('dry run: every scenario passes against the fake TV and leaves it as it was', async () => {
   const { r, state, out, lines, run } = await dryRun();
-  for (const x of r.runs) assert.strictEqual(x.status, 'pass', x.id + ': ' + x.reason + '\n' + lines.join('\n'));
+  for (const x of r.runs) {
+    if (!DEFECTS[x.id]) { assert.strictEqual(x.status, 'pass', x.id + ': ' + x.reason + '\n' + lines.join('\n')); continue; }
+    const bad = x.checks.filter((c) => !c.ok);
+    assert.ok(bad.length && bad.every((c) => DEFECTS[x.id].some((d) => d.test(c.name))), x.id + ' fails on its known defect only: ' + bad.map((c) => c.name).join('; '));
+  }
   for (const c of r.end) assert.ok(c.ok, c.name + ': ' + c.detail);
   assert.deepStrictEqual(state.events, [], 'nothing changed, switched, joined, paired or reached the app underneath');
+  assert.deepStrictEqual(state.launched, ['com.webos.app.connectionwizard', 'com.webos.app.customersupport', 'com.webos.app.customersupport', 'org.webosbrew.hbchannel'],
+    "LG's apps opened on purpose: the three leave-for-lg rows, and the stand-in for a streaming app");
+  assert.strictEqual(state.fg, 'com.webos.app.hdmi2', 'the app in front is back');
+  assert.ok(!state.home && !state.picker.shown && !state.quick.open && !state.menu.open, 'Home, the picker and our menus are put away');
   assert.deepStrictEqual(state.writes.slice().sort(), ['Network/deviceName', 'Network/deviceName', 'contrast', 'contrast', 'pictureMode', 'pictureMode', 'quickStartMode', 'quickStartMode', 'volume', 'volume'],
     'the four reversible writes, each made and undone through our UI');
   const initial = (await imp('fake/tv.mjs')).initialState();
@@ -297,33 +338,59 @@ test('dry run: coldboot reboots, waits for ssh and the hook, then checks in orde
   assert.match(bad.stdout, /FAIL the hook mounted the stub: settings left stock \(our Settings host never reported ready\)/);
 });
 
-test('dry run: the manual pass prints its checklist, breaks the layer on purpose, records verdicts and puts the layer back', () => {
+test('dry run: the manual pass prints only the steps that need a person, records verdicts and checks what it saw', () => {
   const cli = path.join(dir, 'tv-suite.mjs'), f = path.join(tmp('man-state'), 'tv.json'), out = tmp('man');
   const go = (input, ...a) => spawnSync(process.execPath, [cli, ...a, '--dry-run', '--fake-state', f], { encoding: 'utf8', timeout: 180000, input });
   const list = go('', 'manual', '--print');
-  for (const id of ['home-tile', 'pointer', 'exit', 'home', 'gear-held', 'picture-blink', 'back-refusing-app', 'layer-broken', 'part-removed']) assert.match(list.stdout, new RegExp('\\[' + id + '\\]'));
+  for (const id of ['picture-blink', 'real-callers', 'gear-held', 'pointer', 'screen-off', 'channel-keys', 'back-live', 'back-hdmi']) assert.match(list.stdout, new RegExp('\\[' + id + '\\]'));
+  for (const id of ['home-tile', 'exit', 'home', 'hotkeys', 'picker-move', 'leave-for-lg', 'back-refusing-app', 'layer-broken', 'part-removed', 'stub-removed']) assert.doesNotMatch(list.stdout, new RegExp('\\[' + id + '\\]'), id + ' is a scenario now');
   assert.strictEqual(go('', 'deploy').status, 0);
-  const r = go('p\np\np looks fine\nf the tile opened nothing\n', 'manual', out, '--item', 'layer-broken', '--item', 'part-removed', '--item', 'stub-removed', '--item', 'exit');
+  const r = go('p\np looks fine\nf the picture blinked\n', 'manual', out, '--item', 'gear-held', '--item', 'pointer', '--item', 'picture-blink');
   const m = JSON.parse(fs.readFileSync(path.join(out, 'manual.json'), 'utf8'));
-  assert.deepStrictEqual(m.items.map((x) => x.id), ['exit', 'layer-broken', 'part-removed', 'stub-removed']);
+  assert.deepStrictEqual(m.items.map((x) => x.id), ['picture-blink', 'gear-held', 'pointer']);
   const by = (id) => m.items.find((x) => x.id === id);
-  assert.strictEqual(by('layer-broken').verdict, 'pass', JSON.stringify(by('layer-broken')));
-  assert.ok(by('layer-broken').checks.some((c) => c.ok && /hook leaves LG's Settings/.test(c.name)));
-  // Nobody pressed the gear on the fake: the person's pass is not what the suite saw.
-  assert.strictEqual(by('part-removed').verdict, 'fail');
-  assert.ok(by('part-removed').checks.some((c) => !c.ok && /what the suite saw agrees/.test(c.name)));
-  assert.strictEqual(by('part-removed').note, 'looks fine');
-  assert.strictEqual(by('exit').verdict, 'fail', 'a pass the suite did not see (nobody pressed EXIT on the fake) is a fail');
-  assert.ok(by('exit').checks.some((c) => !c.ok && /what the suite saw agrees/.test(c.name)));
-  assert.strictEqual(by('stub-removed').verdict, 'fail');
-  assert.strictEqual(by('stub-removed').note, 'the tile opened nothing');
+  assert.strictEqual(by('picture-blink').verdict, 'pass');
+  // Nobody held the gear on the fake: the person's pass is not what the suite saw.
+  assert.strictEqual(by('gear-held').verdict, 'fail');
+  assert.ok(by('gear-held').checks.some((c) => !c.ok && /what the suite saw agrees/.test(c.name)));
+  assert.strictEqual(by('gear-held').note, 'looks fine');
+  assert.strictEqual(by('pointer').verdict, 'fail');
+  assert.strictEqual(by('pointer').note, 'the picture blinked');
   assert.strictEqual(r.status, 1, 'a failed verdict fails the pass');
   const s = JSON.parse(fs.readFileSync(f, 'utf8'));
-  assert.ok(s.mounted && s.settingsHost && s.broken === null, 'the good layer and the stub are back');
   assert.deepStrictEqual(s.unknown, []);
   assert.deepStrictEqual(s.events, []);
   assert.strictEqual(go('', 'report', out).status, 0);
   assert.match(fs.readFileSync(path.join(out, 'index.html'), 'utf8'), /Manual pass/);
+});
+
+test('dry run: the fallback scenarios run only when named, break the layer or the stub on purpose and put it back', () => {
+  const cli = path.join(dir, 'tv-suite.mjs'), f = path.join(tmp('fb-state'), 'tv.json');
+  const go = (...a) => spawnSync(process.execPath, [cli, ...a, '--dry-run', '--fake-state', f], { encoding: 'utf8', timeout: 300000 });
+  assert.match(go('run', '--list').stdout, /fallback-part-removed\s+\(only when named\)/);
+  assert.strictEqual(go('deploy').status, 0);
+  const out = tmp('fb');
+  const r = go('run', out, '--scenario', 'fallback-layer-broken', '--scenario', 'fallback-part-removed', '--scenario', 'fallback-stub-removed');
+  assert.strictEqual(r.status, 0, r.stdout + r.stderr);
+  const res = JSON.parse(fs.readFileSync(path.join(out, 'results.json'), 'utf8'));
+  const by = (id) => res.runs.find((x) => x.id === id);
+  assert.ok(by('fallback-layer-broken').checks.some((c) => c.ok && /hook leaves LG's Settings/.test(c.name)));
+  assert.ok(by('fallback-part-removed').checks.some((c) => c.ok && /the gear opens LG's Quick Settings/.test(c.name)));
+  assert.ok(by('fallback-stub-removed').checks.some((c) => c.ok && /install-boot.sh remove unmounts the stub/.test(c.name)));
+  const s = JSON.parse(fs.readFileSync(f, 'utf8'));
+  assert.ok(s.mounted && s.settingsHost && s.broken === null && s.stub, 'the good layer and the stub are back');
+  assert.deepStrictEqual(s.launched, ['com.palm.app.settings', 'com.palm.app.settings'], "LG's Settings opened on purpose, once per fallback");
+  assert.deepStrictEqual(s.events, []);
+  assert.deepStrictEqual(s.unknown, []);
+  assert.ok(!s.lgQs, "LG's Quick Settings is closed");
+});
+
+test('turned off meanwhile (an HDMI device through CEC, or a person): nothing is restored over it and the run stops', async () => {
+  const off = await dryRun({ faults: { standbyOnToast: true } }, ['toast', 'hotkeys']);
+  assert.ok(off.run('toast').checks.some((c) => !c.ok && /power: was "Active", now "ActiveStandby"/.test(c.detail)));
+  assert.strictEqual(off.run('hotkeys'), undefined, 'no scenario starts after it');
+  assert.ok(!off.state.inputLaunches, 'the input is not launched over a TV in standby');
+  await assert.rejects(dryRun({ power: 'ActiveStandby' }, ['toast']), /the TV is not on \(power state "ActiveStandby"\)/);
 });
 
 test("systemUIManager's foregroundAppInfo list is read as the TV answers it, and anything else is unknown", async () => {
@@ -414,9 +481,9 @@ test('blocker: a journal that cannot be restored stops the next command', async 
   assert.ok(!/== toast/.test(next.stdout), 'nothing new started');
 });
 
-test('blocker: SIGINT at a fallback prompt puts the good layer back', async () => {
+test('blocker: SIGINT in a fallback scenario puts the good layer back', async () => {
   const { f, state } = fakeFile({ faults: { slow: 5 } });
-  const r = await interrupted(f, ['manual', tmp('mint'), '--item', 'layer-broken'], (s) => s.broken === 'layer' && /left stock/.test(s.themepackLog), 'SIGINT');
+  const r = await interrupted(f, ['run', tmp('mint'), '--scenario', 'fallback-layer-broken'], (s) => s.broken === 'layer' && /left stock/.test(s.themepackLog), 'SIGINT');
   assert.ok(r.sent);
   assert.strictEqual(r.code, 130, r.out);
   const s = state();

@@ -310,16 +310,24 @@ node tools/theme-pack/tv-suite/tv-suite.mjs rollback            # puts back what
   picker, and a step of the quick sheet's Volume row. A write the TV refuses fails with the store's exact report. The
   guard never lets through a reset, a PIN change, a network join or forget, a Bluetooth pair, connect or forget, an
   input switch or a channel scan.
+- Some scenarios leave for LG and come back, each putting the app that was in front back itself: EXIT and HOME over a
+  deep-linked Settings (`exit-home`), Home captured for its tiles (`home-tile`), Device connector, Picture test and
+  Sound test opening LG's apps and Back coming back (`leave-for-lg`), and our Settings closed with Back over another
+  app (`back-refusing-app`). The hotkeys are LG's Quick Settings launch with an `activateType` (`hotkeys`); the network
+  input has no key for them.
+- The fallbacks run only when named (`run --scenario fallback-layer-broken`, `fallback-part-removed`,
+  `fallback-stub-removed`): each deploys a copy of the layer broken on purpose (Layer.qml failing, or without our
+  Settings part) or removes the stub, checks the boot hook's verdict, that the Home tile's launch opens LG's Settings
+  and that the gear opens LG's Quick Settings, and puts the good layer and the stub back.
 - **coldboot** reboots the TV, waits (bounded) for ssh and for the boot hook's last line, then checks in this order:
   the stub mounted, no stock Settings resident, the `redirect` scenario, the host-ready report (and that the stub came
   after it), the telemetry state and Hook A's report. It writes `coldboot.json` with the boot timings (seconds after
   power-on to ssh, hook done, layer and host ready). It can run again.
-- **manual** walks a person through what only a person can check (the Home tile and its icon, the picture, EXIT and
-  HOME, the held gear, the hotkeys, the pointer, Screen off, an app that refuses Back, LG's apps the Settings rows
-  open), each with what to press, what to look for and what passes. Meanwhile the suite logs what the probes, the
-  system UI and SAM show, and checks what it can. It drives the fallbacks itself: it deploys a copy of the layer
-  broken on purpose (Layer.qml failing, or without our Settings part), checks the boot hook's verdict and that the
-  gear opens LG's Quick Settings, and puts the good layer and the stub back. Verdicts go to `manual.json`.
+- **manual** walks a person through what only a person can check (the picture underneath, LG's own routes into
+  Settings, the held gear, the magic remote's pointer, Screen off, the channel keys, Back on Live TV and HDMI), each
+  with what to press, what to look for and what passes. The network input sends whole presses, never a held key's
+  auto-repeats, and its pointer moves cannot be aimed, so those two stay here. Meanwhile the suite logs what the
+  probes, the system UI and SAM show, and checks what it can. Verdicts go to `manual.json`.
 - Safety: before changing anything the suite writes a journal (`OUT_DIR/journal.json`, found again through
   `$TV_SUITE_STATE`, default `~/.local/state/tv-suite/`) of the TV's baseline: the Look, the volume, the input in
   front, the watched settings (Contrast and Brightness among them), the network state and the paired Bluetooth devices (bluetooth2 `device/getStatus`: addresses and connected profiles)
@@ -327,16 +335,20 @@ node tools/theme-pack/tv-suite/tv-suite.mjs rollback            # puts back what
   compared normalised, written back exactly as read, and a setting left in another type is a failure the restore
   fixes. Each scenario's end, SIGINT, SIGTERM and an error put the TV back to it and read every value again;
   a value that cannot be read never counts as restored. A command that finds a journal left by an interrupted one
-  restores from it first, and starts nothing until that is verified. The manual pass's fallbacks are marked in the
-  journal before the layer is broken, and the pass does not go on until the good layer is verified back.
+  restores from it first, and starts nothing until that is verified. The fallback scenarios are marked in the
+  journal before the layer is broken, and the run stops if the good layer is not verified back. The baseline holds the
+  TV's power state too: nothing starts while the TV is off, and if it is turned off meanwhile (by a person, or by an
+  HDMI device through CEC) nothing is restored over that and the run stops.
 - The probes are test instrumentation and stay off on the household's TV: the Look service's `probing` flag is off at
   every start (never written to disk), the layer sends no probe at all while it is off (it learns the flag from the
   Look subscription), and it turns itself off when nothing has read the probes for ten minutes. Each command turns it
   on first, keeps it alive, and turns it off at the end, on an error and on SIGINT or SIGTERM.
 - The guard presses nothing on a probe older than the layer's heartbeat allows (Layer.qml sends every probe again
   each second while a menu of ours is open, every five seconds otherwise), nothing until a probe newer than the last
-  key has arrived, nothing while LG's Quick Settings, the input picker or any other LG overlay is open (those close
-  with `closeByAppId`), and BACK only to a menu of ours that is confirmed open.
+  key has arrived, nothing while LG's Quick Settings, the input picker or any other LG overlay is open (LG's Quick
+  Settings closes with `closeByAppId`; the input picker and Home ignore it and close with Back), and BACK only to a
+  menu of ours that is confirmed open. The few keys more a scenario needs are allowed only for it, by name (`allow`:
+  Home, Exit, Left/Right/Back in the picker, OK on the three rows that open LG's apps, Back over a named LG app).
 - The state comes from the parts themselves: each part of our layer publishes a small `probe` (what it shows, the
   open pages, the focused row and its kind) to the Look service (`getProbe`), next to the reports.
 - **report** writes `OUT_DIR/index.html` (with the cold boot and the manual pass when they ran into the same

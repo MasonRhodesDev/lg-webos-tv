@@ -5,7 +5,7 @@
 //   node tv-suite.mjs deploy [OUT_DIR] [--from STEP] [--only STEP] [--check]
 //   node tv-suite.mjs coldboot [OUT_DIR]          reboot, then the checks that count only after a boot
 //   node tv-suite.mjs manual [OUT_DIR] [--item ID]... [--no-later]     | manual --print
-//   node tv-suite.mjs run [OUT_DIR] [--scenario ID]...                 | run --list
+//   node tv-suite.mjs run [OUT_DIR] [--scenario ID]...                 | run --list (the fallback-* run only when named)
 //   node tv-suite.mjs baseline                    read-only preflight: every baseline value readable, probes fresh, keys
 //   node tv-suite.mjs rollback                    put back what deploy's backup holds | rollback --print
 //   node tv-suite.mjs report OUT_DIR [--boards CANVAS_DIR] [--preview RENDER_DIR]
@@ -109,7 +109,7 @@ export function interrupt(why, say = console.log) {
 
 export async function main(argv, say = console.log) {
   const o = parse(argv);
-  if (o.cmd === 'run' && o.list) { for (const s of SCENARIOS) say(s.id.padEnd(20) + s.title); return 0; }
+  if (o.cmd === 'run' && o.list) { for (const s of SCENARIOS) say(s.id.padEnd(24) + (s.optIn ? '(only when named) ' : '') + s.title); return 0; }
   if (o.cmd === 'manual' && o.print) { printChecklist(say); return 0; }
   if (o.cmd === 'rollback' && o.print) { printRollback(say); return 0; }
   if (o.cmd === 'report') {
@@ -181,7 +181,8 @@ export async function main(argv, say = console.log) {
   if (o.cmd === 'run') {
     const unknown = o.scenarios.filter((id) => !SCENARIOS.some((s) => s.id === id));
     if (unknown.length) throw new Error('no scenario ' + unknown.join(', ') + ' (see --list)');
-    const pick = o.scenarios.length ? SCENARIOS.filter((s) => o.scenarios.includes(s.id)) : SCENARIOS;
+    // The fallback scenarios restart the compositor twice each: they run only when named.
+    const pick = o.scenarios.length ? SCENARIOS.filter((s) => o.scenarios.includes(s.id)) : SCENARIOS.filter((s) => !s.optIn);
     const started = new Date().toISOString();
     const r = await runScenarios(ctx, pick);
     const results = { started, finished: new Date().toISOString(), host: o.dry ? 'fake' : 'TV', dry: !!o.dry, runs: r.runs, end: r.end, notes: r.notes };
