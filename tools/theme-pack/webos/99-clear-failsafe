@@ -1,0 +1,9 @@
+#!/bin/sh
+# Homebrew Channel boot hook, run last: every hook has run, so startup did not crash.
+# Homebrew clears its failsafe flag itself only after a further `sleep 10`. A suspend in that window (a CEC standby,
+# LG's Quick Start+) has left the flag set for as long as the TV stayed up, and the next power-on then started in
+# failsafe: no SSH, no hooks, no layer, no update block. Clearing it here leaves no such window.
+FLAG=/var/luna/preferences/webosbrew_failsafe
+[ -e $FLAG ] || exit 0
+rm -f $FLAG
+sync
