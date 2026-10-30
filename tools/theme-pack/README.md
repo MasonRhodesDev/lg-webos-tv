@@ -362,6 +362,8 @@ node tools/theme-pack/tv-suite/tv-suite.mjs rollback            # puts back what
 
 The read-only system and the boot snapshot undo mounts and bus permissions at each power-on. `webos/60-themepack` is a Homebrew Channel boot hook that puts them back: bus permissions and a rescan, our UI layer in the compositor, then the Settings stub over LG's Settings app, only when the layer loaded and the Look service is installed (otherwise LG's Settings stays). It logs to `/tmp/themepack.log`.
 
+`webos/05-clean-poweroff` runs first. Homebrew treats a boot whose hooks are not finished (plus 10 s) when the TV powers off as a crash, and starts the next boot in failsafe: no SSH, no hooks, only a root telnet shell. LG's Quick Start+ boots the TV in the background and powers it off again within about a minute, which our hooks can outlast. This hook clears Homebrew's flag when tvpowerd reports a clean power-off while startup is still running; hangs and watchdog resets still end in failsafe. It logs to `/var/lib/webosbrew/clean-poweroff.log`. If a boot does end in failsafe, `reboot` from the telnet shell (port 23) brings everything back.
+
 ```sh
 TV_HOST=<tv address> sh tools/theme-pack/webos/install-boot.sh install   # build the stub, install it and the hook, run the hook
 TV_HOST=<tv address> sh tools/theme-pack/webos/install-boot.sh remove    # remove both; LG's Settings is back at once

@@ -600,7 +600,8 @@ export function ssh(s, cmd, stdin) {
     hook(s);
     return r(s.themepackLog.trim().split('\n').slice(-8).join('\n') + '\n');
   }
-  if (/^rm -f \S+60-themepack$/.test(cmd)) { s.hook = false; return r(); }
+  if (/^chmod 755 \S+05-clean-poweroff$/.test(cmd)) { s.poweroffHook = !!s.files['/var/lib/webosbrew/init.d/05-clean-poweroff']; return r(); }
+  if (/^rm -f \S+60-themepack( \S+05-clean-poweroff)?$/.test(cmd)) { s.hook = false; if (/05-clean-poweroff/.test(cmd)) s.poweroffHook = false; return r(); }
   if (/^rm -rf \S+\/settings \S+\/settings-stub; echo removed$/.test(cmd)) { s.stub = false; return r('removed\n'); }
   if (/^s=\/media\/developer\/apps\/usr\/palm\/services\/\S+\/permissions\.sh; if/.test(cmd))
     return r(s.installed ? 'compositor groups: dev.themepack.look.service.group settings.read settings.write audio\n' : '');

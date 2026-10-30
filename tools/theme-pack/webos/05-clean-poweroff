@@ -1,0 +1,24 @@
+#!/bin/sh
+# Homebrew Channel boot hook: a clean power-off during startup is not a crash.
+# Homebrew sets webosbrew_failsafe as startup begins and clears it 10 s after the last init.d hook. A flag still set
+# at the next power-on means "startup crashed", and that boot skips every hook: no SSH, no layer, no Settings stub,
+# no update block. LG's Quick Start+ boots the TV in the background with the screen off and powers it off again
+# within about a minute (54 s seen), which can be before the hooks and that 10 s are done. tvpowerd reports such a
+# power-off; hangs, watchdog resets and panics never do, so those still end in failsafe.
+# Runs first and in the background. It gives up after 3 minutes: a startup still unfinished by then is worth a failsafe.
+FLAG=/var/luna/preferences/webosbrew_failsafe
+LOG=/var/lib/webosbrew/clean-poweroff.log
+(
+  timeout -t 180 luna-send -i luna://com.webos.service.tvpower/power/getPowerState '{"subscribe":true}' |
+  while read -r line; do
+    [ -e $FLAG ] || break
+    case "$line" in
+      *'"Power Off"'*)
+        rm -f $FLAG
+        sync
+        echo "$(date -u +%FT%TZ) up $(cut -d' ' -f1 /proc/uptime): power-off during startup, failsafe flag cleared ($line)" >> $LOG
+        break
+        ;;
+    esac
+  done
+) </dev/null >/dev/null 2>&1 &
