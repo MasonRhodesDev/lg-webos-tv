@@ -1,22 +1,29 @@
 #!/bin/sh
-# Homebrew Channel boot hook: a clean power-off during startup is not a crash.
+# Homebrew Channel boot hook: the TV being switched off during startup is not a crash.
 # Homebrew sets webosbrew_failsafe as startup begins and clears it 10 s after the last init.d hook. A flag still set
 # at the next power-on means "startup crashed", and that boot skips every hook: no SSH, no layer, no Settings stub,
-# no update block. LG's Quick Start+ boots the TV in the background with the screen off and powers it off again
-# within about a minute (54 s seen), which can be before the hooks and that 10 s are done. tvpowerd reports such a
-# power-off; hangs, watchdog resets and panics never do, so those still end in failsafe.
-# Runs first and in the background. It gives up after 3 minutes: a startup still unfinished by then is worth a failsafe.
+# no update block. A CEC standby or LG's Quick Start+ (which boots the TV in the background and powers it off within
+# about a minute) can switch the TV off before then, and a suspended startup may never get to clear it.
+# tvpowerd reports every such step down (Active Standby, Suspend, Power Off); the first one during startup clears the
+# flag. The state at subscription is skipped: a Quick Start+ boot starts in Active Standby. Hangs, watchdog resets and
+# panics report nothing, so they still end in failsafe.
+# Runs first; the watch runs in the background and gives up after 3 minutes (99-clear-failsafe has cleared the flag
+# by then, or startup is stuck and failsafe is deserved).
 FLAG=/var/luna/preferences/webosbrew_failsafe
 LOG=/var/lib/webosbrew/clean-poweroff.log
+# The boot hooks ran this boot: failsafe-recover.sh leaves such a boot alone.
+touch /tmp/webosbrew-hooks-ran
 (
+  first=1
   timeout -t 180 luna-send -i luna://com.webos.service.tvpower/power/getPowerState '{"subscribe":true}' |
   while read -r line; do
     [ -e $FLAG ] || break
+    if [ $first = 1 ]; then first=0; continue; fi
     case "$line" in
-      *'"Power Off"'*)
+      *'"Active Standby"'*|*'"Suspend"'*|*'"Power Off"'*)
         rm -f $FLAG
         sync
-        echo "$(date -u +%FT%TZ) up $(cut -d' ' -f1 /proc/uptime): power-off during startup, failsafe flag cleared ($line)" >> $LOG
+        echo "$(date -u +%FT%TZ) up $(cut -d' ' -f1 /proc/uptime): switched off during startup, failsafe flag cleared ($line)" >> $LOG
         break
         ;;
     esac

@@ -4,6 +4,11 @@
 # LG's Quick Start+) has left the flag set for as long as the TV stayed up, and the next power-on then started in
 # failsafe: no SSH, no hooks, no layer, no update block. Clearing it here leaves no such window.
 FLAG=/var/luna/preferences/webosbrew_failsafe
-[ -e $FLAG ] || exit 0
 rm -f $FLAG
 sync
+# A boot whose hooks ran by themselves (not a recovery) ends a run of failsafe recoveries.
+[ -e /tmp/themepack-recovering ] || rm -f /var/lib/webosbrew/failsafe-recover.count
+
+# Keeps failsafe-recover.sh scheduled; on a failsafe boot none of these hooks run, but it does.
+[ -x /var/lib/webosbrew/failsafe-recover.sh ] && /var/lib/webosbrew/failsafe-recover.sh --arm
+exit 0
