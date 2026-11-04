@@ -20,10 +20,11 @@ compositor() {
   while mount | grep -q " $q/InputPicker/Style.qml "; do umount $q/InputPicker/Style.qml || break; done
   initctl start surface-manager "$@" >/dev/null 2>&1
 }
-# The layer's root reports to the Look service as soon as it loads. Report times are UTC ISO strings, so they
-# compare as text.
+# The layer reports to the Look service as it loads. The root's own first report can be dropped while the bus is still
+# granting the compositor its groups, so any report from the layer that is not an error counts. Report times are UTC
+# ISO strings, so they compare as text.
 reported_since() {
-  last=$(luna-send -n 1 -w 5000 $svc/getReports '{}' | grep -o '"at":"[^"]*","from":"ui","kind":"root"' | tail -1 | cut -d'"' -f4)
+  last=$(luna-send -n 1 -w 5000 $svc/getReports '{}' | grep -o '"at":"[^"]*","from":"ui","kind":"\(root\|ok\|ready\)"' | tail -1 | cut -d'"' -f4)
   [ -n "$last" ] && [ "$last" \> "$1" ]
 }
 reopen() { [ -n "$fg" ] && sleep 3 && luna-send -n 1 -w 10000 luna://com.webos.applicationManager/launch "{\"id\":\"$fg\"}" >/dev/null && echo "reopened $fg"; }
@@ -33,9 +34,10 @@ case "$1" in
   apply)
     t0=$(date -u +%Y-%m-%dT%H:%M:%S)
     compositor QML2_IMPORT_PATH=$root/ui:$q
-    i=0; ok=0
-    while [ $i -lt 60 ]; do sleep 1; i=$((i + 1)); reported_since "$t0" && { ok=1; break; }; done
-    if [ $ok = 1 ]; then echo "layer loaded after ${i}s"; else echo "layer root never reported; back to stock"; compositor; rc=1; fi
+    # A wall-clock deadline: a suspend in the middle (a Quick Start+ boot) must not stretch the wait.
+    start=$(date +%s); ok=0
+    while [ $(( $(date +%s) - start )) -lt 60 ]; do sleep 1; reported_since "$t0" && { ok=1; break; }; done
+    if [ $ok = 1 ]; then echo "layer loaded after $(( $(date +%s) - start ))s"; else echo "$(date) layer never reported; back to stock"; compositor; rc=1; fi
     ;;
   revert)
     compositor; echo "stock"
