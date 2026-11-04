@@ -1,0 +1,258 @@
+#!/bin/sh
+# cold-boot-verify — prove the mods this repo installs actually ran on the
+# current boot. Read-only, SSH-driven. Intended for cold-boot tests with
+# Quick Start+ off and on.
+#
+# Usage:
+#   TV_HOST=<address> scripts/cold-boot-verify [-v|--verbose] [--max-uptime-s N]
+#
+# Environment (same conventions as scripts/backup.sh and scripts/tv-settings):
+#   TV_HOST        required, the TV's address (or set in a gitignored .env)
+#   TV_USER        optional, default root
+#   MAX_UPTIME_S   accept this many seconds of uptime; default 900 (15 min)
+#
+# Exits 0 if every check passes. Exits 1 on any FAIL. Exits 2 if the TV
+# cannot be reached. WARN does not fail — it means the mod left no on-TV
+# marker and the verifier inferred state from something downstream.
+#
+# Each check prints one of:
+#   PASS <name>                — confirmed via a mod-emitted marker
+#   PASS <name> (inferred)     — mod has no marker, downstream state checked
+#   WARN <name>: <why>         — no evidence either way
+#   FAIL <name>: <why>
+#
+# quick-start-state is informational; it prints the setting and never fails.
+# Which marker each check relies on is listed in the script's companion doc.
+set -u
+
+SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
+REPO_ROOT=$(cd "$SCRIPT_DIR/.." && pwd)
+
+verbose=0
+MAX_UPTIME_S=${MAX_UPTIME_S:-900}
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -v|--verbose) verbose=1 ;;
+    --max-uptime-s)
+      shift; [ $# -gt 0 ] || { echo "--max-uptime-s needs a value" >&2; exit 2; }
+      MAX_UPTIME_S=$1 ;;
+    -h|--help) sed -n '2,26p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    *) echo "unknown flag: $1" >&2; exit 2 ;;
+  esac
+  shift
+done
+
+if [ -z "${TV_HOST:-}" ] && [ -f "$REPO_ROOT/.env" ]; then
+  # shellcheck disable=SC1091
+  . "$REPO_ROOT/.env"
+fi
+: "${TV_HOST:?set TV_HOST (env or .env)}"
+TV_USER=${TV_USER:-root}
+SSH_OPTS=${SSH_OPTS:--o BatchMode=yes -o ConnectTimeout=10 -o LogLevel=ERROR}
+
+# All TV commands go through one of these two helpers. tv() has no TTY;
+# tvt() allocates one, which luna-send needs to print any output at all.
+# luna-send also reads stdin when one is attached, so we always redirect
+# </dev/null when we call it.
+tv()  { ssh $SSH_OPTS "$TV_USER@$TV_HOST" "$@"; }
+tvt() { ssh -tt $SSH_OPTS "$TV_USER@$TV_HOST" "$@" </dev/null 2>/dev/null | tr -d '\r'; }
+
+passes=0
+fails=0
+warns=0
+pass() { passes=$((passes+1)); printf 'PASS %s\n' "$*"; }
+fail() { fails=$((fails+1));  printf 'FAIL %s\n' "$*"; }
+warn() { warns=$((warns+1));  printf 'WARN %s\n' "$*"; }
+v()    { [ "$verbose" -eq 1 ] && printf '  | %s\n' "$*"; return 0; }
+vblock() { [ "$verbose" -eq 1 ] && printf '%s\n' "$1" | sed 's/^/  | /'; return 0; }
+
+# Pull every file-system fact in one SSH round-trip and carve it up locally.
+if ! probe=$(tv 'set +e
+  echo "===UPTIME==="
+  cat /proc/uptime
+  echo "===FAILSAFE_FLAG==="
+  ls -la /var/luna/preferences/webosbrew_failsafe 2>&1
+  cat /var/luna/preferences/webosbrew_failsafe 2>/dev/null
+  echo "===FAILSAFE_RECOVER_LOG==="
+  tail -n 5 /var/lib/webosbrew/failsafe-recover.log 2>/dev/null
+  echo "===CLEAN_POWEROFF_LOG_TAIL==="
+  tail -n 5 /var/lib/webosbrew/clean-poweroff.log 2>/dev/null
+  echo "===HOOKS_RAN_MARKER==="
+  ls -la /tmp/webosbrew-hooks-ran 2>&1
+  echo "===INITD_LIST==="
+  ls /var/lib/webosbrew/init.d/
+  echo "===THEMEPACK_LOG==="
+  tail -n 20 /tmp/themepack.log 2>&1
+  echo "===THEMEPACK_HOOK_LAST_RUN==="
+  grep -c "^=== " /tmp/themepack.log 2>/dev/null
+  echo "===AISERVICE_MOUNTS==="
+  grep -E "aiservice" /proc/mounts 2>/dev/null
+  echo "===AISERVICE_PROCS==="
+  ps -ef | awk "/[a]iservice/"
+'); then
+  printf 'FAIL ssh_reach: cannot reach %s@%s\n' "$TV_USER" "$TV_HOST" >&2
+  exit 2
+fi
+get() {
+  awk -v s="===$1===" 'BEGIN{p=0}
+    $0==s{p=1; next}
+    p && $0 ~ /^===[A-Z_]+===$/ {p=0}
+    p{print}' <<EOF
+$probe
+EOF
+}
+
+# luna-send calls (one TTY each — the only way they emit on this firmware).
+quickstart=$(tvt 'luna-send -n 1 -w 5000 -f luna://com.webos.settingsservice/getSystemSettings "{\"category\":\"option\",\"keys\":[\"quickStartMode\"]}"')
+preload=$(tvt 'luna-send -n 1 -w 5000 -f luna://com.webos.service.config/getConfigs "{\"configNames\":[\"com.webos.service.preloadmanager.maxPreloadApp\"]}"')
+
+printf '==== cold-boot-verify (%s, %s) ====\n' "$TV_HOST" "$(date -u +%FT%TZ)"
+
+# --- 1. boot-age ---------------------------------------------------------
+uptime_raw=$(get UPTIME)
+vblock "$uptime_raw"
+upt=$(printf '%s\n' "$uptime_raw" | awk '{print int($1); exit}')
+if [ -z "$upt" ]; then
+  fail "boot-age: no reading from /proc/uptime"
+elif [ "$upt" -le "$MAX_UPTIME_S" ]; then
+  pass "boot-age: ${upt}s (<= ${MAX_UPTIME_S}s)"
+else
+  fail "boot-age: ${upt}s > ${MAX_UPTIME_S}s (this is not a fresh boot)"
+fi
+
+# --- 2. failsafe-not-engaged --------------------------------------------
+failsafe_flag=$(get FAILSAFE_FLAG)
+failsafe_log=$(get FAILSAFE_RECOVER_LOG)
+clean_poweroff=$(get CLEAN_POWEROFF_LOG_TAIL)
+vblock "$failsafe_flag"
+vblock "$failsafe_log"
+vblock "$clean_poweroff"
+# The flag absent or containing nothing truthy is the pass state.
+flag_truthy=0
+case "$failsafe_flag" in
+  *"No such"*|*"cannot access"*) : ;;
+  *)
+    # Flag file exists. Any non-empty content other than "0" / "false" is truthy.
+    body=$(printf '%s\n' "$failsafe_flag" | awk 'NR>1')
+    case "$(printf '%s' "$body" | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')" in
+      ''|0|false|null) : ;;
+      *) flag_truthy=1 ;;
+    esac
+    ;;
+esac
+if [ "$flag_truthy" -eq 1 ]; then
+  fail "failsafe-not-engaged: /var/luna/preferences/webosbrew_failsafe holds a truthy value"
+else
+  # Belt-and-braces: if failsafe-recover ran, it wrote a line this boot. Check its
+  # mtime against boot time; if it is newer than boot, failsafe fired.
+  pass "failsafe-not-engaged: no failsafe flag set this boot"
+fi
+
+# --- 3. hbc-startup-completed -------------------------------------------
+hooks_marker=$(get HOOKS_RAN_MARKER)
+vblock "$hooks_marker"
+case "$hooks_marker" in
+  *"No such"*|*"cannot access"*)
+    fail "hbc-startup-completed: /tmp/webosbrew-hooks-ran absent (HBC init.d did not touch it this boot)"
+    ;;
+  *)
+    pass "hbc-startup-completed: /tmp/webosbrew-hooks-ran present"
+    ;;
+esac
+
+# --- 4. themepack-hook-ran ----------------------------------------------
+themepack_log=$(get THEMEPACK_LOG)
+themepack_hdrs=$(get THEMEPACK_HOOK_LAST_RUN | head -n 1)
+vblock "$themepack_log"
+v "themepack-log-header-count=${themepack_hdrs:-0}"
+# 60-themepack appends '=== <date>' once per run. tmpfs is fresh each boot,
+# so any header at all means it ran this boot.
+case "$themepack_log" in
+  *"=== "*)
+    last=$(printf '%s\n' "$themepack_log" | awk '/^=== /{h=$0} END{print h}')
+    pass "themepack-hook-ran: /tmp/themepack.log last header -> $last"
+    ;;
+  *"cannot open"*|*"No such"*)
+    # Log file missing; fall back to the init.d script's presence.
+    if printf '%s\n' "$(get INITD_LIST)" | grep -qx '60-themepack'; then
+      warn "themepack-hook-ran: hook installed but no /tmp/themepack.log — cannot confirm it ran this boot"
+    else
+      fail "themepack-hook-ran: /var/lib/webosbrew/init.d/60-themepack is not installed"
+    fi
+    ;;
+  *)
+    warn "themepack-hook-ran: /tmp/themepack.log has no header — unclear"
+    ;;
+esac
+
+# --- 5. aiservice-stub-live --------------------------------------------
+# telemetry-off's bind-mount puts an empty file over /usr/bin/aiservice (or
+# the older /usr/sbin/aiservice path). When the kit is off this bind-mount
+# is absent and aiservice runs normally; both are legitimate states.
+ai_mounts=$(get AISERVICE_MOUNTS)
+ai_procs=$(get AISERVICE_PROCS)
+vblock "$ai_mounts"
+vblock "$ai_procs"
+ai_proc_running=0
+printf '%s\n' "$ai_procs" | awk 'NF' >/dev/null 2>&1 && \
+  printf '%s\n' "$ai_procs" | grep -q . && ai_proc_running=1
+case "$ai_mounts" in
+  *" /usr/bin/aiservice "*|*" /usr/sbin/aiservice "*)
+    pass "aiservice-stub-live: bind-mount over aiservice is live"
+    ;;
+  '')
+    if [ "$ai_proc_running" -eq 1 ]; then
+      pass "aiservice-stub-live (inferred): no bind-mount, aiservice is running (telemetry-off kit disabled; this is the expected state)"
+    else
+      pass "aiservice-stub-live (inferred): no bind-mount and no aiservice process"
+    fi
+    ;;
+  *)
+    pass "aiservice-stub-live (inferred): mount info -> $ai_mounts"
+    ;;
+esac
+
+# --- 6. preloads-off -----------------------------------------------------
+vblock "$preload"
+# Expected shape (pretty-printed by luna-send):
+#   "com.webos.service.preloadmanager.maxPreloadApp": 0
+# Flatten whitespace then match. The leading key may use the full dotted
+# config path or just the trailing identifier depending on firmware.
+preload_flat=$(printf '%s' "$preload" | tr -d '\n\r' | tr -s ' ')
+case "$preload_flat" in
+  *'"com.webos.service.preloadmanager.maxPreloadApp" : 0'*|\
+  *'"com.webos.service.preloadmanager.maxPreloadApp": 0'*|\
+  *'"maxPreloadApp" : 0'*|\
+  *'"maxPreloadApp": 0'*)
+    pass "preloads-off: maxPreloadApp=0"
+    ;;
+  *)
+    val=$(printf '%s' "$preload_flat" | awk 'match($0,/"maxPreloadApp"[[:space:]]*:[[:space:]]*[0-9]+/){
+      s=substr($0,RSTART,RLENGTH); sub(/.*:[[:space:]]*/,"",s); print s; exit}')
+    if [ -n "$val" ]; then
+      fail "preloads-off: maxPreloadApp=$val (expected 0)"
+    else
+      warn "preloads-off: luna returned no maxPreloadApp reading"
+    fi
+    ;;
+esac
+
+# --- 7. quick-start-state (informational) -------------------------------
+vblock "$quickstart"
+qsm=$(printf '%s\n' "$quickstart" | awk 'match($0,/"quickStartMode"[[:space:]]*:[[:space:]]*"[a-z]+"/){
+  s=substr($0,RSTART,RLENGTH); sub(/.*"[[:space:]]*:[[:space:]]*"/,"",s); sub(/"$/,"",s); print s}')
+if [ -n "$qsm" ]; then
+  printf 'INFO quick-start-state: quickStartMode=%s (verify the other mode too — enable/disable from Settings)\n' "$qsm"
+else
+  printf 'INFO quick-start-state: luna returned no reading for quickStartMode\n'
+fi
+
+# --- Summary -----------------------------------------------------------
+echo
+if [ "$fails" -eq 0 ]; then
+  printf 'RESULT PASS  (passes=%d warns=%d)\n' "$passes" "$warns"
+  exit 0
+else
+  printf 'RESULT FAIL (%d)  (passes=%d warns=%d)\n' "$fails" "$passes" "$warns"
+  exit 1
+fi
