@@ -1,9 +1,11 @@
 #!/bin/sh
 # Runs on the TV. Starts the compositor with our UI layer (ui/ next to this script) first on its QML import path,
 # so our YSM module wraps LG's and no LG file is edited or mounted over.
-#   own-layer.sh apply    restart the compositor with the layer; back on stock (and exit 1) if the layer's root never reports
-#   own-layer.sh revert   restart the compositor on stock
-# The restart briefly blanks the on-screen UI.
+#   own-layer.sh apply [dark]   restart the compositor with the layer; back on stock (and exit 1) if the layer never reports
+#   own-layer.sh revert         restart the compositor on stock
+# The restart blanks the screen for about 15 s, so the boot hook only runs it while the screen is off. `dark` is that
+# case: nothing is on screen to reopen afterwards, and launching an HDMI app then would make the TV announce itself on
+# CEC.
 export PATH=/usr/sbin:/usr/bin:/sbin:/bin:$PATH
 root=$(cd "$(dirname "$0")" && pwd)
 q=/usr/lib/qt5/qml
@@ -27,7 +29,7 @@ reported_since() {
   last=$(luna-send -n 1 -w 5000 $svc/getReports '{}' | grep -o '"at":"[^"]*","from":"ui","kind":"\(root\|ok\|ready\)"' | tail -1 | cut -d'"' -f4)
   [ -n "$last" ] && [ "$last" \> "$1" ]
 }
-reopen() { [ -n "$fg" ] && sleep 3 && luna-send -n 1 -w 10000 luna://com.webos.applicationManager/launch "{\"id\":\"$fg\"}" >/dev/null && echo "reopened $fg"; }
+reopen() { [ "$1" != dark ] && [ -n "$fg" ] && sleep 3 && luna-send -n 1 -w 10000 luna://com.webos.applicationManager/launch "{\"id\":\"$fg\"}" >/dev/null && echo "reopened $fg"; }
 
 rc=0
 case "$1" in
@@ -46,6 +48,6 @@ case "$1" in
     echo "usage: own-layer.sh apply | revert"; exit 2
     ;;
 esac
-reopen
+reopen "$2"
 echo done
 exit $rc
