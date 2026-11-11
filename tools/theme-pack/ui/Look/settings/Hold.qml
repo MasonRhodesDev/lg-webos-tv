@@ -48,6 +48,9 @@ QtObject {
         plane = null;
         item.parent = home;
         p.z = planeZ;
+        // LG's plane shows itself while it holds popups. Setting `visible` in take() cut that binding; this one puts it back.
+        // It is made here, so on Qt 5.6 it stops when this layer is unloaded: a plane given back by a layer that is
+        // later replaced no longer shows itself for LG's popups until the next holder gives it back again.
         p.visible = Qt.binding(function () { return p.model.count > 0; });
     }
     function wanted(other) { if (other !== hold && held) yielded(); }

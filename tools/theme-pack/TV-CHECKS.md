@@ -211,10 +211,11 @@ Checked on an LG B9 (webOS 4.10) on 2026-11-11:
 - [x] Our quick sheet open, then Home: the sheet closes and the dock opens; the gear then closes the dock and opens
       the sheet; Back closes it.
 - [x] A second `apply`: the reports have "home: LG's key filter chain restored" from the old layer, then the new
-      layer's "the Home key opens our dock"; every check above still passes.
+      layer's "the Home key opens our dock"; the dock opens, Back closes it, OK switches, the sheet and the dock hand
+      over, and other keys behave.
 - [x] Power off with the remote, wait for the Quick Start+ background boot, power on: a short Home opens our dock.
 - [x] `luna-send -n 1 luna://com.webos.service.systemUIManager/launch '{"appId":"dev.themepack.home"}'` from SSH
-      opens the dock too, and again closes it.
+      opens the dock too (a capture shows it).
 
 Not checked yet
 - [ ] With our layer gone (no `homeReady`), a launch of `dev.themepack.home` opens LG's Home (HomeEntry.qml's

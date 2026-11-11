@@ -15,7 +15,7 @@ var themepackLongPress = 1000;
 // When the Home press we took went down (ms since the epoch); 0 while we hold no press.
 var themepackPressedAt = 0;
 
-// It cannot report what it does: the Look service never hears from the key filter's bus connection. The dock's part
+// It does not report what it does: reports sent from the key filter's bus connection never reached the Look service. The dock's part
 // reports each request it gets ("home: requested").
 function init() {
 }
@@ -33,13 +33,13 @@ function themepackHomeRefused() {
     return "";
 }
 
-// LG's Home, the way LG's short press opens it.
+// LG's Home, as a short press opens it when no filter of ours is in the chain: the settings may name another default
+// app, which is launched as from the Home key; otherwise LG's Home app opens on its home category.
 function themepackLgHome() {
+    var other = settingsService.getLaunchDefaultApp;
     try { global.prepareToGoHome(); } catch (e) { }
-    if (settingsService.getLaunchDefaultApp)
-        applicationManager.launch(settingsService.getLaunchDefaultApp, JSON.stringify({ "launchType": "homeKey" }));
-    else
-        applicationManager.launchDefaultApp("com.webos.app.home", JSON.stringify({ "category": "home" }));
+    if (other) { applicationManager.launch(other, JSON.stringify({ "launchType": "homeKey" })); return; }
+    applicationManager.launchDefaultApp("com.webos.app.home", JSON.stringify({ "category": "home" }));
 }
 
 // The system UI manager's answer to our launch. Anything but returnValue: true opens LG's Home.

@@ -149,6 +149,24 @@ Item {
             compare(home.focusHandler.log[home.focusHandler.log.length - 1], "release 7", "focus handed back");
         }
 
+        // On the TV the bus answers after the dock is open; each answer is a new tile list.
+        function test_3b_focus_survives_new_answers() {
+            SettingsBus.homeRequested(null);
+            while (focusedLabel() !== "HDMI 3") keyClick(Qt.Key_Right);
+            var inputs = JSON.parse(JSON.stringify(TvSettings.inputs));
+            inputs[3].activate = true;
+            TvSettings.inputs = inputs;
+            home.refresh();
+            compare(focusedLabel(), "HDMI 3", "focus stays on the same tile");
+            compare(home.ribbon.spec(home.ribbon.currentIndex).sub, "Signal", "which now has a signal");
+            inputs.splice(0, 1);
+            TvSettings.inputs = inputs;
+            home.refresh();
+            compare(focusedLabel(), "HDMI 3", "also when tiles before it come and go");
+            compare(home.ribbon.currentIndex, 2);
+            home.close();
+        }
+
         function test_4_usb_needs_a_drive() {
             SettingsBus.homeRequested(null);
             var t = home.ribbon.model, usb = -1;

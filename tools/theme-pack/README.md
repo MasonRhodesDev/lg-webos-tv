@@ -293,8 +293,8 @@ Home key ─▶ ui/home-key.js (in LG's key filter chain, in memory, just ahead 
   `themepack`. It takes only Home, and only when LG itself would open Home (no modal alert, the ribbon on, Home not
   disabled, not in first-use setup, LG's Home not already showing); everything else goes on to the next filter. On
   the release of a short press it asks LG's system UI manager for our entry; a long press, a refused launch or a
-  throw opens LG's Home the way LG's own short press does. It cannot report what it does (the Look service never
-  hears from the key filter's bus connection); the dock's part reports each request.
+  throw opens LG's Home the way LG's own short press does. It does not report what it does (reports sent from the key
+  filter's bus connection never reached the Look service); the dock's part reports each request.
 - `ui/Look/settings/HomeKeyHook.qml` puts the filter in. The compositor's key filter object holds the live chain as a
   property bound to configd's list; the hook assigns a copy with our entry added, re-makes it when configd's list
   changes, and on retire assigns LG's list back as a plain value. Every assignment reloads the whole chain (LG's

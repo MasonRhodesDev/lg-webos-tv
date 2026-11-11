@@ -93,7 +93,7 @@ export const COVERAGE = [
   { id: 'home-handover', match: 'Our quick sheet open, then Home', how: MAN, by: 'manual home-handover', reason: 'needs the gear and Home pressed in turn on the remote' },
   { id: 'home-reapply', match: 'A second `apply`: the reports have', how: MAN, by: 'manual home-reapply', reason: 'reinstalls the key filter, gated on a person holding the remote' },
   { id: 'home-power', match: 'Power off with the remote, wait for the Quick Start+ background boot', how: MAN, by: 'manual home-power', reason: 'a power cycle is a person\'s' },
-  { id: 'home-launch', match: 'opens the dock too, and again closes it', how: MAN, by: 'manual home-keys', reason: 'checked with the key steps' },
+  { id: 'home-launch', match: 'from SSH opens the dock too', how: MAN, by: 'manual home-keys', reason: 'checked with the key steps' },
   { id: 'home-no-dock', match: 'With our layer gone (no `homeReady`)', how: NO, reason: 'the suite deploys no layer without the dock' },
   { id: 'home-usb', match: 'The USB tile with a drive attached', how: MAN, by: 'manual home-later', reason: 'a drive is plugged in by a person' },
   { id: 'home-tiles', match: 'The Settings tile opens our Settings', how: MAN, by: 'manual home-later', reason: 'not yet in a scenario' },

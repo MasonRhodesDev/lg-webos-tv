@@ -85,9 +85,13 @@ Item {
     // Hands every claimed LG item back, drawing again, and lets each part undo what it changed in LG's tree.
     // Inject.qml calls it before it creates the layer that replaces this one: destruction comes later, after the new
     // layer is up, and whatever a part undid then would undo the new layer's work.
+    // Every part this layer made, wherever it sits now: an open menu of ours lives in LG's popup plane (settings/Hold.qml),
+    // not under the layer.
+    property var made: []
     function retire() {
-        for (var i = 0; i < children.length; i++) {
-            var part = children[i];
+        for (var i = 0; i < made.length; i++) {
+            var part = made[i];
+            if (!part) continue;
             try { if (part.lg) part.lg.opacity = 1; } catch (e) { /* LG's item is already gone */ }
             try { if (typeof part.retire === "function") part.retire(); } catch (e) { Look.report("gap", "retire: " + e); }
         }
@@ -139,6 +143,7 @@ Item {
             if (c.status === Component.Error) { Look.report("error", parts[i] + ": " + c.errorString()); continue; }
             var part = c.createObject(layer);
             if (!part) { Look.report("error", parts[i] + ": could not be created"); continue; }
+            made.push(part);
             if (part.claims === undefined) { Look.report("ok", parts[i] + ": own part, no LG counterpart"); watchProbe(part, parts[i]); continue; }
             var lg = find(host, part, part.searchDepth !== undefined ? part.searchDepth : 2);
             var entry = { "part": part, "file": parts[i], "claimed": false };

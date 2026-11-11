@@ -83,6 +83,22 @@ FocusScope {
         out.push({ "label": "LG Home", "sub": "LG's apps", "icon": "home", "width": 220, "appId": lgHomeApp, "kind": "lghome" });
         return out;
     }
+    // The bus answers after the dock is open, and each answer makes a new tile list, which resets the ribbon's focus.
+    // The ribbon's model is set here rather than bound, so the reset is ours: focus goes back on the same tile (by kind
+    // and app id), or on the input being watched.
+    property string focusKey: ""
+    property bool seating: false
+    function keyOf(t) { return t ? t.kind + ":" + (t.appId || t.label) : ""; }
+    function seat(key) {
+        seating = true;
+        ribbon.model = tiles;
+        var at = -1;
+        for (var i = 0; i < tiles.length && key; i++) if (keyOf(tiles[i]) === key) at = i;
+        ribbon.currentIndex = at >= 0 ? at : watchedIndex();
+        seating = false;
+        focusKey = keyOf(tiles[ribbon.currentIndex]);
+    }
+    onTilesChanged: seat(open ? focusKey : "")
     function watchedIndex() {
         for (var i = 0; i < tiles.length; i++) if (tiles[i].current) return i;
         return 0;
@@ -99,7 +115,7 @@ FocusScope {
         refresh();
         now = new Date();
         open = true;
-        ribbon.currentIndex = watchedIndex();
+        seat("");
         ribbon.positionViewAtIndex(ribbon.currentIndex, ListView.Contain);
     }
     function close() { open = false; }
@@ -222,8 +238,8 @@ FocusScope {
             spacing: 24
             focus: true
             focusShown: part.open
-            model: part.tiles
             onActivated: part.activate(tile)
+            onCurrentIndexChanged: if (!part.seating) part.focusKey = part.keyOf(spec(currentIndex))
             onBack: part.close()
         }
         // The magic remote: pointing moves focus, a click activates. A sibling of the ribbon: inside it, it would
@@ -274,6 +290,7 @@ FocusScope {
     function retire() {
         if (retired) return;
         retired = true;
+        keys.restore();
         close();
         hold.retire();
         SettingsBus.homeReady = false;
@@ -281,7 +298,6 @@ FocusScope {
         SettingsBus.hookChanged.disconnect(part.follow);
         try { if (host && host.keyFilter && host.keyFilter.backReleased) host.keyFilter.backReleased.disconnect(part.close); } catch (e) { }
         foreground.cancel();
-        keys.restore();
     }
     Component.onDestruction: retire()
 }

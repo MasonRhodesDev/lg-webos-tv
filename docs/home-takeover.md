@@ -98,8 +98,9 @@ Every remote key passes through a chain of scripts in the compositor before any 
   press launches it with `{"activateType":"recent"}`.
 - Filters are plain scripts on Qt 5.6's ES5 engine: no `let`, `const` or arrow functions, and they should not create
   QML. Each file gets its own scope (LG's two files both define `init`).
-- The bus caller in that scope calls as `com.webos.starfish.keyfilters`, a connection from the boot snapshot. Calls
-  from it to LG's services are answered; calls to our own service never arrive, so a filter of ours cannot report.
+- The bus caller in that scope calls as `com.webos.starfish.keyfilters`. Its calls to LG's services are answered.
+  Reports a filter of ours sent to our own service never showed up there; why was not found, so the filter does not
+  report.
 - The chain runs in list order: the screen saver's wake-up, accessibility (a long Mute), AV reset and a broadcast
   helper come before LG's Home handling (`handleSystemKeys`).
 

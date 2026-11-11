@@ -5,7 +5,9 @@ import "../../ui/Look" as Ours
 
 // Inject.qml against a fake LG root: LG's system UI container loads it, it creates the layer under the root and asks
 // to be unloaded; the layer must keep working after that, a second injection must replace it, and one whose layer
-// does not compile must leave the loaded one. Prints each step and exits 1 on the first failure:
+// does not compile must leave the loaded one. A layer replaced while one of its menus is open (in LG's popup plane, not
+// under the layer) must still give everything back before the new one starts. Prints each step and exits 1 on the
+// first failure:
 //   qml Inject.qml -- <a copy of ui/ whose Look/Layer.qml does not compile>
 Window {
     id: win
@@ -22,6 +24,19 @@ Window {
             property var config: ({ "appinfo": [{ "id": "com.webos.app.quicksettings", "main": "file:///lg/QuickSettings.qml" }] })
         }
         Item { Item { id: overlayView } }
+        // configd's key filter list and the compositor's live chain, bound to it until assigned.
+        property var systemSettings: QtObject { property var keyFilters: [{ "handler": "handleSystemKeys", "file": "/lg/systemUi.js" }] }
+        property var keyFilter: QtObject { signal backReleased(); property var keyFilters: host.systemSettings.keyFilters }
+        // LG's popup plane (layer 6): our open menus live in it.
+        Item {
+            id: plane
+            anchors.fill: parent
+            property var backKeyFilter: null
+            property var currentView: null
+            property int layerNumber: 6
+            property var model: ListModel { }
+            visible: false
+        }
     }
     // Stands in for an LG item a part holds.
     Item { id: stand }
@@ -58,6 +73,12 @@ Window {
     function probesSent() {
         var n = 0;
         for (var i = 0; i < Fixture.commands.length; i++) if (Fixture.commands[i].method === "/setProbe") n++;
+        return n;
+    }
+    // How many Home key filters of ours are in the live chain.
+    function homeFilters() {
+        var list = host.keyFilter.keyFilters, n = 0;
+        for (var i = 0; i < list.length; i++) if (list[i].handler === "themepackHandleHome") n++;
         return n;
     }
     function gearOpensOurs() { return /QuickSettingsEntry\.qml$/.test(manager.config.appinfo[0].main) && Ours.SettingsBus.ready; }
@@ -98,21 +119,38 @@ Window {
         },
         function () {
             check(probesSent() > 0, "injector unloaded: the layer's own handlers still run");
+            check(homeFilters() === 1, "injected: the Home key filter is in LG's chain");
             var first = layers()[0];
+            // Replaced while the Home dock is open: the dock sits in LG's popup plane, not under the layer.
+            Ours.SettingsBus.homeRequested(null);
+            check(plane.children.length === 1, "the Home dock is open, in LG's popup plane");
             launch();
+            check(!plane.visible && plane.children.length === 0, "injected again: the old dock closed and gave the plane back");
             check(layers().length === 1 && layers()[0] !== first, "injected again: one layer under LG's root, a new one");
             check(reports("ready", "layer created by injection") === 2, "injected again: reported ready again");
             check(container.exited, "injected again: the injector asked to be unloaded");
             container.destroy();
         },
         function () {
-            var second = layers()[0];
             // The replaced layer is destroyed by now; what it undoes must not reach the new one.
             check(gearOpensOurs(), "injected again: the gear still opens our quick sheet once the old layer is destroyed");
+            check(homeFilters() === 1, "injected again: one Home key filter in the chain once the old layer is destroyed");
+            // Replaced while our Settings is open.
+            Ours.Look.settingsRequested("");
+            check(plane.children.length === 1, "our Settings is open, in LG's popup plane");
+            launch();
+            container.destroy();
+        },
+        function () {
+            check(gearOpensOurs(), "injected with Settings open: the gear opens our quick sheet once the old layer is destroyed");
+            check(homeFilters() === 1, "injected with Settings open: one Home key filter in the chain");
+            check(!plane.visible && plane.children.length === 0, "injected with Settings open: the plane given back");
+            var second = layers()[0];
             launch(brokenUi);
             check(reports("error", "inject: ") === 1, "broken layer injected: the error is reported");
+            check(homeFilters() === 1, "broken layer injected: the Home key filter stays");
             check(layers().length === 1 && layers()[0] === second && second.host === host, "broken layer injected: the loaded layer stays");
-            check(reports("ready", "layer created by injection") === 2, "broken layer injected: nothing reported ready");
+            check(reports("ready", "layer created by injection") === 3, "broken layer injected: nothing reported ready");
             check(gearOpensOurs(), "broken layer injected: the gear still opens our quick sheet");
             check(container.exited, "broken layer injected: the injector asked to be unloaded");
             console.log("inject: all passed");
