@@ -21,7 +21,7 @@ The kit lives in `/var/lib/telemetry-off/`, writes its state to `state/` there, 
 
 ## Requirements
 
-- **Dev box:** `bash`, `ssh`, GNU `tar` (for `--owner=0`), `awk`.
+- **Your computer:** `bash`, `ssh`, GNU `tar` (for `--owner=0`), `awk`.
 - **TV:** Homebrew Channel with SSH, root, and busybox with `timeout -t`, `script`, `luna-send`, `initctl`. `install.sh` checks these.
 
 Set `TV_HOST` (and optionally `TV_USER`, default `root`) in the environment or in the repo's `.env` (see `.env.example`).

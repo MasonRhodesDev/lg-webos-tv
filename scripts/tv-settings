@@ -65,7 +65,7 @@ require_config() {
     [[ -f "$CONFIG" ]] || die "config not found: $CONFIG (copy tv-config.example.json)"
 }
 
-# Node.js one-liner runner for JSON manipulation on the dev box.
+# Node.js one-liner runner for JSON manipulation on this computer.
 # The TV has Node 0.12 but we run JSON processing locally.
 node_parse() {
     node -e "$1"

@@ -22,7 +22,7 @@
 #   FAIL <name>: <why>
 #
 # quick-start-state is informational; it prints the setting and never fails.
-# Which marker each check relies on is listed in the script's companion doc.
+# Each check's section below shows the marker it reads.
 set -u
 
 SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
