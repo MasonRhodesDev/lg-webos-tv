@@ -44,8 +44,9 @@ group: 'seasonal', season: [{ from: '12-01', to: '12-25' }],
     (`weekday` 0 is Sunday; `nth: -1` is the last one). This example is US Thanksgiving.
 
   `before` and `after` are whole days and default to 0. Windows may overlap other themes' windows: Winter, Christmas
-  lights and Hanukkah all cover December. Automatic calendar mode treats the longest window covering today as the
-  season and the shortest as the holiday, so keep a season's window longer than any holiday's.
+  lights and Hanukkah all cover December. Automatic calendar mode calls a window longer than 45 days a season and
+  one of 45 days or fewer a holiday. Of the seasons covering today the longest wins; of the holidays, the shortest.
+  Keep every season above 45 days and every holiday at or below it.
 
 ## A recipe
 
