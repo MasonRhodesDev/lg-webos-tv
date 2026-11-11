@@ -64,6 +64,7 @@
   var pack = {
     kind: 'theme', id: 'halloween', name: 'Halloween',
     description: 'Holiday: a moon and bats behind everything, cobwebs in corners, a graveyard under the inputs, spiders on panels and switches, pumpkins on sliders and chips, an orange glow behind focus.',
+    group: 'seasonal', season: [{ from: '10-17', to: '10-31' }],
     recipes: [
       { target: 'screen', slot: 'back', when: 'always', outset: 0, cost: 'static', html: SKY, asset: 'sky.png' },
       { target: 'screen', slot: 'front', when: 'always', outset: 0, cost: 'static', style: 'left:auto;bottom:auto;width:150px;height:150px', html: web(150, false, 'rgba(255,255,255,0.6)'), asset: 'corner-web-right.png' },

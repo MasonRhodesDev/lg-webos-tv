@@ -11,6 +11,7 @@
   var pack = {
     kind: 'theme', id: 'easter', name: 'Easter',
     description: 'Holiday: painted eggs behind, a row of eggs in the grass under the inputs, eggs on panels and tiles, a lilac glow on focus, a chick on sliders. Dates move each year.',
+    group: 'seasonal', season: [{ rule: 'easter', before: 14, after: 1 }],
     recipes: [
       { target: 'screen', slot: 'back', when: 'always', outset: 0, cost: 'static', html: SKY, asset: 'sky.png' },
       { target: 'panel', slot: 'front', when: 'always', outset: [30, 0, 0, -30], cost: 'static', style: 'right:auto;bottom:auto;width:44px;height:44px', html: ACCENT, asset: 'accent.png' },

@@ -10,6 +10,7 @@
   var pack = {
     kind: 'theme', id: 'christmas', name: 'Christmas lights',
     description: 'Holiday: a string of coloured bulbs along the top edge, gifts on panels, holly on tiles, a bauble on sliders, a warm gold glow on focus. Stacks with Winter.',
+    group: 'seasonal', season: [{ from: '12-01', to: '12-25' }],
     recipes: [
       { target: 'screen', slot: 'front', when: 'always', outset: 0, cost: 'static', style: 'bottom:auto;height:44px', html: TOP, asset: 'top.png' },
       { target: 'panel', slot: 'front', when: 'always', outset: [30, 0, 0, -30], cost: 'static', style: 'right:auto;bottom:auto;width:44px;height:44px', html: ACCENT, asset: 'accent.png' },

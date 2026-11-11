@@ -19,6 +19,7 @@
   var pack = {
     kind: 'theme', id: 'glow', name: 'Glow',
     description: 'A soft bloom behind focus and an accent ring around it, light behind panels, toasts and dialogs, and glowing chips and chosen controls. Uses the style\'s own colours.',
+    group: 'custom',
     recipes: [
       // Light pools in two corners of the screen, behind everything.
       recipe('screen', 'back', 'always', glow('focus', 0, 320, 160, 0.16), 'left:auto;bottom:auto;width:820px;height:520px'),

@@ -13,6 +13,7 @@
   var pack = {
     kind: 'theme', id: 'autumn', name: 'Autumn',
     description: 'Season: leaves drifting behind everything, a branch in each top corner, a leaf pile under the inputs, an amber glow on focus, an acorn on sliders, a leaf on switches.',
+    group: 'seasonal', season: [{ from: '09-23', to: '11-30' }],
     recipes: [
       { target: 'screen', slot: 'back', when: 'always', outset: 0, cost: 'static', html: SKY, asset: 'sky.png' },
       { target: 'screen', slot: 'front', when: 'always', outset: 0, cost: 'static', style: 'left:auto;bottom:auto;width:150px;height:150px', html: CORNER, asset: 'corner-right.png' },

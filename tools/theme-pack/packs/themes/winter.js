@@ -50,6 +50,7 @@
   var pack = {
     kind: 'theme', id: 'winter', name: 'Winter',
     description: 'Holiday: snow behind everything, icicles along the top and a snowbank along the bottom, snow on every surface and tile, a snowman on sliders, snowflakes on switches, an icy glow on focus.',
+    group: 'seasonal', season: [{ from: '12-01', to: '03-19' }],
     recipes: [
       { target: 'screen', slot: 'back', when: 'always', outset: 0, cost: 'static', html: FIELD, asset: 'snow.png' },
       { target: 'screen', slot: 'front', when: 'always', outset: 0, cost: 'static', style: 'bottom:auto;height:44px', html: ICICLES, asset: 'icicles.png' },

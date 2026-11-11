@@ -12,6 +12,7 @@
   var pack = {
     kind: 'theme', id: 'newyear', name: 'New Year',
     description: 'Holiday: confetti and sparkles behind everything, a firework in each top corner, gold stars on panels, streamers on chips, a midnight clock on sliders, a gold glow on focus.',
+    group: 'seasonal', season: [{ from: '12-26', to: '01-03' }],
     recipes: [
       { target: 'screen', slot: 'back', when: 'always', outset: 0, cost: 'static', html: SKY, asset: 'sky.png' },
       { target: 'screen', slot: 'front', when: 'always', outset: 0, cost: 'static', style: 'left:auto;bottom:auto;width:150px;height:150px', html: CORNER, asset: 'corner-right.png' },

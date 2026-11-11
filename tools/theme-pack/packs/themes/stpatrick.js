@@ -13,6 +13,7 @@
   var pack = {
     kind: 'theme', id: 'stpatrick', name: 'St Patrick\'s',
     description: 'Holiday: shamrocks drifting behind, clover hills and gold coins under the inputs, shamrocks on panels, an emerald glow on focus, a gold coin on sliders.',
+    group: 'seasonal', season: [{ from: '03-10', to: '03-17' }],
     recipes: [
       { target: 'screen', slot: 'back', when: 'always', outset: 0, cost: 'static', html: SKY, asset: 'sky.png' },
       { target: 'screen', slot: 'front', when: 'always', outset: 0, cost: 'static', style: 'left:auto;bottom:auto;width:150px;height:150px', html: CORNER, asset: 'corner-right.png' },

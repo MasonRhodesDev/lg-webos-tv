@@ -13,6 +13,7 @@
   var pack = {
     kind: 'theme', id: 'valentine', name: 'Valentine\'s',
     description: 'Holiday: hearts floating behind, a heart garland in each top corner, hearts under the inputs, love letters on tiles, a rose-pink glow on focus, a heart on sliders and switches.',
+    group: 'seasonal', season: [{ from: '02-07', to: '02-14' }],
     recipes: [
       { target: 'screen', slot: 'back', when: 'always', outset: 0, cost: 'static', html: SKY, asset: 'sky.png' },
       { target: 'screen', slot: 'front', when: 'always', outset: 0, cost: 'static', style: 'left:auto;bottom:auto;width:150px;height:150px', html: CORNER, asset: 'corner-right.png' },

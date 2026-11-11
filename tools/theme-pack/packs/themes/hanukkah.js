@@ -11,6 +11,7 @@
   var pack = {
     kind: 'theme', id: 'hanukkah', name: 'Hanukkah',
     description: 'Holiday: warm candle-glow dots and stars behind, a menorah and sparkles under the inputs, a menorah on panels, gelt on tiles, a dreidel on sliders, a candle on switches, a cool blue glow on focus. Dates move each year.',
+    group: 'seasonal', season: [{ rule: 'hanukkah', before: 1 }],
     recipes: [
       { target: 'screen', slot: 'back', when: 'always', outset: 0, cost: 'static', html: SKY, asset: 'sky.png' },
       { target: 'panel', slot: 'front', when: 'always', outset: [30, 0, 0, -30], cost: 'static', style: 'right:auto;bottom:auto;width:44px;height:44px', html: ACCENT, asset: 'accent.png' },

@@ -11,6 +11,7 @@
   var pack = {
     kind: 'theme', id: 'fireworks', name: 'Fireworks',
     description: 'Holiday: red, white and blue bursts in the side margins, bunting along the top, flags on panels, rockets on tiles, a blue glow on focus, a star on sliders.',
+    group: 'seasonal', season: [{ from: '06-28', to: '07-04' }],
     recipes: [
       { target: 'screen', slot: 'back', when: 'always', outset: 0, cost: 'static', html: SKY, asset: 'sky.png' },
       { target: 'screen', slot: 'front', when: 'always', outset: 0, cost: 'static', style: 'bottom:auto;height:44px', html: TOP, asset: 'top.png' },

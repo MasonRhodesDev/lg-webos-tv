@@ -13,6 +13,7 @@
   var pack = {
     kind: 'theme', id: 'spring', name: 'Spring',
     description: 'Season: blossom petals drifting behind, a flowering branch in each top corner, grass and flowers under the inputs, a green glow on focus, a tulip on sliders.',
+    group: 'seasonal', season: [{ from: '03-20', to: '06-20' }],
     recipes: [
       { target: 'screen', slot: 'back', when: 'always', outset: 0, cost: 'static', html: SKY, asset: 'sky.png' },
       { target: 'screen', slot: 'front', when: 'always', outset: 0, cost: 'static', style: 'left:auto;bottom:auto;width:150px;height:150px', html: CORNER, asset: 'corner-right.png' },

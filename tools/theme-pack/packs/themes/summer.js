@@ -11,6 +11,7 @@
   var pack = {
     kind: 'theme', id: 'summer', name: 'Summer',
     description: 'Season: a warm sun in the top-right corner, waves and sand under the inputs, shells on panels, starfish on tiles, a sunny glow on focus, a sun on sliders and a shell on switches.',
+    group: 'seasonal', season: [{ from: '06-21', to: '09-22' }],
     recipes: [
       { target: 'screen', slot: 'back', when: 'always', outset: 0, cost: 'static', html: SKY, asset: 'sky.png' },
       { target: 'panel', slot: 'front', when: 'always', outset: [30, 0, 0, -30], cost: 'static', style: 'right:auto;bottom:auto;width:44px;height:44px', html: ACCENT, asset: 'accent.png' },
