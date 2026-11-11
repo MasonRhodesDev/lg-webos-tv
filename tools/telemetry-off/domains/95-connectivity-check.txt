@@ -1,4 +1,4 @@
-# connman's online check. ON by default (owner decision 2026-10-26).
+# connman's online check. ON by default since 2026-10-26 (docs/telemetry.md, "Choices made on the test TV").
 #
 # /etc/connman/main.conf: Ipv4StatusUrl=http://lgtvonline.lge.com/ and
 # TakeDnsIpResolutionAsOnline=true. It is a plain HTTP GET that tells LG the

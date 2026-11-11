@@ -1,14 +1,14 @@
 # Telemetry off
 
-Goal: no LG tracking or telemetry, down to the running services, before the TV is allowed onto the internet. Kit: [tools/telemetry-off/](../tools/telemetry-off/README.md).
+What LG's firmware collects and sends, how each piece starts, and how [tools/telemetry-off/](../tools/telemetry-off/README.md) turns it off. The goal: no LG tracking or telemetry, down to the running services, before the TV is allowed onto the internet. The page also covers the router-side checks the TV cannot do for itself.
 
-**Status 2026-10-26: Phase 2 applied** (commits 4c75803, 0628e23 and the docs commit after them). Firmware: webOS TV 4.10.0, 05.40.45 (`Rockhopper release 4.10.0-17`). Steps completed:
+**Status 2026-10-26: Phase 2 applied** on the test TV. Firmware: webOS TV 4.10.0, 05.40.45 (`Rockhopper release 4.10.0-17`). Steps completed:
 
 - applied at boot through HBC `run-parts`;
 - `revert` tested live;
 - re-applied with `apply`.
 
-Still open: a second cold-boot check, a standby wake, and the owner's by-eye check of HDMI/CEC/audio (see "Phase 2 results").
+Still open: a standby wake, and a by-eye check of HDMI/CEC/audio (see "Phase 2 results").
 
 Evidence comes from the offline rootfs (`mmcblk0p28` squashfs from the 2026-10-25 backup), the backup's `/var` and `/mnt/lg/cmn_data` tars and settings dumps, and checks on the live TV. Tags: **fw** = strings or config on this firmware; **live** = seen on the running TV; **cache** = in the TV's own data partitions; **lgws** = from [Life's Good Without Spying](https://github.com/lewisdoesstuff/lifesgoodwithoutspying) (MIT, commit 8c42711).
 
@@ -21,7 +21,7 @@ Evidence comes from the offline rootfs (`mmcblk0p28` squashfs from the 2026-10-2
   - the hosts blackhole;
   - the user agreements and the DNT/channel/QuickSet settings;
   - the securitymanager no-op.
-- **`scripts/50-custom-runtime`** (stripped in 4c75803) keeps the LAN trimming: casting/discovery, BT audio, `dpp`, the `dot` popup service, and closing preloaded apps.
+- **`scripts/50-custom-runtime`** (its telemetry parts moved into the kit) keeps the LAN trimming: casting/discovery, BT audio, `dpp`, the `dot` popup service, and closing preloaded apps.
 
 ## Change list (what the kit writes on the TV)
 
@@ -65,7 +65,7 @@ The method depends on how the target starts. Each target's start mechanism was c
 
 Totals (first boot apply): 11 `exit 0` stubs and 1 sleep stub, 26 `.service` masks, 14 jobs targeted (12 were running and stopped). tnm (thumbnails) is untouched.
 
-**securitymanager no-op (owner: keep).** It turns off runtime partition verification (`sb_verify_task`, the random-fragment signature check of rootfs/bsppart/tvservice/…) and the whole `com.webos.service.sm` API. That includes `deviceid/getIDs`, which serves the IFAID ad ID acr2 subscribes to, and `verifyPartitions`, which the updater calls. Updates are blocked anyway. lxboot still verifies every partition at boot.
+**securitymanager no-op (kept on purpose).** It turns off runtime partition verification (`sb_verify_task`, the random-fragment signature check of rootfs/bsppart/tvservice/…) and the whole `com.webos.service.sm` API. That includes `deviceid/getIDs`, which serves the IFAID ad ID acr2 subscribes to, and `verifyPartitions`, which the updater calls. Updates are blocked anyway. lxboot still verifies every partition at boot.
 
 ### Hosts
 
@@ -85,7 +85,7 @@ Written with `settingsservice/setSystemSettings`, only when the value differs. T
 | `eulaStatus`: `acrOnAllowed`, `acrAdAllowed`, `customAdAllowed`, `additionalDataAllowed`, `voiceAllowed`, `voice2Allowed`, `takeOnAllowed`, `chpAllowed` | true | false |
 | re-asserted, unchanged: `general.adCookie`, `customizedAd`, `homePromotion`, `aiNudge`, `screenSaverAd` = off; `general.lmt` = on; `option.watchedListCollection`, `webOSPromotionVideo`, `livePlus` = off; `support.automaticUpdate` = off | | |
 
-`generalTermsAllowed` and `networkAllowed` stay `true`. Withdrawing them makes webOS re-run first-use setup. (Backup 2026-10-25: `adCookie`, `watchedListCollection` and `webOSPromotionVideo` were `on`. Another session turned them off on 2026-10-25 before the kit ran.)
+`generalTermsAllowed` and `networkAllowed` stay `true`. Withdrawing them makes webOS re-run first-use setup. (Backup 2026-10-25: `adCookie`, `watchedListCollection` and `webOSPromotionVideo` were `on`. They were turned off by hand on 2026-10-25, before the kit ran.)
 
 ### Files wiped (each boot, after the targets are down)
 
@@ -102,10 +102,10 @@ First run: `/mnt/lg/cmn_data/admanager/cache` (39 ad creatives), `admanager/cook
 | `enable` + `apply` (live) | 12 s, no failures |
 | `verify.sh` ~1 min later | 138 OK, 1 FAIL: Netflix (`GIBBON_MAIN`) UDP socket to 8.8.8.8:53, router-only. 7 WARN: jail hosts copies, including a new `lg.thinqai.adapter` jail built while reverted. No target process running |
 | Clock | correct (`2026-10-25 19:46 PDT`), `systemTimeSource: sdp`, kept by the micom RTC across reboots. sdx is masked after it has already set the time at boot. **Untested:** a cold boot after mains power loss (no RTC). `AllowNTPTime` ships `false`, so the clock would then come only from broadcast or SDP |
-| Second cold boot (the owner's power cycle, 19:47) + verify | boot apply clean (~13 s, no failures). The 5 settings had persisted (no writes needed). **`verify.sh`: 0 FAIL**, 7 WARN (jail hosts copies only), 135 OK |
+| Second cold boot (a manual power cycle, 19:47) + verify | boot apply clean (~13 s, no failures). The 5 settings had persisted (no writes needed). **`verify.sh`: 0 FAIL**, 7 WARN (jail hosts copies only), 135 OK |
 | `eulaStatus` after the cold boot | **came back `true` for all eight flags** and the kit withdrew them again at 19:48:00. The other settings persisted. Likely cause: sdx re-syncs `eulaStatus` at about 20 s, before the hook, from its accepted-terms list (`/mnt/lg/cmn_data/sdp/sdx/eula.json`, every term status `A`, untouched since 2023). That is unconfirmed: the TV's `messages` log had no EULA lines. Effect: the flags are `true` for the first ~35 s of every cold boot, and the router block covers that window. Not seen with standby wakes (untested) |
-| Standby wake + verify | **not run**: needs the owner (remote power button twice) |
-| HDMI picture, CEC input switching, audio | **owner by-eye check pending** |
+| Standby wake + verify | **not run**: needs someone at the TV (remote power button twice) |
+| HDMI picture, CEC input switching, audio | **by-eye check pending** |
 
 ## Inventory
 
@@ -212,7 +212,7 @@ How the stock UI withdraws an agreement (fw: `com.webos.app.eula/main.js`): it w
 
 ## Domain list
 
-Data files in [tools/telemetry-off/domains/](../tools/telemetry-off/domains/): **642 unique names**, all twelve files on by default since the owner's 2026-10-26 decisions. Phase 2 added `lgappstv.com`, `www.lgappstv.com` and `us.lgappstv.com` (store), `70-quickset.txt` (`www.ueiwsp.com`, `ueiwsp.com`), and turned on `95-connectivity-check.txt` (`lgtvonline.lge.com`). Each file records where every name came from.
+Data files in [tools/telemetry-off/domains/](../tools/telemetry-off/domains/): **642 unique names**, all twelve files on by default since the 2026-10-26 choices (see "Choices made on the test TV"). Phase 2 added `lgappstv.com`, `www.lgappstv.com` and `us.lgappstv.com` (store), `70-quickset.txt` (`www.ueiwsp.com`, `ueiwsp.com`), and turned on `95-connectivity-check.txt` (`lgtvonline.lge.com`). Each file records where every name came from.
 
 | File | Names | Router parents (wildcard) |
 |---|---|---|
@@ -244,7 +244,7 @@ Firmware facts the list depends on:
 
 HBC already keeps `/tmp/rdxd`, `/tmp/uploadd`, `/var/spool/rdxd` and `/var/spool/uploadd/{pending,uploaded}` as empty read-only tmpfs.
 
-Kept, owner's call:
+Kept on purpose:
 
 - `/mnt/flash/data/prs/PRS_DB*.db`: watched history. prs is stubbed, so the files are inert. Deleting them is a one-off `rm`.
 - `/mnt/flash/data/scd/fp`: scd fingerprints.
@@ -269,15 +269,17 @@ The other sockets were LAN, loopback, or allow-listed listeners.
 
 `install.sh --dry-run`: 636 names into hosts, 22 binds (2 skipped as foreign), `initctl stop nudge`, 5 kills, 2 settings and 8 agreement flags to flip, and 8 wipe targets. The output is in the report and reproducible with the command. The scratch copy in `/tmp` was removed. Afterwards `/tmp/telemetry-off*`, `/var/lib/telemetry-off` and `/var/log/telemetry-off.log` are all absent on the TV.
 
-## Network-side verification (router), for the owner
+## Network-side verification at the router
 
 The TV can't prove its own silence: anything that ignores `/etc/hosts` (Netflix's resolver, hardcoded IPs, the 10 s boot window) only shows up at the router.
 
 ### Before Phase 2: record ground truth (now, while internet is still blocked)
 
-1. **Keep the TV's internet blocked**: a device rule "Block traffic from and to internet" on the TV, or keep it in a quarantine group. LAN access stays.
-2. **Make the router the TV's only resolver.** The TV uses the DHCP DNS server, but Netflix queries `8.8.8.8` directly and `connmand` has `8.8.8.8` compiled in. Add rules for the TV: block TCP and UDP 53 and TCP 853 to every destination except the router's LAN address. If your router mode offers DNS interception or redirection for the device, enable it, so hardcoded resolvers are logged too.
-3. **Turn on logging for the TV**: flow logging (Network Flows, including blocked flows), plus DNS query logging (the DNS / "Domain" view of the device's flows, or the box's DNS log if you use it).
+The steps assume a router or firewall that can block a single device's internet traffic, restrict its DNS, and log its flows and DNS queries. Most prosumer routers and firewalls can.
+
+1. **Keep the TV's internet blocked**: a per-device rule that blocks traffic to and from the internet, or a quarantine group. LAN access stays.
+2. **Make the router the TV's only resolver.** The TV uses the DHCP DNS server, but Netflix queries `8.8.8.8` directly and `connmand` has `8.8.8.8` compiled in. Add rules for the TV: block TCP and UDP 53 and TCP 853 to every destination except the router's LAN address. If the router can intercept or redirect DNS for the device, turn that on, so hardcoded resolvers are logged too.
+3. **Turn on logging for the TV**: flow logging, including blocked flows, plus DNS query logging.
 4. Leave it **24 hours**, covering at least:
    - a cold boot (unplug for 30 s);
    - standby → on;
@@ -319,13 +321,16 @@ Blocking `lgappstv.com` and `lgtvsdp.com` at the router breaks the LG Content St
 
 Keep logging for the first week online and repeat the cold-boot test after any firmware or app update.
 
-## Corrections to earlier docs
+## Corrections to Phase 1
 
-- **Hub services: mask the `.service` file and rescan; never stub the binary.** A blanked `.service` file only takes effect after `SIGHUP` to ls-hubd (Phase 1 of this doc wrongly said masking can't work). An `exit 0` stub over a hub-launched binary hangs every caller for `LaunchTimeout` (300 s). Finding by the 50-custom-runtime session, verified live. `acr2`, `scd-service`, `admanager`, `sdx`, `prs`, `remotediag` and `iot-client` have copies in both `/usr/share/dbus-1/services` and `/usr/share/dbus-1/system-services`; mask both.
+- **Hub services: mask the `.service` file and rescan; never stub the binary.** A blanked `.service` file only takes effect after `SIGHUP` to ls-hubd (Phase 1 of this doc wrongly said masking can't work). An `exit 0` stub over a hub-launched binary hangs every caller for `LaunchTimeout` (300 s). Verified live. `acr2`, `scd-service`, `admanager`, `sdx`, `prs`, `remotediag` and `iot-client` have copies in both `/usr/share/dbus-1/services` and `/usr/share/dbus-1/system-services`; mask both.
 - `dpp` is Wi-Fi Easy Connect, not telemetry.
 - `user-context-manager` is on the CEC keep-list, but it also uploads usage through sdx. Covered by the network block.
 
-## Owner decisions (2026-10-26)
+## Choices made on the test TV (2026-10-26)
+
+These are one owner's trade-offs, not requirements. The kit's defaults follow them; change `telemetry-off.conf` and the domain files to suit yours.
+
 
 - Block `lgtvsdp.com` and `lgappstv.com`. Losing the store, app updates and the LG account is accepted.
 - Block `lgtvonline.lge.com`. The TV may report "no internet".
@@ -341,9 +346,9 @@ Keep logging for the first week online and repeat the cold-boot test after any f
 - **`eulaStatus` is restored on cold boot** (see results). Next: find the writer (watch `eulaStatus` with a subscribed `getSystemSettings` across a boot, or read sdx's `EulaConfigMgr::updateEulaInfoHandle` in REA), then decide whether to edit sdx's `eula.json` status list, which is riskier, or accept the ~35 s window.
 - `uninstall.sh` itself is not run yet; its revert step is the tested `revert`.
 
-## 2026-10-26: user apps removed
+## 2026-10-26: store apps removed
 
-At the owner's request, every store-installed app was uninstalled with `luna://com.webos.appInstallService/remove`: Alexa, Netflix and YouTube among them. Homebrew Channel was kept, because removing it removes root and SSH. A tar of `/media/cryptofs/apps` taken first is in the private backup (`user-apps-backup/`), and the full p53 image from 2026-10-25 is there too.
+Every store-installed app on the test TV was uninstalled with `luna://com.webos.appInstallService/remove`, Alexa, Netflix and YouTube among them. Homebrew Channel was kept, because removing it removes root and SSH. A tar of `/media/cryptofs/apps` was taken first, beside a full p53 image from 2026-10-25 (see [backup-and-restore.md](backup-and-restore.md)).
 
 - **Why:** the Alexa app was the "Err 107" popup shown for about 7 s over HDMI on every cold boot. `amazon.alexa.view.adapter` launches it at about 28 s, before this kit's hook runs at about 35 s.
 - **Gotcha:** removal hangs at `state: "removing RO"` while the kit's securitymanager stub is mounted. `appinstalld` calls `com.webos.service.sm/license/apps/uninstallRights`. Fix: `umount /usr/sbin/securitymanager; initctl start securitymanager`, let the removals finish, then re-run the hook (`sh /var/lib/webosbrew/init.d/80-telemetry-off apply`) to put the stub back. Any future install or uninstall needs the same.
