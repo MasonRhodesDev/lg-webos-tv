@@ -15,7 +15,10 @@ import "../settings/menu.js" as Menu
 // Once live it reports `ready` "settings: host ready"; the boot hook mounts the Settings stub only after that.
 FocusScope {
     id: part
-    property Item host: parent && parent.host !== undefined ? parent.host : null
+    // LG's root, from the layer that made this part, read once: while open the part sits in LG's popup plane (Hold.qml),
+    // whose parent chain does not lead back to the layer.
+    property Item host: null
+    function findHost() { if (!host && parent && parent.host !== undefined) host = parent.host; }
     readonly property int layerNumber: 7
     readonly property bool shown: quick.open || menu.open
     // LG's key filter knows when the magic remote's pointer is showing.
@@ -159,6 +162,7 @@ FocusScope {
     }
 
     Component.onCompleted: {
+        findHost();
         Look.settingsRequested.connect(part.settings);
         SettingsBus.quickSettingsRequested.connect(part.quickSettings);
         store.systemUiRequested.connect(part.launchSystemUi);

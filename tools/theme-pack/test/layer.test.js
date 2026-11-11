@@ -94,3 +94,27 @@ for (const id of fs.readdirSync(path.join(dir, 'packs/styles')).filter((f) => f.
     assert.ok(!/FAIL /.test(out), out);
   });
 }
+
+// The Home dock's test scene needs remote keys, so it runs under Qt 5's qmltestrunner (QML_TEST_BIN, as
+// test/settings.test.js).
+function onPath(name) {
+  if (name.indexOf('/') >= 0) return fs.existsSync(name) ? name : null;
+  for (const d of (process.env.PATH || '').split(path.delimiter)) {
+    try { fs.accessSync(path.join(d, name), fs.constants.X_OK); return path.join(d, name); } catch (e) { /* next */ }
+  }
+  return null;
+}
+const testRunner = process.env.QML_TEST_BIN ? onPath(process.env.QML_TEST_BIN) : onPath('qmltestrunner-qt5') || onPath('qmltestrunner');
+
+test('the Home dock: key filter in and out of LG\'s chain, our table entry, open, move, switch, Back, a second Home, a new app in front, the popup plane shared with Settings, retire', { skip: !testRunner && 'qmltestrunner not found' }, () => {
+  const r = spawnSync(testRunner, ['-import', path.join(dir, 'preview/mocks'), '-import', path.join(dir, 'ui'),
+    '-input', path.join(dir, 'preview/tests/tst_HomeDock.qml')], {
+    encoding: 'utf8', timeout: 60000,
+    env: Object.assign({}, process.env, { QT_FORCE_STDERR_LOGGING: '1', QT_QPA_PLATFORM: 'offscreen', QT_QUICK_BACKEND: 'software' })
+  });
+  const out = r.stdout + r.stderr;
+  assert.strictEqual(r.status, 0, out);
+  assert.ok(/Totals: \d+ passed, 0 failed/.test(out), out);
+  const warnings = out.split('\n').filter((l) => /\.(qml|js):\d+/.test(l) && !/^\s*Loc:/.test(l));
+  assert.deepStrictEqual(warnings, []);
+});
