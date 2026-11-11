@@ -10,7 +10,7 @@ import ".."
 // handed to LG's own Quick Settings, loaded into this same container.
 //
 // LG's container (StarfishSystemUIContainer) is this item's parent; the calls below are the ones LG's
-// StarfishSystemUIWindow makes on it. Unverified on the TV (TV-CHECKS.md, Settings core).
+// StarfishSystemUIWindow makes on it. On the TV the gear opens our sheet this way, also after a layer is replaced.
 FocusScope {
     id: entry
     anchors.fill: parent

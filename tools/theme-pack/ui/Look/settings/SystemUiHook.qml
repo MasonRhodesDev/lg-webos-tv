@@ -6,9 +6,10 @@ import ".."
 // systemUIManager, a child of the compositor root) loads each system UI from its `config.appinfo` table; we give it
 // a copy of LG's table whose Quick Settings entry loads QuickSettingsEntry.qml. Assigning `config` cuts LG's binding
 // to configd's value, so the copy is made again whenever configd's value changes.
-//
-// Unverified on the TV: that the table entry is honoured for a running compositor, that configd pushes no later
-// value we miss, and that QuickSettingsEntry.qml shares our engine's SettingsBus (TV-CHECKS.md, Settings core).
+// The copy also carries entries of our own (`extra`), new ids LG's manager then loads on any systemUIManager/launch:
+// dev.themepack.home, which the Home key's filter launches (HomeEntry.qml). One hook owns the table; a second one
+// assigning it would fight this one.
+// On the TV a running compositor honours the copied table at once, and a replacement layer's hook takes it over.
 QtObject {
     id: hook
     property Item host
@@ -16,6 +17,8 @@ QtObject {
     readonly property string quickSettings: "com.webos.app.quicksettings"
     property var manager: null
     property bool applied: false
+    // Our own entries, appended to LG's table. Plain values: LG's manager keeps them after this layer is gone.
+    property var extra: [{ "id": "dev.themepack.home", "defaultWindowType": "overlay", "main": String(Qt.resolvedUrl("HomeEntry.qml")) }]
 
     function findManager() {
         var kids = host ? host.children : [];
@@ -53,6 +56,12 @@ QtObject {
             list.push(copy);
         }
         if (!found) { Look.report("error", "settings: no Quick Settings entry in the system UI table"); return; }
+        for (var x = 0; x < extra.length; x++) {
+            var ours = {};
+            for (var g in extra[x]) ours[g] = extra[x][g];
+            for (var j = list.length - 1; j >= 0; j--) if (list[j].id === ours.id) list.splice(j, 1);
+            list.push(ours);
+        }
         out.appinfo = list;
         manager.config = out;
         SettingsBus.hook = hook;
