@@ -36,6 +36,9 @@ ssh -tt root@"$TV_HOST" "luna-send -n 1 luna://com.webos.service.tv.systemproper
 | Backup (`scripts/backup.sh`) & restore levels | [docs/backup-and-restore.md](docs/backup-and-restore.md) | backup done; restores untested |
 | GUI catalog (webOS UI Atlas) | built by [tools/ui-atlas/](tools/ui-atlas/README.md) from a backup; published as a private artifact: <private-artifact> | v2; overlays reconstructed, with compositor screenshots beside them (kept out of git) |
 | Swappable UI look (styles, themes, layer model) | built by [tools/theme-pack/](tools/theme-pack/README.md): our QML UI layer and its kit, Smoke and Bubble styles, Glow, Winter and Halloween themes, our Settings with its Look page, the Look service, tests, and a preview harness; design in [docs/design/](docs/design/README.md) | built and tested off the TV; [TV-CHECKS.md](tools/theme-pack/TV-CHECKS.md) lists what the TV must still confirm |
+| Loading our UI into the running compositor; what carries over from newer webOS | [docs/home-takeover.md](docs/home-takeover.md) | working on the TV: no restart, no blank screen |
+| Home of our own (a dock over the picture, on the Home key) | [docs/home-dock-plan.md](docs/home-dock-plan.md) | designed and checked against the TV; not built |
+| Making a theme or a style | [docs/theme-making.md](docs/theme-making.md) | guide; needs no TV |
 
 All investigation so far was read-only: no settings on the TV were changed and no audio was recorded. The one exception is the UI Atlas screenshots, taken on 2026-10-25. Each overlay was opened, captured to `/tmp` and closed again, and the volume was raised by one step and set back. Every capture file was deleted afterwards. See [tools/ui-atlas/README.md](tools/ui-atlas/README.md#screenshots).
 
@@ -57,3 +60,7 @@ The `settings` section maps luna categories (`option`, `picture`, `sound`) to ke
 ## Don't commit
 
 Serial numbers, NDUID, MAC addresses, paired-device names, and the output of `voiceconductor/getVoiceKey` (LG voice auth keys). Keep host details in `.env`.
+
+## License
+
+GPL-3.0-or-later; see [LICENSE](LICENSE). The fonts under `tools/theme-pack/packs/fonts/` are under the SIL Open Font License, with each font's `OFL.txt` beside it. Nothing of LG's is in this repository: the tools read LG's files from your own TV or your own backup.
