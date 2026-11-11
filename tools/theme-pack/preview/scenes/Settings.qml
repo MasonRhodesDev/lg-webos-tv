@@ -14,6 +14,29 @@ Item {
         return 0;
     }
 
+    // The Look page with seasonal themes, as the service lists them on a 25 November: a fixed listing, so the shot is
+    // the same whatever packs there are and whatever day it is. `auto` is the service's calendar mode.
+    function seasons(auto, focus) {
+        var m = JSON.parse(JSON.stringify(Fixture.payload));
+        var list = [{ "id": "glow", "name": "Glow", "description": "A soft light around what has focus", "group": "custom" }];
+        var runs = [["winter", "Winter", "2026-12-01", "2027-03-19"], ["newyear", "New Year", "2026-12-26", "2027-01-03"],
+                    ["valentine", "Valentine's Day", "2027-02-07", "2027-02-14"], ["spring", "Spring", "2027-03-20", "2027-06-20"],
+                    ["easter", "Easter", "2027-03-21", "2027-03-29"], ["summer", "Summer", "2027-06-21", "2027-09-22"],
+                    ["autumn", "Autumn", "2026-09-23", "2026-11-30"], ["halloween", "Halloween", "2027-10-17", "2027-10-31"],
+                    ["thanksgiving", "Thanksgiving", "2026-11-19", "2026-11-26"], ["christmas", "Christmas", "2026-12-01", "2026-12-25"],
+                    ["hanukkah", "Hanukkah", "2026-12-05", "2026-12-12"]];
+        for (var i = 0; i < runs.length; i++)
+            list.push({ "id": runs[i][0], "name": runs[i][1], "description": "", "group": "seasonal",
+                        "dates": [{ "from": runs[i][2], "to": runs[i][3] }], "inSeason": runs[i][2] <= "2026-11-25" });
+        m.look.themes = auto ? ["autumn", "thanksgiving"] : ["autumn"];
+        m.look.auto = auto;
+        m.look.skip = auto ? ["halloween"] : [];
+        m.available.themes = list;
+        Fixture.load(JSON.stringify(m));
+        p.settings("Look");
+        p.menu.page.list.currentIndex = rowOf(p.menu.page.list, focus);
+    }
+
     // Base: the categories, as the Home screen's Settings tile opens it.
     Component.onCompleted: p.settings("")
     states: [
@@ -32,6 +55,8 @@ Item {
         State { name: "support"; StateChangeScript { script: { p.settings("support"); p.menu.page.list.currentIndex = 1; } } },
         State { name: "signal-test"; StateChangeScript { script: p.settings("SignalTest") } },
         State { name: "look"; StateChangeScript { script: { p.settings("Look"); p.menu.page.list.currentIndex = 2; } } },
+        State { name: "look-seasonal"; StateChangeScript { script: seasons(false, "Winter") } },
+        State { name: "look-automatic"; StateChangeScript { script: seasons(true, "Automatic") } },
         State { name: "confirm"; StateChangeScript { script: {
             p.settings("PictureMode");
             var l = p.menu.page.list;

@@ -58,7 +58,7 @@ const styles = packs('styles'), themes = packs('themes');
 function payload(style, active) {
   return {
     returnValue: true,
-    look: { style: style.id, themes: active.map((t) => t.id) },
+    look: { style: style.id, themes: active.map((t) => t.id), auto: false, skip: [] },
     subscribers: 0,
     settings: { open: false, target: '', at: 0 },
     assets: 'file://' + path.join(packsDir, 'assets') + '/',
@@ -67,7 +67,11 @@ function payload(style, active) {
     themes: active,
     available: {
       styles: styles.map((s) => ({ id: s.id, name: s.name })),
-      themes: themes.map((t) => ({ id: t.id, name: t.name, description: t.description || '' }))
+      // The service also sorts the seasonal themes by the calendar and gives each its `dates` for today. Those are
+      // left out here, so a shot is the same whatever day it is rendered on; the Settings scene's look-seasonal and
+      // look-automatic states load a listing with dates of their own.
+      themes: themes.map((t) => ({ id: t.id, name: t.name, description: t.description || '',
+        group: t.group === 'seasonal' ? 'seasonal' : 'custom', ...(t.group === 'seasonal' ? { season: t.season } : {}) }))
     }
   };
 }
