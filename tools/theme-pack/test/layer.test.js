@@ -118,3 +118,42 @@ test('the Home dock: key filter in and out of LG\'s chain, our table entry, open
   const warnings = out.split('\n').filter((l) => /\.(qml|js):\d+/.test(l) && !/^\s*Loc:/.test(l));
   assert.deepStrictEqual(warnings, []);
 });
+
+// The compositor's Qt (5.6) still calls a function that is connected to a signal after the object the function
+// belongs to is destroyed, in a QML context that is gone; the first singleton such a function names takes the
+// compositor down. A desk Qt drops such a connection by itself, so no scene here can show it. This reads the source
+// instead: each `X.connect(f)` in ui/ has its `X.disconnect(f)` in the same file, unless X belongs to the object
+// that connects (it is destroyed with it).
+const OWNED = {
+  'Look/Layer.qml': { 'source': 'link(), undone by unlink()', 'part.probeChanged': 'a part the layer made' },
+  'Look/parts/Settings.qml': {
+    'store.systemUiRequested': 'its own store', 'store.failed': 'its own store', 'store.refused': 'its own store',
+    'store.succeeded': 'its own store', 'hook.appliedChanged': 'the hook it made'
+  },
+  'Look/settings/Store.qml': {
+    'get.response': 0, 'd.response': 0, 'net.response': 0, 'vol.response': 0, 'sig.response': 0, 'sys.response': 0,
+    'os.response': 0, 'kit.response': 0, 'prefs.response': 0, 'clk.response': 0, 'fmt.response': 0, 'tz.response': 0,
+    'st.response': 0, 'scan.response': 0, 'dev.response': 0, 's.response': 0 // bus objects the store makes and drops
+  }
+};
+function qmlFiles(d) {
+  return fs.readdirSync(d, { withFileTypes: true }).flatMap((e) => e.isDirectory() ? qmlFiles(path.join(d, e.name))
+    : /\.(qml|js)$/.test(e.name) ? [path.join(d, e.name)] : []);
+}
+test('nothing in ui/ stays connected to what outlives it: every connect has its disconnect, or is to its own object', () => {
+  const ui = path.join(dir, 'ui');
+  const problems = [], used = {};
+  for (const file of qmlFiles(ui)) {
+    const rel = path.relative(ui, file), src = fs.readFileSync(file, 'utf8');
+    const code = src.split('\n').map((l) => l.replace(/^\s*\/\/.*$/, '')).join('\n');
+    for (const m of code.matchAll(/([A-Za-z_][\w.]*)\.connect\(\s*([\w.]+\s*\)|function\b)/g)) {
+      const from = m[1], to = m[2].replace(/\s*\)$/, '');
+      if (OWNED[rel] && from in OWNED[rel]) { used[rel + ' ' + from] = true; continue; }
+      if (to !== 'function' && code.includes(from + '.disconnect(' + to + ')')) continue;
+      problems.push(rel + ': ' + from + '.connect(' + (to === 'function' ? 'function ...' : to) + ') is never disconnected');
+    }
+  }
+  for (const rel of Object.keys(OWNED)) for (const from of Object.keys(OWNED[rel]))
+    if (!used[rel + ' ' + from]) problems.push(rel + ': ' + from + ' is listed as its own object, but nothing connects to it');
+  assert.deepStrictEqual(problems, [], '\n' + problems.join('\n'));
+});

@@ -52,8 +52,14 @@ Item {
     function lifeCycle(payload) { if (payload && payload.event === "launch") finish(); }
     Timer { interval: 5000; running: true; onTriggered: injector.finish() }
 
+    // LG's container, while it tells this file its life cycle.
+    property Item box: null
     Component.onCompleted: {
-        if (parent && parent.lifeCycleStatusChanged !== undefined) parent.lifeCycleStatusChanged.connect(injector.lifeCycle);
+        if (parent && parent.lifeCycleStatusChanged !== undefined) {
+            box = parent;
+            box.lifeCycleStatusChanged.connect(injector.lifeCycle);
+        }
         inject();
     }
+    Component.onDestruction: { try { if (box) box.lifeCycleStatusChanged.disconnect(injector.lifeCycle); } catch (e) { } }
 }

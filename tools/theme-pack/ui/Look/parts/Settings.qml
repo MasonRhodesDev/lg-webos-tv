@@ -196,6 +196,7 @@ FocusScope {
         if (hook) hook.restore();
         Look.settingsRequested.disconnect(part.settings);
         SettingsBus.quickSettingsRequested.disconnect(part.quickSettings);
+        try { if (host && host.keyFilter && host.keyFilter.backReleased) host.keyFilter.backReleased.disconnect(part.closeAll); } catch (e) { }
     }
     Component.onDestruction: retire()
 }

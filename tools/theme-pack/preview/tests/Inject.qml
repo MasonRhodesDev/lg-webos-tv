@@ -75,6 +75,13 @@ Window {
         for (var i = 0; i < Fixture.commands.length; i++) if (Fixture.commands[i].method === "/setProbe") n++;
         return n;
     }
+    // The probes one layer sent after the first `from` commands (a probe names its layer by `instance`).
+    function probesFrom(instance, from) {
+        var n = 0;
+        for (var i = from; i < Fixture.commands.length; i++)
+            if (Fixture.commands[i].method === "/setProbe" && Fixture.commands[i].params.layer === instance) n++;
+        return n;
+    }
     // How many Home key filters of ours are in the live chain.
     function homeFilters() {
         var list = host.keyFilter.keyFilters, n = 0;
@@ -128,6 +135,14 @@ Window {
             check(!plane.visible && plane.children.length === 0, "injected again: the old dock closed and gave the plane back");
             check(layers().length === 1 && layers()[0] !== first, "injected again: one layer under LG's root, a new one");
             check(reports("ready", "layer created by injection") === 2, "injected again: reported ready again");
+            // The replaced layer is not destroyed yet, and must already have let go of everything that outlives it.
+            // On the TV a function of a destroyed layer that is still connected is still called, in a context that is
+            // gone, and the compositor crashes on the first singleton it names.
+            var sent = Fixture.commands.length;
+            Fixture.load(JSON.stringify({ "returnValue": true, "probing": false }));
+            Fixture.load(JSON.stringify({ "returnValue": true, "probing": true }));
+            check(probesFrom(layers()[0].instance, sent) > 0, "injected again: the new layer answers the probing switch");
+            check(probesFrom(first.instance, sent) === 0, "injected again: the replaced layer no longer answers it");
             check(container.exited, "injected again: the injector asked to be unloaded");
             container.destroy();
         },
