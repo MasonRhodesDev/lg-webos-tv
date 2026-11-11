@@ -1,5 +1,5 @@
 import QtQuick 2.4
-import Look 1.0
+import ".."
 
 // A short text tag on a tile or row ("Watching", "New", "4K"). Decoratable as `badge`.
 // tone: neutral (default), current, attention, critical.

@@ -1,5 +1,5 @@
 import QtQuick 2.4
-import Look 1.0
+import ".."
 
 // What settles the picture behind a surface. dim: an even veil under a modal dialog (`dim`). left, right, bottom: a
 // gradient from that edge (strongest stop `scrim`) under a side panel or ribbon. Fades with the panel's motion.

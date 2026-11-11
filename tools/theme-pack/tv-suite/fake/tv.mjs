@@ -289,16 +289,18 @@ function key(s, k) {
 
 // ---- LG's side ----
 
+// own-layer.sh apply: a new layer goes in place of the loaded one. Returns whether it reported. One that does not
+// compile, or whose reports nobody takes, leaves the TV as it was.
 function layerUp(s) {
-  s.settingsHost = false;
   if (!s.installed || s.faults.layerFails) return false;
   const at = iso();
-  s.reports.push({ at, from: 'ui', kind: 'root', text: 'own layer root loaded' });
   if (s.broken === 'layer') {
-    s.reports.push({ at, from: 'ui', kind: 'error', text: 'file:///media/developer/themepack/layer/ui/Look/Layer.qml: Syntax error' }, { at, from: 'ui', kind: 'error', text: 'layer could not be created' });
-    return true;
+    s.reports.push({ at, from: 'ui', kind: 'error', text: 'inject: file:///tmp/themepack-layer.1.40/Look/Layer.qml:232 Syntax error' });
+    return false;
   }
-  s.reports.push({ at, from: 'ui', kind: 'ready', text: 'layer created' });
+  s.layer = true;
+  s.settingsHost = false;
+  s.reports.push({ at, from: 'ui', kind: 'ready', text: 'layer created by injection' });
   if (s.broken === 'part') return true;
   s.settingsHost = true;
   if (s.faults.hookA) s.reports.push({ at, from: 'ui', kind: 'gap', text: "settings: host up, but Hook A is not applied; not reporting ready" });
@@ -307,20 +309,22 @@ function layerUp(s) {
 }
 function applyLayer(s, how) {
   s.ownLayerLog = '=== ' + iso() + ' ' + how + '\n';
-  if (how === 'revert') { s.layer = false; s.ownLayerLog += 'stock\ndone\n'; return; }
-  s.layer = layerUp(s);
-  if (s.layer) s.layerInstance = (s.layerInstance || 1) + 1;
-  s.ownLayerLog += (s.layer ? 'layer loaded after 7s' : 'layer root never reported; back to stock') + '\ndone\n';
+  if (how === 'revert') { s.layer = false; s.ownLayerLog += 'stock\ndone\n'; return false; }
+  const loaded = layerUp(s);
+  if (loaded) s.layerInstance = (s.layerInstance || 1) + 1;
+  s.ownLayerLog += (loaded ? 'layer loaded after 1 rounds (no restart)' : 'no report from the new layer; the screen is left as it was') + '\ndone\n';
+  return loaded;
 }
 function hook(s) {
   const log = ['=== ' + iso()];
   if (s.installed) log.push('service permissions set', 'bus rescanned'); else log.push('Look service not installed; skipping permissions');
-  if (s.layerFiles) { applyLayer(s, 'apply'); log.push(s.layer ? 'UI layer started (see /tmp/own-layer.log)' : 'UI layer did not load (see /tmp/own-layer.log)'); }
+  let loaded = false;
+  if (s.layerFiles) { loaded = applyLayer(s, 'apply'); log.push(loaded ? 'UI layer loaded (see /tmp/own-layer.log)' : 'UI layer did not load (see /tmp/own-layer.log)'); }
   else log.push('compositor left stock (no layer installed)');
-  const ready = s.layer && s.settingsHost && !s.faults.hookA;
+  const ready = loaded && s.settingsHost && !s.faults.hookA;
   if (s.mounted) log.push('settings already mounted');
   else if (!s.stub) log.push('settings left stock (no stub installed)');
-  else if (!s.layer || !s.installed) log.push('settings left stock (the stub needs our layer and the Look service)');
+  else if (!loaded || !s.installed) log.push('settings left stock (the stub needs our layer and the Look service)');
   else if (!ready) log.push('settings left stock (our Settings host never reported ready)');
   else { s.mounted = true; log.push('settings stub mounted'); }
   s.themepackLog += log.join('\n') + '\n';
@@ -375,9 +379,9 @@ function luna(s, uri, p) {
       const on = Date.now() < s.probingUntil;
       if (!on) return ok({ now: iso(), probing: false, probes: {} });
       s.probingUntil = Math.max(s.probingUntil, Date.now() + 600000);
-      const p = s.layer && s.broken !== 'layer' ? probes(s) : {};
+      const p = s.layer ? probes(s) : {};
       if (!s.settingsHost) delete p['parts/Settings.qml'];
-      // One publication per read, from the current layer instance (a restart makes a new one).
+      // One publication per read, from the current layer instance (each load makes a new one).
       s.probeSeq = (s.probeSeq || 0) + 1;
       for (const k of Object.keys(p)) Object.assign(p[k], { layer: String(s.layerInstance || 1), seq: s.probeSeq });
       return ok({ now: iso(), probing: true, probes: p });
@@ -613,7 +617,7 @@ export function ssh(s, cmd, stdin) {
     return r('{"returnValue":true,"id":"' + APP.id + '","details":{"state":"installed"}}\n');
   }
   if (/^cat \/var\/luna-service2-dev\/client-permissions\.d\//.test(cmd))
-    return s.installed ? r('{"com.webos.surfacemanager.systemui":["dev.themepack.look.service.group","settings.read","audio"]}') : r('', 1);
+    return s.installed ? r('{"com.webos.surfacemanager.wedge":["dev.themepack.look.service.group","settings.read","audio"]}') : r('', 1);
   const l = lunaLine(s, cmd);
   if (l !== null) return r(l + '\n');
   s.unknown.push('ssh ' + cmd.slice(0, 200));

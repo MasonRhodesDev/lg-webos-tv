@@ -1,5 +1,5 @@
 import QtQuick 2.4
-import Look 1.0
+import ".."
 import "pages.js" as Pages
 import "menu.js" as Menu
 

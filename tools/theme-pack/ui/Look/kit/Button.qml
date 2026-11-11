@@ -1,5 +1,5 @@
 import QtQuick 2.4
-import Look 1.0
+import ".."
 
 // A pill button, decoratable as `button`. Focus is the one focus treatment (Plate). A pointer click emits clicked().
 Item {

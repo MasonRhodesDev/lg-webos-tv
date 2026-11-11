@@ -1,11 +1,14 @@
 #!/bin/sh
-# Put our UI layer on the TV and start the compositor with it, or go back to stock.
-#   TV_HOST=<address> own-layer-tv.sh apply          copy ui/ and own-layer.sh, restart the compositor with the layer
+# Put our UI layer on the TV and load it into the compositor, or go back to stock.
+#   TV_HOST=<address> own-layer-tv.sh apply          copy ui/ and own-layer.sh, load the layer into the running
+#                                                    compositor (no restart, the screen never blanks)
+#   TV_HOST=<address> own-layer-tv.sh restart        the same copy, then restart the compositor with the layer on its
+#                                                    import path (blanks the screen for about 15 s)
 #   TV_HOST=<address> own-layer-tv.sh revert         restart the compositor on stock
 #   TV_HOST=<address> own-layer-tv.sh reports        what the layer reported (loaded, errors, gaps)
 #   TV_HOST=<address> own-layer-tv.sh capture OUT    save the on-screen UI layer (not the video picture) as a PNG
-# apply and revert take a lock on the TV, so several working copies can test against one TV in turn. A lock older
-# than 10 minutes is taken over. The restart itself runs on the TV, so a dropped SSH session cannot stop halfway.
+# apply, restart and revert take a lock on the TV, so several working copies can test against one TV in turn. A lock
+# older than 10 minutes is taken over. The work itself runs on the TV, so a dropped SSH session cannot stop it halfway.
 set -eu
 host=${TV_HOST:?set TV_HOST to the TV address}
 here=$(cd "$(dirname "$0")" && pwd)
@@ -34,13 +37,13 @@ run_and_wait() {
 }
 
 case "${1:-}" in
-  apply)
+  apply|restart)
     locked
     on_tv "rm -rf $dest.new && mkdir -p $dest.new"
     tar -C "$here/.." -cf - ui | on_tv "tar -C $dest.new -mxf -"
     scp -q "$here/own-layer.sh" "root@$host:$dest.new/own-layer.sh"
     on_tv "rm -rf $dest && mv $dest.new $dest"
-    run_and_wait apply
+    run_and_wait "$1"
     ;;
   revert)
     locked
@@ -54,5 +57,5 @@ case "${1:-}" in
     ssh -tt "root@$host" "rm -f /tmp/.own-layer.png; luna-send -n 1 -w 5000 luna://com.webos.surfacemanager/captureCompositorOutput '{\"output\":\"/tmp/.own-layer.png\",\"format\":\"PNG\"}' >/dev/null" 2>/dev/null
     scp -q "root@$host:/tmp/.own-layer.png" "$out"
     ;;
-  *) echo "usage: TV_HOST=... own-layer-tv.sh apply | revert | reports | capture OUT.png" >&2; exit 2 ;;
+  *) echo "usage: TV_HOST=... own-layer-tv.sh apply | restart | revert | reports | capture OUT.png" >&2; exit 2 ;;
 esac

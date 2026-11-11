@@ -1,5 +1,5 @@
 import QtQuick 2.4
-import Look 1.0
+import ".."
 import "keys.js" as KeyMap
 
 // A dialog (SmokeAlert board): its own dim scrim (when `modal`) and a centred glass panel (decoratable as `dialog`) with an icon well,

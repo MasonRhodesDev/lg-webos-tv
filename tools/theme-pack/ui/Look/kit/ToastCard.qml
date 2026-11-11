@@ -1,5 +1,5 @@
 import QtQuick 2.4
-import Look 1.0
+import ".."
 
 // A toast (SmokeOverlays board): a glass panel (decoratable as `toast`) with an icon well, an optional title, the
 // message, and a trailing chevron when the toast leads somewhere. `compact` is the one-line kind, as wide as its text.

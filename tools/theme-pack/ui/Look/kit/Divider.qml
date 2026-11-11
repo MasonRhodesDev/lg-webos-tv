@@ -1,5 +1,5 @@
 import QtQuick 2.4
-import Look 1.0
+import ".."
 
 // A rule between two parts of a surface: `divider`, the surface edge's width rounded up to a
 // whole pixel. Horizontal fills its width; `vertical` fills its height (the Settings frame between categories and

@@ -1,5 +1,5 @@
 import QtQuick 2.4
-import Look 1.0
+import ".."
 
 // An on/off switch: a track and a knob. On is the current colour; the knob is decoratable (`knob`).
 // `inverted` is set when it sits on a focus fill.

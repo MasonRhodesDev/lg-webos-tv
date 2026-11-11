@@ -1,6 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert');
 const fs = require('node:fs');
+const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 
@@ -61,6 +62,21 @@ test('themes off leaves ±1 empty; later themes wrap further out; chips, thumbs 
   assert.ok(/decoration: all passed/.test(out), out);
   assert.ok(!/FAIL /.test(out), out);
   assert.ok(!/\.qml:\d+/.test(out), 'QML warnings:\n' + out);
+});
+
+test('the injector puts the layer under LG\'s root from inside the running compositor, outlived by it, replaces a loaded one, and keeps it when the new one does not compile', { skip: !haveQml && QML + ' not found' }, () => {
+  const broken = fs.mkdtempSync(path.join(os.tmpdir(), 'themepack-broken-ui-'));
+  try {
+    fs.cpSync(path.join(dir, 'ui'), broken, { recursive: true });
+    fs.appendFileSync(path.join(broken, 'Look/Layer.qml'), '\n}}}\n');
+    const r = runScene('Inject.qml', [broken]);
+    const out = r.stdout + r.stderr;
+    assert.strictEqual(r.status, 0, out);
+    assert.ok(/inject: all passed/.test(out), out);
+    assert.ok(!/FAIL /.test(out), out);
+  } finally {
+    fs.rmSync(broken, { recursive: true, force: true });
+  }
 });
 
 // The Look service's answer for one style, as service/service.js's payload() builds it.

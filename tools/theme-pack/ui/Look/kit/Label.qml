@@ -1,5 +1,5 @@
 import QtQuick 2.4
-import Look 1.0
+import ".."
 
 // Text in one of the type roles: display, title, tile, headline, label, category, value, body, caption, heading, key,
 // numeral, entry, cap, cap-word, pad, prompt (each a type-<role> and type-<role>-weight token). Size, weight and case

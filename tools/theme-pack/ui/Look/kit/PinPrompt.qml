@@ -1,5 +1,5 @@
 import QtQuick 2.4
-import Look 1.0
+import ".."
 
 // Asking for the PIN (the PIN prompt board): the picture dimmed, a centred glass panel `pin-w` wide with the lock in
 // its well, the title and why, a slot per digit (filled ones hold a dot, the next one has the active edge) and the

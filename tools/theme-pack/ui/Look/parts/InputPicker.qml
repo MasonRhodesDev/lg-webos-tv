@@ -1,5 +1,5 @@
 import QtQuick 2.4
-import Look 1.0
+import ".."
 
 // Our input picker. LG's InputPickerMainView keeps all of its logic (the input list, keys, the 5 s hotkey timer,
 // launching, eject, the add-on button's actions, the tooltip); this only draws what it shows. LG's tiles stay in the

@@ -1,5 +1,5 @@
 import QtQuick 2.4
-import Look 1.0
+import ".."
 
 // One choice of several: a ring, with a dot when chosen. Decoratable as `radio`.
 Item {

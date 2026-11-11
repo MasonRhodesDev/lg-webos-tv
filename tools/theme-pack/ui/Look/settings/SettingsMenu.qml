@@ -1,5 +1,5 @@
 import QtQuick 2.4
-import Look 1.0
+import ".."
 import "pages.js" as Pages
 
 // Our Settings (the owner's Settings board): one full panel with the categories down the left and the open page on

@@ -1,6 +1,6 @@
 import QtQuick 2.4
 import QtGraphicalEffects 1.0
-import Look 1.0
+import ".."
 
 // The one focus treatment: the plate under a row, tile or button. At rest it is `rest`; focused it
 // fills with the focus colour (or the item's hue), gains the focus edge and a lift shadow; current adds the current

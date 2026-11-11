@@ -5,7 +5,7 @@
 // is written, and nothing ever resets, changes the PIN, joins or forgets a network, pairs, connects or forgets a
 // Bluetooth device, switches the input or scans channels: the guard refuses the keys that could (keys.mjs).
 // The scenarios that leave for LG (Home, Exit, LG's apps) put the app that was in front back themselves; the fallback
-// ones run only when named (`optIn`): they restart the compositor with a broken layer and put the good one back.
+// ones run only when named (`optIn`): they load a broken layer and put the good one back.
 import { landing, stubTarget, categories, catalog, locked } from './expect.mjs';
 import { HOME_APP } from './run.mjs';
 import * as journal from './journal.mjs';
@@ -557,7 +557,7 @@ export const SCENARIOS = [
       ctx.note('reads.bluetooth', (bt.devices || []).map((d) => ({ name: d.name, paired: d.paired, type: d.typeOfDevice, profiles: d.connectedProfiles })));
       const perm = await ctx.tv.sh('cat /var/luna-service2-dev/client-permissions.d/dev.themepack.look.service.compositor.json');
       let groups = [];
-      try { groups = JSON.parse(perm.stdout)['com.webos.surfacemanager.systemui'] || []; } catch (e) { /* none */ }
+      try { groups = JSON.parse(perm.stdout)['com.webos.surfacemanager.wedge'] || []; } catch (e) { /* none */ }
       ctx.note('reads.groups', groups);
       ctx.check('our compositor identity holds groups beyond our own', groups.length > 1, groups.join(' '));
     }
@@ -834,7 +834,7 @@ export const SCENARIOS = [
       journal.mark(ctx.journal, { layer: 'broken' });
       await breakLayer(ctx, 'layer');
       const log = await rerunHook(ctx);
-      ctx.check("with the layer broken, the hook leaves LG's Settings", /settings left stock \(our Settings host never reported ready\)/.test(log), log.trim().split('\n').pop());
+      ctx.check("with the layer broken, the hook leaves LG's Settings", /settings left stock \(the stub needs our layer and the Look service\)/.test(log), log.trim().split('\n').pop());
       ctx.check('and nothing is mounted over it', !(await mounted(ctx)));
       await lgSettings(ctx, 'layer-broken');
     },

@@ -1,5 +1,5 @@
 import QtQuick 2.4
-import Look 1.0
+import ".."
 
 // The one row anatomy every list uses: icon slot, label (and an optional hint line), value, and a
 // trailing control chosen by `variant`:

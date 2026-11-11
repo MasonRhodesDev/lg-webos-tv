@@ -163,7 +163,13 @@ QtObject {
     // Changes go out on their own bus object; their result comes back through the subscription.
     function setLook(change) { command.call(service, "/setLook", JSON.stringify(change)); }
     function closeSettings() { command.call(service, "/closeSettings", "{}"); }
-    property var command: Service { appId: "com.webos.surfacemanager.systemui" }
+    // The name our layer calls the bus by. The bus gives a client its permission groups when the client connects, and
+    // the compositor's usual name (com.webos.surfacemanager.systemui) connects in the boot snapshot, before the boot
+    // hook grants our groups, so the Look service would drop its calls. This one is in the compositor's role file and
+    // nothing of LG's uses it on webOS 4, so it connects when our layer loads and gets the groups
+    // (service/permissions.sh grants them to it).
+    readonly property string busName: "com.webos.surfacemanager.wedge"
+    property var command: Service { appId: look.busName }
 
     function report(kind, text) {
         bus.call(service, "/report", JSON.stringify({ "from": "ui", "kind": kind, "text": text }));
@@ -173,7 +179,7 @@ QtObject {
     }
 
     property var bus: Service {
-        appId: "com.webos.surfacemanager.systemui"
+        appId: look.busName
         onResponse: {
             try {
                 var m = JSON.parse(payload);
@@ -187,7 +193,7 @@ QtObject {
 
     // Each time the service appears on the bus, subscribe once, fresh: a subscription ends when the service restarts.
     property var status: Service {
-        appId: "com.webos.surfacemanager.systemui"
+        appId: look.busName
         onResponse: {
             try {
                 var m = JSON.parse(payload);

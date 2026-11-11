@@ -1,5 +1,5 @@
 import QtQuick 2.4
-import Look 1.0
+import ".."
 
 // A panel: the surface material, decorated as `target`, placed by `placement` and entering and leaving with the
 // style's motion. Its children are the content, inset by `padding`; they paint in the panel's passes.

@@ -42,8 +42,11 @@ numbers as an unminifier prints them). They are reference only; no LG code enter
 
 ### Bus identity: what our layer may call
 
-- Our layer's `Service` objects use `appId: "com.webos.surfacemanager.systemui"`, which belongs to no permission group
-  (commit `6d1b402`: the Look service dropped its calls until `service/permissions.sh` granted that name a group).
+- Our layer's `Service` objects use `appId: "com.webos.surfacemanager.wedge"` (`Look.busName`), which belongs to no
+  permission group until `service/permissions.sh` grants it one. It was `...systemui` at first (commit `6d1b402`), but
+  the compositor's `...systemui` connection dates from the boot snapshot and a client gets its groups when it
+  connects, so a grant made later never reached it. `...wedge` is allowed by the compositor's role file, unused by
+  LG's QML, and first connects when the layer loads.
 - LG's own Quick Settings runs **in the same compositor process** and calls, as `appId: "com.webos.app.quicksettings"`
   (`QuickSettings/Globals.js`, `QuickSettings/Service/QuickSettingsService.qml`): settingsservice get, set, desc and
   values for picture/sound/aspect (`ServiceModel/SettingsServiceModel.qml`, `PictureSettingModel.qml`,
@@ -53,12 +56,12 @@ numbers as an unminifier prints them). They are reference only; no LG code enter
 - `/etc/palm/settingsservice.allow` lists 21 keys with read or read/write rights (captions on, sound output, digital
   audio, AV sync, eARC, TruMotion, SIMPLINK; country, audio guidance, high contrast, store mode read only). There is
   no `pictureMode` or `soundMode` in it. Hypothesis (**TV**): it is the allowlist for callers without the
-  settingsservice groups. If so, `...systemui` today can write only those 21 keys.
+  settingsservice groups. If so, `...wedge` today can write only those 21 keys.
 
 Two ways to get the rights, in order of preference:
 
 1. **Grant, through the existing boundary.** `service/permissions.sh` already writes a client-permissions file for
-   `com.webos.surfacemanager.systemui` under `/var/luna-service2-dev`. Extend it with the groups the services below
+   `com.webos.surfacemanager.wedge` under `/var/luna-service2-dev`. Extend it with the groups the services below
    require for the methods we call, read from their api-permissions files (**TV**). This is explicit, revertible and
    names exactly what we use. Risk (**TV**): ls-hubd may refuse to grant system groups from the dev directory
    (groups carry trust levels); if it does, option 2 is the fallback.

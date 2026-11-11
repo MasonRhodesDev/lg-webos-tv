@@ -42,7 +42,7 @@ export async function breakLayer(ctx, kind) {
   const t0 = await ctx.tv.now();
   const r = await sh(ctx, 'webos/own-layer-tv.sh', ['apply'], t);
   fs.rmSync(t, { recursive: true, force: true });
-  // A compositor restart: ask for the key socket again before the next key.
+  // Ask for the key socket again before the next key.
   ctx.tv.resetKeys();
   return { t0, out: r.out };
 }

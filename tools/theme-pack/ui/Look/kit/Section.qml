@@ -1,5 +1,5 @@
 import QtQuick 2.4
-import Look 1.0
+import ".."
 
 // A section header inside a list: the heading role, sitting on the section's first row. Not focusable.
 Item {

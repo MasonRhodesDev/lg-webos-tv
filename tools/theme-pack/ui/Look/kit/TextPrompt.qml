@@ -1,5 +1,5 @@
 import QtQuick 2.4
-import Look 1.0
+import ".."
 
 // Typing a line of text (the Keyboard board): the picture dimmed, a `prompt` label over a TextField in the middle of
 // the space above the keyboard, and the Keyboard on a ribbon panel along the bottom. Fill the screen with it and give

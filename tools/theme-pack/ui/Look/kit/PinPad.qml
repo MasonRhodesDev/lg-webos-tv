@@ -1,5 +1,5 @@
 import QtQuick 2.4
-import Look 1.0
+import ".."
 import "keys.js" as KeyMap
 
 // A PIN keypad (the PIN prompt board): 1 to 9, Clear, 0 and Delete as Keys in three columns, `pad-w` wide, the `pad`

@@ -7,6 +7,14 @@ LOG=/tmp/themepack.log
 # luna-send reads stdin when it is open, which stalls it when this runs over ssh; detach it.
 exec </dev/null >>"$LOG" 2>&1
 echo "=== $(date)"
+# /tmp is gone after a cold boot; what each boot did with the layer also goes to a log that stays, with the uptime
+# (the clock can be years out until it is set). own-layer.sh writes its outcome there too.
+PLOG=/var/lib/webosbrew/themepack-boot.log
+note() {
+  echo "$*"
+  [ -f $PLOG ] && [ $(wc -c < $PLOG) -gt 32768 ] && mv -f $PLOG $PLOG.old
+  echo "up $(cut -d' ' -f1 /proc/uptime) hook $*" >> $PLOG
+}
 
 ROOT=/media/developer/themepack
 APP=/usr/palm/applications/com.palm.app.settings
@@ -15,8 +23,9 @@ PKG=dev.themepack.look
 SVC=$PKG.service
 
 # 1. The bus resumes from the boot snapshot without the Look service's permissions.
-# Its methods are public, and the compositor's QML calls as com.webos.surfacemanager.systemui, which belongs to no
-# group until it is granted one; without that the service drops its calls unanswered.
+# Its methods are public, and our layer calls as com.webos.surfacemanager.wedge, which belongs to no group until it is
+# granted one; without that the service drops its calls unanswered. A client takes its groups when it connects, and
+# the layer connects under that name only when step 2 loads it.
 if [ -d /media/developer/apps/usr/palm/services/$SVC ]; then
   sh /media/developer/apps/usr/palm/services/$SVC/permissions.sh && echo "service permissions set"
   timeout -t 60 ls-control scan-services >/dev/null && echo "bus rescanned"
@@ -24,88 +33,54 @@ else
   echo "Look service not installed; skipping permissions"
 fi
 
-# Steps 2 and 3 restart the compositor, which blanks the screen for about 15 s, so they run only while the screen is
-# off. Quick Start+ boots the TV in the background in Active Standby; a boot someone is watching (Active) waits, stock
-# until the TV next goes to standby, and the next power-on resumes with the layer already loaded.
-load_layer() {
-  # 2. Our UI layer in the compositor. A client takes its bus groups when it connects, so the restart also picks up
-  # step 1.
-  layer=0
-  t0=$(date -u +%Y-%m-%dT%H:%M:%S)
-  if [ -f "$ROOT/layer/own-layer.sh" ]; then
-    sh "$ROOT/layer/own-layer.sh" apply dark && layer=1 && echo "UI layer started (see /tmp/own-layer.log)"
-    [ $layer = 1 ] || echo "UI layer did not load (see /tmp/own-layer.log)"
-  else
-    echo "compositor left stock (no layer installed)"
-  fi
+# 2. Our UI layer, loaded into the running compositor. Nothing restarts and the screen never blanks, so it runs in
+# every boot at once, whether the TV booted in the background (Quick Start+) or in front of someone. Run again in
+# the same boot, it puts a new layer in place of the loaded one.
+layer=0
+t0=$(date -u +%Y-%m-%dT%H:%M:%S)
+if [ -f "$ROOT/layer/own-layer.sh" ]; then
+  sh "$ROOT/layer/own-layer.sh" apply && layer=1
+  [ $layer = 1 ] && echo "UI layer loaded (see /tmp/own-layer.log)" || echo "UI layer did not load (see /tmp/own-layer.log)"
+else
+  echo "compositor left stock (no layer installed)"
+fi
 
-  # 3. The Settings stub over LG's Settings app, so the Home screen's Settings tile and LG's deep links open our
-  # Settings. Only once our layer is running, the Look service is installed and our Settings host has said it is live
-  # (parts/Settings.qml reports ready "settings: host ready"): the stub hands every launch to them, so without them
-  # Settings would open nothing, and LG's app stays. Report times are UTC ISO strings, so they compare as text.
-  settings_ready() {
-    last=$(luna-send -n 1 -w 5000 luna://$SVC/getReports '{}' | grep -o '"at":"[^"]*","from":"ui","kind":"ready","text":"settings: host ready"' | tail -1 | cut -d'"' -f4)
-    [ -n "$last" ] && [ "$last" \> "$t0" ]
-  }
-  host=0
-  if [ $layer = 1 ]; then
-    i=0
-    while [ $i -lt 30 ]; do settings_ready && { host=1; break; }; sleep 1; i=$((i + 1)); done
-  fi
-  if mount | grep -q " $APP "; then
-    echo "settings already mounted"
-  elif ! grep -q '"vendor": "theme-pack"' "$STUB/appinfo.json" 2>/dev/null; then
-    echo "settings left stock (no stub installed)"
-  elif [ $layer != 1 ] || [ ! -d /media/developer/apps/usr/palm/services/$SVC ]; then
-    echo "settings left stock (the stub needs our layer and the Look service)"
-  elif [ $host != 1 ]; then
-    echo "settings left stock (our Settings host never reported ready)"
-  else
-    # SAM may hold the stock app's description from before the mount, whose localised entries name index.<locale>.html;
-    # every such name serves the stub.
-    for f in "$APP"/index*.html; do
-      [ -f "$f" ] || continue
-      n=$(basename "$f")
-      [ -e "$STUB/$n" ] || ln -s index.html "$STUB/$n"
-    done
-    # A prerendered stock instance would keep answering launches. It is hidden, so closing it shows nothing.
-    if luna-send -n 1 -w 10000 luna://com.webos.applicationManager/running '{}' | grep -q '"com.palm.app.settings"'; then
-      luna-send -n 1 -w 5000 luna://com.webos.applicationManager/closeByAppId '{"id":"com.palm.app.settings"}' >/dev/null &&
-        echo "resident stock settings closed"
-    fi
-    mount --bind "$STUB" "$APP" && echo "settings stub mounted"
-  fi
+# 3. The Settings stub over LG's Settings app, so the Home screen's Settings tile and LG's deep links open our
+# Settings. Only once our layer is running, the Look service is installed and our Settings host has said it is live
+# (parts/Settings.qml reports ready "settings: host ready"): the stub hands every launch to them, so without them
+# Settings would open nothing, and LG's app stays. Report times are UTC ISO strings, so they compare as text.
+settings_ready() {
+  last=$(luna-send -n 1 -w 5000 luna://$SVC/getReports '{}' | grep -o '"at":"[^"]*","from":"ui","kind":"ready","text":"settings: host ready"' | tail -1 | cut -d'"' -f4)
+  [ -n "$last" ] && [ "$last" \> "$t0" ]
 }
+host=0
+if [ $layer = 1 ]; then
+  i=0
+  while [ $i -lt 30 ]; do settings_ready && { host=1; break; }; sleep 1; i=$((i + 1)); done
+fi
+if mount | grep -q " $APP "; then
+  echo "settings already mounted"
+elif ! grep -q '"vendor": "theme-pack"' "$STUB/appinfo.json" 2>/dev/null; then
+  echo "settings left stock (no stub installed)"
+elif [ $layer != 1 ] || [ ! -d /media/developer/apps/usr/palm/services/$SVC ]; then
+  echo "settings left stock (the stub needs our layer and the Look service)"
+elif [ $host != 1 ]; then
+  echo "settings left stock (our Settings host never reported ready)"
+else
+  # SAM may hold the stock app's description from before the mount, whose localised entries name index.<locale>.html;
+  # every such name serves the stub.
+  for f in "$APP"/index*.html; do
+    [ -f "$f" ] || continue
+    n=$(basename "$f")
+    [ -e "$STUB/$n" ] || ln -s index.html "$STUB/$n"
+  done
+  # A prerendered stock instance would keep answering launches. It is hidden, so closing it shows nothing.
+  if luna-send -n 1 -w 10000 luna://com.webos.applicationManager/running '{}' | grep -q '"com.palm.app.settings"'; then
+    luna-send -n 1 -w 5000 luna://com.webos.applicationManager/closeByAppId '{"id":"com.palm.app.settings"}' >/dev/null &&
+      echo "resident stock settings closed"
+  fi
+  mount --bind "$STUB" "$APP" && echo "settings stub mounted"
+fi
 
-power_state() {
-  luna-send -n 1 -w 5000 luna://com.webos.service.tvpower/power/getPowerState '{}' | sed -n 's/.*"state": *"\([^"]*\)".*/\1/p'
-}
-case "$(power_state)" in
-  "Active Standby"|Suspend|"Power Off")
-    echo "screen off: loading the layer now"
-    load_layer
-    ;;
-  *)
-    echo "screen on: the layer waits for the TV to go to standby"
-    # Exits once it has loaded the layer; a boot that is never switched off keeps it waiting.
-    (
-      # One waiter: a lock names the subshell that holds it, and a dead holder's lock is taken over.
-      read -r me _ < /proc/self/stat
-      [ -d /proc/$(cat /tmp/themepack-layer-wait 2>/dev/null || echo x) ] && exit 0
-      echo $me > /tmp/themepack-layer-wait
-      luna-send -i luna://com.webos.service.tvpower/power/getPowerState '{"subscribe":true}' | {
-        read -r _
-        while read -r line; do
-          case "$line" in
-            *'"Active Standby"'*|*'"Suspend"'*|*'"Power Off"'*)
-              echo "=== $(date) screen off: loading the layer"
-              load_layer
-              break
-              ;;
-          esac
-        done
-      }
-      rm -f /tmp/themepack-layer-wait
-    ) &
-    ;;
-esac
+state=$(luna-send -n 1 -w 5000 luna://com.webos.service.tvpower/power/getPowerState '{}' | sed -n 's/.*"state": *"\([^"]*\)".*/\1/p')
+note "boot hook ran; power state: ${state:-unknown}; layer $([ $layer = 1 ] && echo loaded || echo not loaded)"

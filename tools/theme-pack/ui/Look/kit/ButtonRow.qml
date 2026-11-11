@@ -1,5 +1,5 @@
 import QtQuick 2.4
-import Look 1.0
+import ".."
 import "keys.js" as KeyMap
 
 // A row of buttons with one focused. `buttons` is a list of labels or { label, icon, disabled }. Our own menus give

@@ -1,6 +1,6 @@
 import QtQuick 2.4
 import WebOSServices 1.0
-import Look 1.0
+import ".."
 import "catalog.js" as Catalog
 import "menu.js" as Menu
 
@@ -27,7 +27,7 @@ QtObject {
     id: store
 
     // Who our calls are from. SETTINGS-PLAN.md, bus identity: service/permissions.sh grants this name the groups.
-    property string appId: "com.webos.surfacemanager.systemui"
+    property string appId: Look.busName
     property int revision: 0
     // By storage key: "<category>.<key>" for settingsservice, the item id for everything else.
     property var values: ({})

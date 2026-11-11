@@ -1,5 +1,5 @@
 import QtQuick 2.4
-import Look 1.0
+import ".."
 
 // Hook A's window (SystemUiHook.qml): what LG's system UI table now loads for Quick Settings. It draws nothing. Each
 // launch is handed to our Settings host through SettingsBus, and the window exits at once, so LG's overlay never

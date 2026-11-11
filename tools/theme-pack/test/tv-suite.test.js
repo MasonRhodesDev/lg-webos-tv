@@ -195,7 +195,7 @@ test('dry run: deploy runs the real scripts against the fake TV, step by step, a
   assert.match(hookA.out, /rollback, newest first:\n {2}TV_HOST=\$TV_HOST sh tools\/theme-pack\/webos\/own-layer-tv\.sh revert\n {2}ssh root@\$TV_HOST/);
   assert.doesNotMatch(hookA.out, /== 3\/3/, 'it stops at the first failure');
   const broken = deploy(Object.assign({}, fresh, { faults: { layerFails: true } }));
-  assert.match(broken.out, /FAIL layer: the layer did not load: layer root never reported; back to stock/);
+  assert.match(broken.out, /FAIL layer: the layer did not load: no report from the new layer; the screen is left as it was/);
   const refused = deploy(Object.assign({}, fresh, { faults: { installFails: true } }));
   assert.match(refused.out, /FAIL look: the TV refused the package/);
   const noLayer = deploy(Object.assign({}, base, { layerFiles: false, layer: false, mounted: false }), '--only', 'boot');

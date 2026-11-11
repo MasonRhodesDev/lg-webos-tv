@@ -1,5 +1,5 @@
 import QtQuick 2.4
-import Look 1.0
+import ".."
 import "pages.js" as Pages
 
 // One settings page as the kit draws it: a Header above a RowList of the page's rows, live from

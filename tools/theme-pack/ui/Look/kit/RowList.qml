@@ -1,5 +1,5 @@
 import QtQuick 2.4
-import Look 1.0
+import ".."
 import "keys.js" as KeyMap
 
 // A focusable vertical list of rows and section headers. `model` is a list of row specs: { section: "Title" } for a

@@ -1,5 +1,5 @@
 import QtQuick 2.4
-import Look 1.0
+import ".."
 import "icons.js" as Icons
 
 // One icon from the kit's set (icons.js), or raw path data on the same 24x24 grid, stroked in `color`.

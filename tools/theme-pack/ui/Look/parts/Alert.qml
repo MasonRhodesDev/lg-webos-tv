@@ -1,5 +1,5 @@
 import QtQuick 2.4
-import Look 1.0
+import ".."
 
 // Our alert dialog (SmokeAlert board): an app's or the system's question with buttons ("USB drive removed"). LG's
 // alert view keeps its logic (the notification service, stacking, timeouts, focus and keys, button actions); this

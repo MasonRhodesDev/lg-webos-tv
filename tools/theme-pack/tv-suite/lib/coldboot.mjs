@@ -52,7 +52,7 @@ export async function coldboot(ctx, { upTimeout = 600, hookTimeout = 300 } = {})
   const since = new Date(boot * 1000).toISOString();
   const reports = await tv.reports(since);
   const at = (text) => { const r = reports.find((x) => x.text === text); return r ? round(Date.parse(r.at) / 1000 - boot) : null; };
-  out.timings.layerReady = at('layer created');
+  out.timings.layerReady = at('layer created by injection');
   out.timings.hostReady = at('settings: host ready');
   ctx.say('boot timings (s since power-on): ' + JSON.stringify(out.timings));
 

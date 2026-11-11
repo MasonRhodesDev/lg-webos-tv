@@ -8,7 +8,7 @@ import "file:///usr/lib/qt5/qml/YSM" as LG
 LG.YSM {
     id: root
 
-    property var reporter: Service { appId: "com.webos.surfacemanager.systemui" }
+    property var reporter: Service { appId: "com.webos.surfacemanager.wedge" } // Look.busName
     function report(kind, text) {
         reporter.call("luna://dev.themepack.look.service", "/report",
                       JSON.stringify({ "from": "ui", "kind": kind, "text": text }));

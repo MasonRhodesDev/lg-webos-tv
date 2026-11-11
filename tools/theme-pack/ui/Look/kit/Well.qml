@@ -1,5 +1,5 @@
 import QtQuick 2.4
-import Look 1.0
+import ".."
 
 // An icon in a round well (the SmokeAlert and PIN prompt boards): a ring in the icon's hue over a faint wash of it,
 // `well` across. Dialogs and prompts lead with one.

@@ -1,5 +1,5 @@
 import QtQuick 2.4
-import Look 1.0
+import ".."
 
 // A level: track and fill, its end decoratable as `thumb`. Horizontal, or vertical filling upwards.
 // `fraction` is 0..1; changes glide with the value motion.

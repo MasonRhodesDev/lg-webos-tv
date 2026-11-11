@@ -1,5 +1,5 @@
 import QtQuick 2.4
-import Look 1.0
+import ".."
 import "keys.js" as KeyMap
 
 // Our on-screen keyboard (the Keyboard board): four rows of Keys, `key-gap` apart and centred, driven by the D-pad.

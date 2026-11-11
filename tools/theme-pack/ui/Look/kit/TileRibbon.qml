@@ -1,5 +1,5 @@
 import QtQuick 2.4
-import Look 1.0
+import ".."
 import "keys.js" as KeyMap
 
 // A horizontal ribbon of tiles; focus scrolls into view. `model` is a list of tile specs ({ label, sub, icon, image,

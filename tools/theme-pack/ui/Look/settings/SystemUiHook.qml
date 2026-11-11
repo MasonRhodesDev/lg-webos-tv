@@ -1,5 +1,5 @@
 import QtQuick 2.4
-import Look 1.0
+import ".."
 
 // Hook A (SETTINGS-PLAN.md section 2): everything that opens LG's Quick Settings (the gear button, the picture-mode
 // and sleep hotkeys, showQuickSettings, voice) opens our quick sheet instead. LG's system UI manager (objectName

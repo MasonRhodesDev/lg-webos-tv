@@ -1,6 +1,6 @@
 import QtQuick 2.4
 import QtGraphicalEffects 1.0
-import Look 1.0
+import "."
 import "place.js" as Place
 
 // One theme recipe drawn around a component: an image from the theme's asset pack, a soft fill (a glow), or a

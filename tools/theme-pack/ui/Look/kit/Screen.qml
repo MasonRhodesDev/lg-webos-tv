@@ -1,5 +1,5 @@
 import QtQuick 2.4
-import Look 1.0
+import ".."
 import "../passes.js" as Presence
 
 // The root component (`screen`): the whole display. Its children are the surfaces, which paint in its passes (board

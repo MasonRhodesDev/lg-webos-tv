@@ -118,16 +118,16 @@ export const STEPS = [
       ctx.layerT0 = await ctx.tv.now();
       const r = await script(ctx, 'webos/own-layer-tv.sh', ['apply']);
       if (r.status !== 0) return 'own-layer-tv.sh apply failed: ' + lastLine(r.out);
-      if (/back to stock/.test(r.out)) return 'the layer did not load: ' + r.out.split('\n').find((l) => /back to stock/.test(l)).trim();
+      const failed = r.out.split('\n').find((l) => /the screen is left as it was/.test(l));
+      if (failed) return 'the layer did not load: ' + failed.trim();
       if (!/layer loaded after/.test(r.out)) return 'own-layer.sh never said "layer loaded": ' + lastLine(r.out);
       return null;
     },
     async check(ctx) {
       const t0 = ctx.layerT0 || '';
       const all = await ctx.tv.reports(t0);
-      if (!all.find((r) => r.kind === 'root')) return 'no "own layer root loaded" report' + (t0 ? ' since ' + t0 : '');
-      const created = all.find((r) => r.text === 'layer created' || r.text === 'layer could not be created');
-      if (!created || created.kind !== 'ready') return created ? 'the root says: ' + created.text : 'no "layer created" report';
+      const created = all.find((r) => r.text === 'layer created by injection' || /^inject: /.test(r.text));
+      if (!created || created.kind !== 'ready') return created ? 'the injector says: ' + created.text : 'no "layer created by injection" report' + (t0 ? ' since ' + t0 : '');
       const { hit, rs } = await waitReport(ctx, t0, (r) => r.text === 'settings: host ready' || /^settings: host up, but/.test(r.text), 20);
       const errors = rs.filter((r) => r.kind === 'error');
       if (errors.length) return 'the layer reported errors: ' + errors.map((e) => e.text).join('; ');

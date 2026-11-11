@@ -1,5 +1,5 @@
 import QtQuick 2.4
-import Look 1.0
+import ".."
 
 // An inline value picker: ‹ value › with a dot per option under it, as Quick Settings steps through modes with Left
 // and Right. Wraps at the ends. step(+1 / -1) moves; the value slides in from the side it came from.

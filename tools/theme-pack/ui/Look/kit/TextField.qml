@@ -1,5 +1,5 @@
 import QtQuick 2.4
-import Look 1.0
+import ".."
 
 // A line of text being typed (the Keyboard board): a `surface` box `field-h` tall, radius `r-row`, the text in the
 // `entry` role with a caret in the focus colour after it, and, with a `maxLength`, a count ("9 / 20") beside it. While

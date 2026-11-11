@@ -1,5 +1,5 @@
 import QtQuick 2.4
-import Look 1.0
+import ".."
 
 // Our toast (the short notice: "input changed", app and system notices), drawn where the SmokeOverlays board puts
 // it. LG's toast view keeps its logic (the notification service subscription, queueing, the 5 s timeout); this only

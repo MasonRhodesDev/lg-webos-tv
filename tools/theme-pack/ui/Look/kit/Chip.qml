@@ -1,5 +1,5 @@
 import QtQuick 2.4
-import Look 1.0
+import ".."
 
 // A count or alert dot pinned to a corner of a tile or icon ("2", "!"). Decoratable as `chip`.
 // tone: attention (default), critical, neutral.

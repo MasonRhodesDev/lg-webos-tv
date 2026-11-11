@@ -1,5 +1,5 @@
 import QtQuick 2.4
-import Look 1.0
+import ".."
 
 // The mute indicator: after the volume bar goes, LG keeps a small mute sign up while the sound stays muted (on
 // speakers other than the TV's, and in some countries). It is LG's VolumeMute, a child of the Volume item, so hiding

@@ -3,9 +3,9 @@
 # `ls-control scan-services`, and for a client that is already connected, once it reconnects.
 # A sideloaded service is callable only by its own package. Its methods are made public, which is how Homebrew
 # Channel exposes its own service, so the Settings stub (it calls as com.palm.app.settings) can reach them. The
-# compositor's QML calls as com.webos.surfacemanager.systemui, a name in no group at all, so it is granted the
-# service's own group, and the groups LG's services put the methods our Settings calls in (SETTINGS-PLAN.md, bus
-# identity). Those groups are read from the TV's own api-permissions files, so nothing here guesses their names.
+# compositor's QML calls as com.webos.surfacemanager.wedge (Look.busName in ui/Look/Look.qml says why that name), a
+# name in no group at all, so it is granted the service's own group, and the groups LG's services put the methods our
+# Settings calls in (SETTINGS-PLAN.md, bus identity). Those groups are read from the TV's own api-permissions files, so nothing here guesses their names.
 # UNVERIFIED on the TV: whether ls-hubd grants system groups from the dev directory (TV-CHECKS.md, Settings core).
 set -e
 SVC=dev.themepack.look.service
@@ -46,7 +46,7 @@ function covers(pattern, m) { return pattern === m || (/\*$/.test(pattern) && m.
     });
   });
 });
-fs.writeFileSync(process.argv[3], JSON.stringify({ "com.webos.surfacemanager.systemui": out }));
+fs.writeFileSync(process.argv[3], JSON.stringify({ "com.webos.surfacemanager.wedge": out }));
 console.log("compositor groups: " + out.join(" "));
 ' $SVC "$METHODS" $CLIENT
 # The bus only reads permission files listed in the package's manifest.

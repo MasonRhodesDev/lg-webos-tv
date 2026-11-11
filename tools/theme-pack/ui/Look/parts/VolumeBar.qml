@@ -1,5 +1,5 @@
 import QtQuick 2.4
-import Look 1.0
+import ".."
 
 // Our volume bar: the pill at the top right of the SmokeOverlays board, the speaker, the level and its number. LG's
 // Volume item keeps all of its logic (when to show, timeouts, the volume OSD setting, audio guidance); this only draws

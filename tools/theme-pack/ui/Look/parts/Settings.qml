@@ -1,6 +1,6 @@
 import QtQuick 2.4
 import WebOSServices 1.0
-import Look 1.0
+import ".."
 import "../settings"
 import "../settings/menu.js" as Menu
 
@@ -207,10 +207,18 @@ FocusScope {
         if (hook && hook.applied) reportReady();
         else if (!hook || !hook.waiting) Look.report("gap", "settings: host up, but Hook A is not applied; not reporting ready");
     }
-    Component.onDestruction: {
+    // Gives back what this part took: LG's system UI table, the focus chain and popup plane, the bus. Layer.retire()
+    // calls it when another layer is about to take over; by the time this one is destroyed the new one's host is live,
+    // so nothing is undone a second time there.
+    property bool retired: false
+    function retire() {
+        if (retired) return;
+        retired = true;
+        closeAll();
         SettingsBus.ready = false;
         if (hook) hook.restore();
         Look.settingsRequested.disconnect(part.settings);
         SettingsBus.quickSettingsRequested.disconnect(part.quickSettings);
     }
+    Component.onDestruction: retire()
 }

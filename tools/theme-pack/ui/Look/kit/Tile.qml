@@ -1,5 +1,5 @@
 import QtQuick 2.4
-import Look 1.0
+import ".."
 
 // The one tile anatomy: icon (or picture) at the top left, an optional badge at the top right, the
 // name and a sub line at the bottom; an optional chip centred on the top-right corner. Badge and chip are

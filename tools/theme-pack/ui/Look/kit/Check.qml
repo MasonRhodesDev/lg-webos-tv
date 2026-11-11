@@ -1,5 +1,5 @@
 import QtQuick 2.4
-import Look 1.0
+import ".."
 
 // One of several that can all be on: a box, filled and ticked when on. Decoratable as `check`.
 // `under` is the colour it sits on, for the tick when inverted.

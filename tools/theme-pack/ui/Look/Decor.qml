@@ -1,5 +1,5 @@
 import QtQuick 2.4
-import Look 1.0
+import "."
 import "passes.js" as Passes
 
 // One component in the layer model (the design canvas's layers page): theme rings behind (−1), the component as the style draws it

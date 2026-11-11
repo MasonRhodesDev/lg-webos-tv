@@ -1,11 +1,12 @@
 import QtQuick 2.4
-import Look 1.0
+import "."
 
 // Our UI layer over LG's. Each part (parts/*.qml) draws one component and says which LG item it replaces with
 // claims(item). LG's item stays in the tree with its logic running and is made invisible; the part reads it through
 // its `lg` property. A part whose LG item is not found is not shown, LG's stays drawing, and the gap is reported.
 Item {
     id: layer
+    objectName: "themepackLayer" // Inject.qml finds a loaded layer by it, to replace it
     property Item host
     anchors.fill: parent
     z: 10008 // LG's volume layer; the screen saver (10010) stays above
@@ -79,6 +80,17 @@ Item {
         if (entry.claimed) return;
         entry.claimed = true;
         Look.report("ok", entry.file + ": drawn by own layer");
+    }
+
+    // Hands every claimed LG item back, drawing again, and lets each part undo what it changed in LG's tree.
+    // Inject.qml calls it before it creates the layer that replaces this one: destruction comes later, after the new
+    // layer is up, and whatever a part undid then would undo the new layer's work.
+    function retire() {
+        for (var i = 0; i < children.length; i++) {
+            var part = children[i];
+            try { if (part.lg) part.lg.opacity = 1; } catch (e) { /* LG's item is already gone */ }
+            try { if (typeof part.retire === "function") part.retire(); } catch (e) { Look.report("gap", "retire: " + e); }
+        }
     }
 
     // LG just showed `root`: offer it, and what lies under it, to the on-demand parts that hold no item. LG's views
