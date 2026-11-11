@@ -56,3 +56,8 @@ All of these use the TV's standard SSAP/WebSocket API (ports 3000/3001, see [sta
 - Trimming boot itself: nobody has an early hook on webOS 4.x, which matches our lxboot findings.
 - An ACR/ads-off app for webOS 4.x: the existing one targets webOS 5+.
 - kexec on M19/M16P3.
+
+## Background notes
+
+- [research/notes/partitions.md](../research/notes/partitions.md): the full eMMC partition inventory on this TV, with mounts and FS types.
+- [research/notes/community-prior-art.md](../research/notes/community-prior-art.md): a longer map of the community rooting, downgrade and EPK tooling than the table above.

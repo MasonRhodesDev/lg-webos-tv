@@ -1,0 +1,102 @@
+#!/usr/bin/env python3
+"""Read a B9 hib partition image and print its structure.
+
+Fields are little-endian, offsets relative to partition start:
+
+  0x0F20  u32  magic              = 0x03160326
+  0x0F24  u32  compType            0 = raw (no verify), 2|3 = lz4/lz4hc
+  0x0F28  u32  payloadSize         bytes of body (0x1000 .. trailer_start)
+  0x0F2C  u32  compBlockCount      number of 16-byte records at metaOff
+  0x0F30  u32  metaOff             partition-relative offset of meta table
+  0x0F38  u32  entryPC             ELR_EL2 for ERET
+  0x0F78  u32  depCount            trivially zero if none
+
+  trailer at ALIGN(payloadSize, 16):
+    +0x0000 u32 magic              = 0xABF6178A
+    +0x0004 u32 block_size
+    +0x0008 u32 block_count
+    +0x0010 .. per-chunk records (0x100 each, SHA at +0)
+    +0x2010 bytes[0x20] single-chunk SHA-256
+    total trailer size: 0x2110 (sig_hdr_size)
+"""
+from __future__ import annotations
+import argparse
+import hashlib
+import struct
+import sys
+from pathlib import Path
+
+HDR_MAGIC_OFF = 0x0F20
+HDR_COMPTYPE_OFF = 0x0F24
+HDR_PAYLOAD_SIZE_OFF = 0x0F28
+HDR_COMP_BLOCK_COUNT_OFF = 0x0F2C
+HDR_META_OFF_OFF = 0x0F30
+HDR_ENTRY_OFF = 0x0F38
+HDR_DEPCOUNT_OFF = 0x0F78
+TRAILER_MAGIC = 0xABF6178A
+SIG_HDR_SIZE = 0x2110
+BODY_START = 0x1000
+
+
+def align_up16(x: int) -> int:
+    return (x + 15) & ~15
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser()
+    ap.add_argument("hib", type=Path, help="hib partition image (150 MiB)")
+    ap.add_argument("--verify-sha", action="store_true",
+                    help="recompute body SHA-256 and compare to trailer")
+    args = ap.parse_args()
+
+    d = args.hib.read_bytes()
+    print(f"{args.hib}: {len(d):#x} ({len(d)}) bytes")
+
+    magic = struct.unpack_from("<I", d, HDR_MAGIC_OFF)[0]
+    comp = struct.unpack_from("<I", d, HDR_COMPTYPE_OFF)[0]
+    psize = struct.unpack_from("<I", d, HDR_PAYLOAD_SIZE_OFF)[0]
+    bcnt = struct.unpack_from("<I", d, HDR_COMP_BLOCK_COUNT_OFF)[0]
+    meta = struct.unpack_from("<I", d, HDR_META_OFF_OFF)[0]
+    entry = struct.unpack_from("<I", d, HDR_ENTRY_OFF)[0]
+    dep = struct.unpack_from("<I", d, HDR_DEPCOUNT_OFF)[0]
+
+    print(f"  magic     @0x{HDR_MAGIC_OFF:04x} = 0x{magic:08x}  "
+          f"({'ok' if magic == 0x03160326 else 'BAD'})")
+    print(f"  compType  @0x{HDR_COMPTYPE_OFF:04x} = {comp}")
+    print(f"  payload   @0x{HDR_PAYLOAD_SIZE_OFF:04x} = 0x{psize:x} ({psize})")
+    print(f"  blocks    @0x{HDR_COMP_BLOCK_COUNT_OFF:04x} = {bcnt}")
+    print(f"  metaOff   @0x{HDR_META_OFF_OFF:04x} = 0x{meta:x}")
+    print(f"  entryPC   @0x{HDR_ENTRY_OFF:04x} = 0x{entry:08x}")
+    print(f"  depCount  @0x{HDR_DEPCOUNT_OFF:04x} = {dep}")
+
+    trailer = align_up16(psize)
+    print(f"\ntrailer @ 0x{trailer:x}  (align16 of payloadSize)")
+    tmagic = struct.unpack_from("<I", d, trailer)[0]
+    tbs = struct.unpack_from("<I", d, trailer + 4)[0]
+    tbc = struct.unpack_from("<I", d, trailer + 8)[0]
+    print(f"  tmagic = 0x{tmagic:08x}  ({'ok' if tmagic == TRAILER_MAGIC else 'BAD'})")
+    print(f"  block_size = 0x{tbs:x} ({tbs})")
+    print(f"  block_count = {tbc}")
+    sha_at = trailer + 0x2010
+    sha_bytes = d[sha_at:sha_at + 32]
+    print(f"  single-chunk SHA @0x{sha_at:x} = {sha_bytes.hex()}")
+
+    if args.verify_sha:
+        body = d[BODY_START:trailer]
+        got = hashlib.sha256(body).digest()
+        print(f"  computed body SHA = {got.hex()}")
+        print(f"  match: {got == sha_bytes}")
+
+    if bcnt:
+        print(f"\ncomp meta table @0x{meta:x}, {bcnt} record(s) of 16 bytes:")
+        for i in range(bcnt):
+            r = meta + i * 16
+            pfn, src, flags, size = struct.unpack_from("<IIII", d, r)
+            print(f"  [{i}] start_pfn=0x{pfn:08x} (dest=0x{pfn << 12:08x})  "
+                  f"src=0x{src:x}  flags=0x{flags:x}  size=0x{size:x}")
+
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

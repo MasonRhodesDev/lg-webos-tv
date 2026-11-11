@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+# tv-probe — read B9 state over SSH (uptime, NVM arm bytes, hib header).
+# Idempotent. Read-only. Uses one SSH session.
+#
+# Usage:
+#   TV_HOST=<tv-address> ./tools/tv-probe
+#   TV_HOST=<tv-address> ./tools/tv-probe --save state.txt
+
+set -euo pipefail
+
+: "${TV_HOST:?TV_HOST=user@ip is required}"
+SSH_OPTS="${SSH_OPTS:-}"
+
+SSH="ssh -o ControlMaster=no -o ControlPath=none -o ConnectTimeout=10 $SSH_OPTS $TV_HOST"
+
+out=""
+if [ "${1:-}" = "--save" ]; then
+    out="${2:?path required after --save}"
+fi
+
+tmp="$(mktemp)"
+trap 'rm -f "$tmp"' EXIT
+
+$SSH '
+    echo "host:      $(uname -n)"
+    echo "uname:     $(uname -a)"
+    echo "uptime:    $(cat /proc/uptime | cut -d. -f1)s"
+    echo "cmdline:   $(cat /proc/cmdline | head -c 200)..."
+    echo
+    echo "-- NVM arm bytes (p11) --"
+    for off_hex in 0x1AB 0x989 0x984 0x1BE; do
+        off_dec=$(printf "%d" $off_hex)
+        v=$(dd if=/dev/mmcblk0p11 bs=1 count=1 skip=$off_dec 2>/dev/null | od -An -tu1 | tr -d " ")
+        c=$(dd if=/dev/mmcblk0p11 bs=1 count=1 skip=$off_dec 2>/dev/null | od -An -c | tr -d " ")
+        printf "  p11[%s] = %3d  (%s)\n" "$off_hex" "$v" "$c"
+    done
+    echo
+    echo "-- hib header (p48[0xf20..0xf80]) --"
+    dd if=/dev/mmcblk0p48 bs=1 count=96 skip=3872 2>/dev/null | od -An -tx1 -w16
+    echo
+    echo "-- hib first 1 MiB sha256 --"
+    dd if=/dev/mmcblk0p48 bs=1M count=1 2>/dev/null | sha256sum | cut -c1-64
+    echo
+    echo "-- /sys/power state --"
+    echo "/sys/power/disk:  $(cat /sys/power/disk)"
+    echo "/sys/power/state: $(cat /sys/power/state)"
+    echo "image_size:       $(cat /sys/power/image_size)"
+' 2>&1 | tee "$tmp" | grep -vE 'WARNING|post-quantum|openssh.com|store now'
+
+if [ -n "$out" ]; then
+    cp "$tmp" "$out"
+    echo
+    echo "[+] Saved to $out"
+fi

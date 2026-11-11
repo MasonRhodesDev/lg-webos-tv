@@ -1,0 +1,359 @@
+#!/usr/bin/env python3
+"""Decrypt an LG M19/W19/B9-family EPK3 image (2019 OLED series).
+
+Applies AES-128-ECB to ciphertext regions of a raw EPK. The platform
+AES key is not shipped here. Supply it as 32 hex characters either via
+`--key-file <path>` (a file containing the hex key, with optional
+whitespace) or via the `EPK_AES_KEY` environment variable. The same key
+family is published in third-party firmware-extraction projects for the
+LG platforms this format applies to.
+
+EPK3-new format (per openlgtv/epk2extract/src/epk3.c):
+
+    [0x000..0x100)     outer file signature (not decrypted)
+    [0x100..0x6B4)     EPK_V3_NEW_HEADER_T (1460 bytes, AES-decrypted;
+                       only the leading 91 full blocks)
+    [0x6B4..0x6D4)     platformVersion + sdkVersion (plaintext)
+    [0x6D4..0x7D4)     packageInfo signature (not decrypted)
+    [0x7D4..0x7D4+pkgInfoSize)  packageInfo (AES-decrypted;
+                       only the leading (pkgInfoSize // 16) full blocks)
+    body:              for each segment i = 0 .. totalSegments-1:
+      [cursor         ..cursor+0x100)     per-segment signature
+      [cursor+0x100   ..cursor+0x100+segmentSize)   segment body
+                                          AES-decrypted as block stream
+                                          at that offset. First 4 bytes
+                                          of the decrypted body are the
+                                          global segment index (uint32 LE).
+                                          The real partition data is bytes
+                                          [4..segmentSize) of the decrypted
+                                          region.
+      [cursor+0x100+segmentSize..+4)      4-byte gap (undocumented;
+                                          upstream calls it
+                                          "extraSegmentSize")
+      cursor += 0x100 + segmentSize + 4
+
+So each wrap_decryptimage call in upstream is an ECB block stream that
+begins at the exact byte offset of its region. There is no shared grid;
+each segment's blocks are aligned to that segment's body offset. This
+tool mirrors that: it walks the PAK table and decrypts each region at
+its own base.
+
+Modes:
+  default (positional input output):
+      Parse the PAK table from `input` (requires packageInfo already
+      decrypted, i.e. input is a partially-decrypted file). Compute the
+      full set of (header | packageInfo | per-segment) regions and
+      produce a plaintext output. If `input` is a still-encrypted
+      original EPK, pass --assume-encrypted to decrypt the header and
+      packageInfo first.
+
+  --only-regions "s:e,s:e,..." (requires --direction decrypt|encrypt):
+      Apply AES-128-ECB decrypt (or encrypt) to just those byte ranges.
+      Each range must start on a 16-byte AES boundary (aligned to that
+      range's own start offset — not to a global grid). Range ends are
+      rounded down to 16-byte multiples.
+
+  --fix-partial:
+      Treat `input` as the currently-mis-decrypted file produced by the
+      prior region-table tool. Re-encrypt the stale grid-4 band and
+      re-decrypt every segment body at its proper base. Yields a
+      fully-plaintext body.
+
+Needs: python-cryptography (PyPI: `cryptography`).
+"""
+from __future__ import annotations
+import argparse
+import os
+import pathlib
+import struct
+import sys
+from pathlib import Path
+from typing import Iterable, List, Tuple
+
+try:
+    from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+except ModuleNotFoundError:
+    sys.stderr.write("install python-cryptography (PyPI: cryptography)\n")
+    sys.exit(1)
+
+def load_key() -> bytes:
+    src = os.environ.get("EPK_AES_KEY")
+    kf = os.environ.get("EPK_AES_KEY_FILE")
+    if kf:
+        src = pathlib.Path(kf).read_text()
+    if not src:
+        sys.stderr.write(
+            "error: set EPK_AES_KEY or EPK_AES_KEY_FILE to a 32-hex-char AES-128 key\n"
+        )
+        sys.exit(2)
+    hexs = "".join(src.split())
+    if len(hexs) != 32:
+        sys.stderr.write(f"error: AES key must be 32 hex chars, got {len(hexs)}\n")
+        sys.exit(2)
+    return bytes.fromhex(hexs)
+
+
+KEY = None  # set in main() once argv has been parsed
+
+# Container constants (EPK3-new; see epk3.h / epk3.c upstream).
+SIG_SIZE = 0x100                 # SIGNATURE_SIZE_NEW
+EPK_HEADER_OFFSET = 0x100
+EPK_HEADER_LEN = 1460            # sizeof(EPK_V3_NEW_HEADER_T)
+PLATFORM_SDK_LEN = 32            # platformVersion[16] + sdkVersion[16]
+PKGINFO_SIG_OFFSET = EPK_HEADER_OFFSET + EPK_HEADER_LEN + PLATFORM_SDK_LEN  # 0x6D4
+PKGINFO_OFFSET = PKGINFO_SIG_OFFSET + SIG_SIZE  # 0x7D4
+PAK_LIST_HDR_SIZE = 12
+PAK_RECORD_SIZE = 324            # sizeof(PAK_V3_HEADER_T)
+EXTRA_SEGMENT_SIZE = 4           # uint32 segment-index prefix / inter-seg gap
+
+# Legacy REGIONS table from the prior epk-decrypt. These tuples are
+# (start, end, grid_mod_16). The legacy tool AES-decrypted (end-start)//16
+# blocks starting at the first offset >= start whose low nibble equals grid.
+# To recover the original ciphertext we re-encrypt each of these at the
+# same alignment.
+LEGACY_REGIONS = [
+    (0x100,       0x6b0,       0x0),
+    (0x6d4,       0xe3d4,      0x4),
+    (0xe3d8,      0xf9b8,      0x8),
+    (0xf9b8,      0xdf90d,     0x8),
+    (0xdf90d,     0x3540250,   0xc),
+    (0x3540250,   0x4ccf930,   0x0),
+    (0x4ccf930,   0x60548bc,   0xc),
+    (0x60548bc,   0xa25c5b8,   0x4),
+    (0xa25c5b8,   0xa4bbbcc,   0x8),
+    (0xa4bbbcc,   0xf38ad00,   0x0),
+    (0xf38ad00,   0x10134a88,  0x8),
+    (0x10134a88,  0x11c3251c,  0xc),
+    (0x11c3251c,  0x17e50f8c,  0x4),
+    (0x17e50f8c,  0x3cb85e78,  0x4),
+    (0x3cb85e78,  0x3cb9ce18,  0x8),
+    (0x3cb9ce21,  0x3cbca8d1,  0x1),
+]
+
+
+def legacy_align_up(off: int, grid: int) -> int:
+    rem = off % 16
+    if rem == grid:
+        return off
+    return off + (grid - rem) % 16
+
+
+def aes_ecb_blocks(buf: bytearray, start: int, n_blocks: int, decrypt: bool) -> None:
+    """Apply AES-128-ECB to n_blocks of 16 bytes in buf starting at start.
+    Mutates buf in-place."""
+    if n_blocks <= 0:
+        return
+    aes = Cipher(algorithms.AES(KEY), modes.ECB())
+    ctx = aes.decryptor() if decrypt else aes.encryptor()
+    end = start + n_blocks * 16
+    out = ctx.update(bytes(buf[start:end])) + ctx.finalize()
+    buf[start:end] = out
+
+
+def aes_ecb_range(buf: bytearray, start: int, end: int, decrypt: bool) -> int:
+    """Apply AES-ECB to [start, end) in 16-byte blocks aligned to start.
+    End is rounded down to a 16-byte multiple past start. Returns block count."""
+    length = max(0, end - start)
+    n = length // 16
+    aes_ecb_blocks(buf, start, n, decrypt)
+    return n
+
+
+def parse_pak_records(data: bytes) -> Tuple[int, int, List[dict]]:
+    """Parse the PAK record table from an (at-least-packageInfo-decrypted) EPK.
+    Returns (body_start, pkginfo_size, records)."""
+    list_size, count, _magic = struct.unpack_from("<III", data, PKGINFO_OFFSET)
+    base = PKGINFO_OFFSET + PAK_LIST_HDR_SIZE
+    body_start = base + count * PAK_RECORD_SIZE
+    recs = []
+    for i in range(count):
+        p = base + i * PAK_RECORD_SIZE
+        ptype = struct.unpack_from("<I", data, p)[0]
+        pname = data[p + 8:p + 136].rstrip(b"\x00").decode("ascii", errors="replace")
+        pver = data[p + 136:p + 232].rstrip(b"\x00").decode("ascii", errors="replace")
+        segsz = struct.unpack_from("<I", data, p + 316)[0]
+        segidx = struct.unpack_from("<I", data, p + 308)[0]
+        segcnt = struct.unpack_from("<I", data, p + 312)[0]
+        recs.append({
+            "index": i, "type": ptype, "name": pname, "version": pver,
+            "segmentIndex": segidx, "segmentCount": segcnt, "segmentSize": segsz,
+        })
+    return body_start, list_size, recs
+
+
+def walk_segment_regions(data: bytes) -> List[Tuple[int, int, int, str]]:
+    """Return a list of (body_offset, body_end, pak_index, pak_name) for every
+    segment described in the PAK table. Each body_offset is the exact byte
+    where wrap_decryptimage(dataPtr, segmentSize, ...) runs upstream.
+    Stops early if a record's segmentSize is implausible (packageInfo tail
+    was not yet decrypted)."""
+    body_start, _pkg_size, recs = parse_pak_records(data)
+    cursor = body_start
+    regions = []
+    for r in recs:
+        segsz = r["segmentSize"]
+        # Sanity: absurd segmentSize means this record is still ciphertext.
+        if segsz == 0 or segsz > 0x8000000 or cursor + SIG_SIZE + segsz > len(data) + EXTRA_SEGMENT_SIZE:
+            sys.stderr.write(
+                f"warning: stopping at record {r['index']} ({r['name']}): "
+                f"segmentSize={segsz:#x} looks bogus (packageInfo tail not decrypted?)\n"
+            )
+            break
+        body = cursor + SIG_SIZE
+        end = body + segsz
+        regions.append((body, end, r["index"], r["name"]))
+        cursor = end + EXTRA_SEGMENT_SIZE
+    return regions
+
+
+def parse_regions_spec(spec: str) -> List[Tuple[int, int]]:
+    """Parse "s:e,s:e,..." with 0x hex or decimal. Returns [(start,end),...]."""
+    out = []
+    for item in spec.split(","):
+        item = item.strip()
+        if not item:
+            continue
+        a, b = item.split(":")
+        s = int(a, 0)
+        e = int(b, 0)
+        if e <= s:
+            raise SystemExit(f"bad region {item}: end <= start")
+        out.append((s, e))
+    return out
+
+
+def do_full_decrypt(data: bytearray, assume_encrypted: bool) -> None:
+    """Decrypt EPK header, packageInfo, then every segment body. Mirrors
+    openlgtv/epk2extract's extractEPK3 for EPK_V3_NEW."""
+    if assume_encrypted:
+        # Decrypt EPK header: 1460 bytes starting at 0x100.
+        n = aes_ecb_range(data, EPK_HEADER_OFFSET,
+                          EPK_HEADER_OFFSET + EPK_HEADER_LEN, decrypt=True)
+        print(f"header: decrypted {n} blocks at {EPK_HEADER_OFFSET:#x}")
+        # Now packageInfoSize is readable from the header.
+        pkginfo_size = struct.unpack_from("<I", data, EPK_HEADER_OFFSET + 40)[0]
+        n = aes_ecb_range(data, PKGINFO_OFFSET,
+                          PKGINFO_OFFSET + pkginfo_size, decrypt=True)
+        print(f"packageInfo: decrypted {n} blocks at {PKGINFO_OFFSET:#x} "
+              f"(declared size {pkginfo_size:#x})")
+
+    regions = walk_segment_regions(bytes(data))
+    total_blocks = 0
+    for body, end, idx, name in regions:
+        n = aes_ecb_range(data, body, end, decrypt=True)
+        total_blocks += n
+    print(f"segments: decrypted {len(regions)} regions, {total_blocks} blocks total")
+
+
+def do_fix_partial(data: bytearray) -> None:
+    """Treat `data` as the output of the legacy REGIONS-table decrypt.
+
+    Step 1: re-encrypt every legacy region at its legacy grid alignment.
+            AES-ECB is invertible, so this restores the ORIGINAL ciphertext
+            for the whole file (every byte the legacy tool had touched).
+    Step 2: AES-decrypt every proper wrap_decryptimage region at its real
+            offset: EPK header, packageInfo, then every segment body."""
+    # Step 1: undo.
+    for start, end, grid in LEGACY_REGIONS:
+        first = legacy_align_up(start, grid)
+        if first >= end:
+            continue
+        n = (end - first) // 16
+        aes_ecb_blocks(data, first, n, decrypt=False)
+    print(f"undo: re-encrypted {len(LEGACY_REGIONS)} legacy regions "
+          "(original ciphertext restored)")
+
+    # Step 2: decrypt EPK header and packageInfo properly.
+    n_hdr = aes_ecb_range(data, EPK_HEADER_OFFSET,
+                          EPK_HEADER_OFFSET + EPK_HEADER_LEN, decrypt=True)
+    pkginfo_size = struct.unpack_from("<I", data, EPK_HEADER_OFFSET + 40)[0]
+    n_pi = aes_ecb_range(data, PKGINFO_OFFSET,
+                         PKGINFO_OFFSET + pkginfo_size, decrypt=True)
+    print(f"decrypt: header {n_hdr} blocks @ {EPK_HEADER_OFFSET:#x}; "
+          f"packageInfo {n_pi} blocks @ {PKGINFO_OFFSET:#x} "
+          f"(declared size {pkginfo_size:#x})")
+
+    # Step 3: walk segments against the freshly-decrypted packageInfo and
+    # decrypt each body in-place.
+    regions = walk_segment_regions(bytes(data))
+    total = 0
+    for body, end, _idx, _name in regions:
+        total += aes_ecb_range(data, body, end, decrypt=True)
+    print(f"decrypt: {total} blocks across {len(regions)} segment bodies")
+
+
+def do_only_regions(data: bytearray, ranges: List[Tuple[int, int]], decrypt: bool) -> None:
+    for s, e in ranges:
+        n = aes_ecb_range(data, s, e, decrypt=decrypt)
+        op = "decrypt" if decrypt else "encrypt"
+        print(f"{op} [{s:#x}..{e:#x}): {n} blocks")
+
+
+def do_list_regions(data: bytes) -> None:
+    regions = walk_segment_regions(data)
+    print(f"# segments: {len(regions)}")
+    print("# idx,name,body_offset,body_end,size,grid")
+    for body, end, idx, name in regions:
+        print(f"{idx},{name},{body:#x},{end:#x},{end-body:#x},{body & 0xF}")
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser(
+        description="Decrypt LG EPK3-new containers. Requires a platform AES "
+                    "key via --key-file or $EPK_AES_KEY / $EPK_AES_KEY_FILE.")
+    ap.add_argument("input", type=Path, help="EPK body (encrypted or partial)")
+    ap.add_argument("output", type=Path, nargs="?", help="output path (omit for --list-regions)")
+    g = ap.add_mutually_exclusive_group()
+    g.add_argument("--full", action="store_true",
+                   help="walk PAK table and decrypt header+pkginfo+all segments")
+    g.add_argument("--fix-partial", action="store_true",
+                   help="undo legacy grid-4 decrypt and redo per-segment")
+    g.add_argument("--only-regions", type=str, default=None,
+                   help='comma-separated "start:end" hex/dec ranges')
+    g.add_argument("--list-regions", action="store_true",
+                   help="print derived per-segment regions and exit")
+    ap.add_argument("--direction", choices=("decrypt", "encrypt"), default="decrypt",
+                    help="direction for --only-regions (default decrypt)")
+    ap.add_argument("--assume-encrypted", action="store_true",
+                    help="(with --full) input is the ORIGINAL encrypted EPK; "
+                         "decrypt header+pkginfo before walking the PAK table")
+    ap.add_argument('--key-file', type=Path, default=None,
+                    help='file containing the 32-hex-char AES-128 key')
+    args = ap.parse_args()
+
+    global KEY
+    if args.key_file is not None:
+        os.environ['EPK_AES_KEY_FILE'] = str(args.key_file)
+    KEY = load_key()
+
+    data_bytes = args.input.read_bytes()
+    original_size = len(data_bytes)
+    print(f"input {original_size} bytes from {args.input}")
+
+    if args.list_regions:
+        do_list_regions(data_bytes)
+        return 0
+
+    if args.output is None:
+        ap.error("output path is required unless --list-regions")
+
+    data = bytearray(data_bytes)
+
+    if args.only_regions:
+        ranges = parse_regions_spec(args.only_regions)
+        do_only_regions(data, ranges, decrypt=(args.direction == "decrypt"))
+    elif args.fix_partial:
+        do_fix_partial(data)
+    elif args.full:
+        do_full_decrypt(data, assume_encrypted=args.assume_encrypted)
+    else:
+        ap.error("pick one of --full / --fix-partial / --only-regions / --list-regions")
+
+    assert len(data) == original_size, "size changed"
+    args.output.write_bytes(bytes(data))
+    print(f"wrote {args.output}")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

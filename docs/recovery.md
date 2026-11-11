@@ -95,3 +95,8 @@ Evidence: REA on `/usr/sbin/update` (unstripped, DWARF).
 - RPMB can't be captured. No anti-rollback counter was found in the updater, and the 05.40.20 slot remains revertible, so a rollback block looks like policy rather than cryptography *(inferred)*.
 
 Sources: [downgr8](https://github.com/throwaway96/downgr8), [NVM debugstatus gist](https://gist.github.com/throwaway96/827ff726981cc2cbc46a22a2ad7337a1), [openlgtv Lxboot wiki](https://github-wiki-see.page/m/openlgtv/wiki/wiki/Lxboot).
+
+## See also
+
+- [research/notes/partitions.md](../research/notes/partitions.md): every partition on the eMMC, its mount, FS and whether it is read-only.
+- [research/](../research/README.md): the research tools (EPK unpacking, custom-firmware prototype). The custom-fw installer writes `p48` and `p11` and is not safe to run without an eMMC programmer.

@@ -19,3 +19,21 @@ tools/theme-pack/dist/
 # Core dumps from crashed tools (e.g. Qt with no display)
 core.[0-9]*
 tools/theme-pack/.check-branch.local
+
+# Research-only artifacts: never commit raw firmware dumps or decrypted bodies
+# (they are LG's copyrighted files and may hold device secrets). Keep them
+# outside the repo and point the research tools at them.
+*.epk
+*.bin
+*.img
+*.dtb*
+*.hib
+hib.img
+
+# Build output and work directories for the research tools
+research/epk/work/
+research/epk/paks/
+research/custom-fw/payload/build/
+research/custom-fw/kernel/Image
+research/custom-fw/kernel/initramfs*
+research/custom-fw/installer/backups-runtime/

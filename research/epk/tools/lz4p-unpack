@@ -1,0 +1,242 @@
+#!/usr/bin/env python3
+"""Decompress an LG LZ4P container.
+
+Faithful port of the inner decoders from the stock lxboot bootloader
+(`b9-raw/a1-lxboot/lxboot_p4.img`):
+
+  0x8157c  LZ4P top-level dispatcher
+  0x81130  flag=0 normal-block decoder   <-- used for the kernel PAK
+  0x81344  flag=0 last-block decoder
+  0x803b0  flag=1 normal-block decoder   (not used here, isolated blocks)
+  0x80628  flag=1 last-block decoder
+
+Container layout:
+
+    0x00  char[4]    magic = "LZ4P"
+    0x04  u32        uncompressed_size
+    0x08  u32        check  (= 0x20 + 4*N + sum(block_sizes))
+    0x0C  u32        block_size (uncompressed, 0x40000 for kernel)
+    0x10  u32        block_count N
+    0x14  u32        flag (0 for kernel PAK on B9)
+    0x18  u32[2]     reserved (zeros)
+    0x20  u32[N]     block_sizes[i] = compressed size of block i
+    (then)          concatenated raw LZ4 blocks
+
+Key divergences from a stock LZ4 block decoder (see
+`docs/lz4p-decoder.md`):
+
+  - flag=0 inner decoder has no "ref before dst start" check. Match
+    offsets may legally walk back into previous blocks' output, i.e.
+    blocks share a sliding dictionary built from the contiguous shared
+    output buffer.
+  - tail safety threshold is `dst_end - 8` (8-byte safe copy width),
+    not the standard LZ4 5-byte-last-literals rule.
+  - `mo == 0` is NOT special-cased by the decoder (not a sentinel,
+    not an error); well-formed streams just don't emit it.
+  - The last block uses an `ip`-exhausted OR `op == dst_end` exit and
+    returns bytes produced (variable length, <= block_size).
+
+NOTE: as of this port, blocks 0..40 of the stock B9 kernel PAK decode
+correctly, but blocks 41+ do not match the on-wire stream (see report).
+"""
+from __future__ import annotations
+import argparse
+import struct
+import sys
+from pathlib import Path
+
+HEADER_FIXED = 0x20
+
+
+def _decode_normal(src: bytes, out: bytearray, op_start: int, dst_len: int) -> int:
+    """Decode one normal (non-last) flag=0 block into `out[op_start:op_start+dst_len]`.
+
+    Matches lxboot FUN_00081130. `out` must already contain the previous
+    blocks' output (for shared-dictionary matches). Returns input bytes
+    consumed. The caller MUST have grown `out` with enough padding to
+    absorb up to 15 bytes of wildcopy overshoot past op_start+dst_len.
+    """
+    n = len(src)
+    ip = 0
+    op = op_start
+    oend = op_start + dst_len
+    osafe = oend - 8
+    while True:
+        tok = src[ip]; ip += 1
+        lit = tok >> 4
+        if lit == 15:
+            while True:
+                b = src[ip]; ip += 1
+                lit += b
+                if b != 0xff:
+                    break
+        cpy = op + lit
+        if cpy > osafe:
+            if cpy > oend:
+                raise ValueError(
+                    f"literal overflow op={op - op_start} cpy={cpy - op_start} "
+                    f"dst_len={dst_len} ip={ip}"
+                )
+            out[op:op + lit] = src[ip:ip + lit]
+            return ip + lit
+        out[op:op + lit] = src[ip:ip + lit]
+        ip += lit
+        op = cpy
+        mo = src[ip] | (src[ip + 1] << 8); ip += 2
+        ref = op - mo  # may be < op_start; shared dictionary is intentional
+        ml_nib = tok & 0xf
+        ext = 0
+        if ml_nib == 15:
+            while True:
+                b = src[ip]; ip += 1
+                ext += b
+                if b != 0xff:
+                    break
+        mlen = 4 + ml_nib + ext
+        if op + mlen > oend:
+            raise ValueError(
+                f"match overflow op={op - op_start} cpy={op + mlen - op_start} "
+                f"dst_len={dst_len} mo={mo} mlen={mlen} ip={ip}"
+            )
+        # byte-wise copy handles mo < mlen (RLE)
+        for k in range(mlen):
+            out[op + k] = out[ref + k]
+        op += mlen
+        if op == oend:
+            return ip
+
+
+def _decode_last(src: bytes, out: bytearray, op_start: int, dst_len: int) -> int:
+    """Decode the last flag=0 block (lxboot FUN_00081344).
+
+    Terminates on EITHER input exhausted OR output reaching dst_end.
+    Returns bytes produced (may be < dst_len).
+    """
+    n = len(src)
+    ip = 0
+    op = op_start
+    oend = op_start + dst_len
+    osafe = oend - 8
+    while ip < n:
+        tok = src[ip]; ip += 1
+        lit = tok >> 4
+        if lit == 15:
+            while True:
+                b = src[ip]; ip += 1
+                lit += b
+                if b != 0xff:
+                    break
+        cpy = op + lit
+        if cpy > osafe:
+            if cpy > oend:
+                raise ValueError(f"literal overflow (last) op={op - op_start}")
+            out[op:op + lit] = src[ip:ip + lit]
+            ip += lit
+            op += lit
+            break
+        out[op:op + lit] = src[ip:ip + lit]
+        ip += lit
+        op = cpy
+        if ip >= n:
+            break
+        mo = src[ip] | (src[ip + 1] << 8); ip += 2
+        ref = op - mo
+        ml_nib = tok & 0xf
+        ext = 0
+        if ml_nib == 15:
+            while True:
+                b = src[ip]; ip += 1
+                ext += b
+                if b != 0xff:
+                    break
+        mlen = 4 + ml_nib + ext
+        want = min(mlen, oend - op)
+        for k in range(want):
+            out[op + k] = out[ref + k]
+        op += want
+        if op == oend:
+            break
+    return op - op_start
+
+
+def unpack(data: bytes) -> bytes:
+    if data[:4] != b"LZ4P":
+        raise SystemExit(f"not LZ4P (magic = {data[:4]!r})")
+    uncomp_size, _check, block_size, block_count = struct.unpack_from("<IIII", data, 4)
+    flag, = struct.unpack_from("<I", data, 0x14)
+    sizes = struct.unpack_from(f"<{block_count}I", data, HEADER_FIXED)
+    data_off = HEADER_FIXED + block_count * 4
+
+    print(
+        f"[LZ4P] uncompSize=0x{uncomp_size:x} blockSize=0x{block_size:x} "
+        f"blocks={block_count} flag={flag} dataStart=0x{data_off:x}",
+        file=sys.stderr,
+    )
+    if flag != 0:
+        print(
+            f"[LZ4P] warning: flag={flag}; this unpacker implements the flag=0 "
+            f"variant (lxboot 0x81130/0x81344). flag=1 (0x803b0/0x80628) uses "
+            f"isolated per-block windows and a ref-before-dst check; not "
+            f"implemented here.",
+            file=sys.stderr,
+        )
+
+    # Shared output buffer. Pre-size to uncomp_size + wildcopy overshoot pad.
+    out = bytearray(uncomp_size + 16)
+    op = 0
+    cur = data_off
+    last = block_count - 1
+    for i, csz in enumerate(sizes):
+        block = data[cur:cur + csz]
+        try:
+            if i == last:
+                target = uncomp_size - op
+                produced = _decode_last(block, out, op, target)
+                op += produced
+                if produced != target:
+                    print(
+                        f"[LZ4P] last block {i}: produced {produced} of {target}",
+                        file=sys.stderr,
+                    )
+            else:
+                consumed = _decode_normal(block, out, op, block_size)
+                if consumed != csz:
+                    print(
+                        f"[LZ4P] WARNING block {i}: consumed {consumed} of {csz} "
+                        f"(diff={csz - consumed}). The lxboot decoder would ERROR "
+                        f"here; your output past this point is suspect.",
+                        file=sys.stderr,
+                    )
+                op += block_size
+        except Exception as e:
+            raise SystemExit(
+                f"block {i} at 0x{cur:x} (csz={csz}, op=0x{op:x}): {e}"
+            )
+        cur += csz
+
+    del out[op:]
+    if len(out) != uncomp_size:
+        print(
+            f"[LZ4P] warning: decompressed {len(out)} bytes, header said "
+            f"{uncomp_size}",
+            file=sys.stderr,
+        )
+    return bytes(out)
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser()
+    ap.add_argument("input", type=Path)
+    ap.add_argument("output", type=Path)
+    args = ap.parse_args()
+    data = args.input.read_bytes()
+    out = unpack(data)
+    args.output.write_bytes(out)
+    print(f"wrote {args.output} ({len(out)} bytes)")
+    if len(out) >= 0x3c:
+        print(f"byte 0x38 = {out[0x38:0x3c]!r} (expect b'ARM\\x64' for ARM64 kernel)")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

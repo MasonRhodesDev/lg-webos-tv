@@ -103,6 +103,8 @@ Dates are when the observation was made, on the TV described above.
 | [tools/telemetry-off/](tools/telemetry-off/README.md) | Stops LG's telemetry, ACR, ads and voice services at boot, blackholes LG's domains, withdraws the data agreements | writes; `verify.sh` reads | applied on the test TV |
 | [tools/theme-pack/](tools/theme-pack/README.md) | Our QML UI layer in LG's compositor: a component kit, Smoke and Bubble styles, Glow, Winter and Halloween themes, our Settings and its Look page, the Look service, tests and a preview harness | writes | built and tested off the TV; [TV-CHECKS.md](tools/theme-pack/TV-CHECKS.md) lists what the TV must still confirm |
 | [tools/ui-atlas/](tools/ui-atlas/README.md) | Builds a browsable catalogue of the stock UI (apps, overlays, assets) from your own backup | the build doesn't; optional screenshots are taken by hand | v2. The output holds LG's files, so it stays on your machine |
+| [scripts/snapshot-watcher.sh](scripts/snapshot-watcher.sh) | Polls the TV every 5 s and logs changes to NVM, the hibernate partition and relevant `dmesg` lines | reads | used for the snapshot-boot research |
+| [research/](research/README.md) | Static analysis of LG's EPK firmware (read-only) and a prototype custom-firmware installer (writes `p48` and `p11`; brick risk) | mixed — see the research README | kept apart from the top-level tools; **nobody should run the custom-firmware installer without an eMMC programmer in reach** |
 
 ### Settings tool
 
