@@ -213,8 +213,10 @@ Once live it reports `ready` "settings: host ready"; the boot hook mounts the Se
   closes.
 - The store's adapters beside settingsservice: the sleep timer, the network, the volume, the current input's signal
   (`tv.display getHDMIInfo`, for "HDMI 2 · 4K · 120 Hz"), the model and versions (`tv.systemproperty getSystemInfo`,
-  `systemservice osInfo/query`) and network time (`systemservice getPreferences`). The Settings footer is the board's
-  "Offline · telemetry off": online or not, then "telemetry off" only while `tools/telemetry-off` is in force this
+  `systemservice osInfo/query`), network time (`systemservice getPreferences`) and the TV's clock and time zone
+  (`systemservice time/getSystemTime`, `time/setSystemTime`, `getPreferenceValues`: Time and date sets the clock by
+  hand, a part at a time, for a TV that cannot reach a time server and so starts every boot in 2019). The Settings
+  footer is the board's "Offline · telemetry off": online or not, then "telemetry off" only while `tools/telemetry-off` is in force this
   boot (the Look service's `getTelemetry` finds its hosts blackhole live) and no LG data agreement is accepted;
   without the kit, "agreements withdrawn" when `eulaStatus` refuses every one, "telemetry on" when one is accepted,
   and nothing when the reply cannot say.

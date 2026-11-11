@@ -32,7 +32,8 @@ numbers as an unminifier prints them). They are reference only; no LG code enter
 - Things outside settingsservice: sleep timer (`com.webos.service.tv.time` `getSleepTimeInfo`/`setSleepTimeInfo
   {sleepTimeMinute}`), network (`com.webos.service.connectionmanager getstatus`, `com.webos.service.wifi
   findnetworks|connect|setstate|deleteprofile`), Bluetooth audio (`com.webos.service.btaudiosrc`), time
-  (`com.palm.systemservice getPreferences|setPreferences {useNetworkTime, timeZone}`, `/time/setSystemTime`), updates
+  (`com.palm.systemservice getPreferences|setPreferences {useNetworkTime, timeZone}`, `/getPreferenceValues`,
+  `/time/getSystemTime`, `/time/setSystemTime {utc}`; see "The clock" below), updates
   (`com.webos.service.update`), factory reset (`com.webos.service.tv.systemproperty/doUserDefault`), PIN
   (`com.webos.notification/createPincodePrompt`).
 - **Launch params** (`main.js` module 31, the root component's `setPath`): `{target}` picks a page path from a table
@@ -88,7 +89,8 @@ Services the shell calls, with the method set (the catalog has every item's): `c
 `com.webos.service.connectionmanager` (getstatus, setipv4, setdns), `com.webos.service.wifi` (getstatus, setstate,
 findnetworks, connect, deleteprofile, cancel), `com.webos.service.btaudiosrc` (getPairedDevices, getConnectedDevice,
 getDeviceStatus, startDiscovery, cancelDiscovery, connect, disconnect, removePairedDevice), `com.palm.systemservice`
-(getPreferences, setPreferences, time/getEffectiveBroadcastTime, osInfo/query, deviceInfo/query),
+(getPreferences, setPreferences, getPreferenceValues, time/getSystemTime, time/setSystemTime, osInfo/query,
+deviceInfo/query),
 `com.webos.service.update` (getVersion, checkUpdate, getCurStatus), `com.webos.notification` (createPincodePrompt,
 createToast), `com.webos.service.tts` (speak, when audio guidance is on).
 
@@ -266,6 +268,19 @@ and writes. Pages bind to it and never call the bus.
 - **Other services.** Small adapters with the same `values`/`set` shape: `sleep` (`tv.time`, which does not answer
   `subscribed: true`, so it re-reads after each write), `network` (`connectionmanager getstatus` subscribe), `wifi`,
   `bluetooth`, `time`, `about`. Each is a `QtObject` the store owns.
+- **The clock.** Time and date shows the TV's own time and sets it a part at a time (Year, Month, Day, Hour, Minute:
+  stepper rows, Left/Right or OK, wrapping). The TV keeps no clock while unplugged: with no network time and no
+  broadcast it starts every boot at the first second of 2019 (UTC), so setting it by hand is a routine job, not a
+  rare one. The store reads `time/getSystemTime` (subscribed: `utc` in seconds, `offset` in minutes ahead of UTC)
+  and holds the TV's time as a difference from the process clock, so nothing here depends on the zone or the time of
+  whatever runs the QML. Steps add up locally and one `time/setSystemTime {utc}` goes out a moment after the last
+  one; the time shown stands still while that write is in flight, a refusal puts the old time back with a toast,
+  and if the zone's offset on the new date differs (a month stepped across a daylight-saving change) one more write
+  keeps the hour that was shown. `ui/Look/settings/clock.js` does the calendar arithmetic from `utc` and `offset`
+  alone. Time zone lists `getPreferenceValues {key: "timeZone"}`'s zones for the current zone's country and writes
+  the whole zone object back. The 12- or 24-hour form follows `timeFormat`. Write timeouts are counted in ticks,
+  not read off the clock, since a write here moves the clock. The Look service checks the day once a minute for the
+  same reason: a date set by hand moves its seasonal calendar within the minute.
 - **Never hardcode enums.** The catalog's `domain` is the offline seed and what the mocks use; on the TV the desc's
   `values.arrayExt` (with its `visible`/`active` per value) decides what a picker lists.
 - **Identity.** The store's `Service` objects take their `appId` from one property, so the choice in section 1 is one
@@ -337,7 +352,9 @@ fixtures go where `preview/render.mjs` scenes can load them (main has it now). F
 | `com.webos.service.connectionmanager/getstatus` | the boards' TV by default: on a cable with the internet blocked, addresses from the documentation ranges (RFC 5737); scenes switch to online or Wi-Fi variants |
 | `com.webos.service.wifi/findnetworks` | five networks with signal levels 1-4, open and secured, one connected, one saved |
 | `com.webos.service.btaudiosrc/getPairedDevices`, `getConnectedDevice` | two paired devices, one connected |
-| `com.palm.systemservice/getPreferences {keys: [useNetworkTime, timeZone]}` | `{useNetworkTime: true, timeZone: "America/New_York"}` |
+| `com.palm.systemservice/getPreferences {keys}` | the keys asked for: `useNetworkTime`, `timeFormat` (`HH12`), `timeZone` (a whole zone object: `ZoneID`, `City`, `Description`, `CountryCode`, `offsetFromUTC`, `supportsDST`); a change posts only its key, with no `returnValue` |
+| `com.palm.systemservice/getPreferenceValues {key: "timeZone"}` | eleven zones in four countries |
+| `com.palm.systemservice/time/getSystemTime`, `setSystemTime {utc}` | a clock that stands still at a fixed evening (`utc` seconds, `offset` minutes, an hour more in summer where the zone has it); a set posts to the subscription, and a scene can refuse it or leave it unanswered |
 | `com.webos.service.update/getVersion`, `com.palm.systemservice/osInfo/query` | a fixed version string |
 
 Fixture scenes to render: quick sheet (each style); Picture page with picture mode open; a slider in live-adjust;

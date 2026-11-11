@@ -14,6 +14,9 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const APP = JSON.parse(fs.readFileSync(path.join(here, '..', '..', 'tv', 'appinfo.json'), 'utf8'));
 const STYLES = [{ id: 'smoke', name: 'Smoke' }, { id: 'bubble', name: 'Bubble' }];
 const THEMES = [{ id: 'glow', name: 'Glow' }, { id: 'halloween', name: 'Halloween' }, { id: 'winter', name: 'Winter' }];
+// Time zones as the system service lists them (getPreferenceValues); the first is the one set.
+const zone = (ZoneID, City, Description, offsetFromUTC) => ({ ZoneID, City, Description, offsetFromUTC, Country: 'United States of America', CountryCode: 'US', supportsDST: 1 });
+const ZONES = [zone('America/New_York', 'New York', 'Eastern Time', -300), zone('America/Los_Angeles', 'Los Angeles', 'Pacific Time', -480)];
 const SHOW_MS = 3000;
 // The installed apps the back-refusing-app scenario may launch (launch points), standing in for a streaming app.
 const APPS = ['com.webos.app.browser', 'org.webosbrew.hbchannel'];
@@ -456,7 +459,16 @@ function luna(s, uri, p) {
     case 'com.webos.service.tv.display/getHDMIInfo': return ok({ width: 3840, height: 2160, frameRate: 120, scanType: true, HDMImode: true });
     case 'com.webos.service.tv.systemproperty/getSystemInfo': return ok({ modelName: 'OLED00X0', firmwareVersion: '00.00.00' });
     case 'com.palm.systemservice/osInfo/query': return ok({ core_os_release: '0.0.0' });
-    case 'com.palm.systemservice/getPreferences': return ok({ useNetworkTime: true });
+    // As on the TV: only the keys asked for; the zone is a whole object, one of getPreferenceValues' list.
+    case 'com.palm.systemservice/getPreferences': {
+      const all = { useNetworkTime: true, useNetworkTimeZone: true, timeFormat: 'HH12', timeZone: ZONES[0] }, out = {};
+      for (const k of p.keys || []) if (k in all) out[k] = all[k];
+      return ok(out);
+    }
+    case 'com.palm.systemservice/getPreferenceValues':
+      return p.key === 'timeZone' ? ok({ timeZone: ZONES }) : { returnValue: false, errorText: 'fake TV: no values for ' + p.key };
+    case 'com.palm.systemservice/time/getSystemTime':
+      return ok({ utc: Math.floor(Date.now() / 1000), offset: ZONES[0].offsetFromUTC, timezone: ZONES[0].ZoneID, systemTimeSource: 'manual', timeValid: true });
     case 'dev.themepack.look.service/getTelemetry': return ok({ kit: 'unknown' });
     case 'com.webos.service.wifi/getstatus': return ok({ status: 'serviceDisabled' });
     // As on the TV: btaudiosrc does not answer; bluetooth2 lists the devices (a speaker and the magic remote).

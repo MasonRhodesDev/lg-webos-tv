@@ -148,6 +148,22 @@ Board content: the adapters behind the designed pages (UNVERIFIED reads, from LG
       "OLED55B9PUA" and "4.10.0"). Note whether `getSystemInfo` has an `sdkVersion` that reads "4.5".
 - [ ] `luna://com.palm.systemservice/getPreferences '{"keys":["useNetworkTime"],"subscribe":true}'` answers and
       `setPreferences {useNetworkTime}` from Time and date's switch sticks (Time and date then reads Automatic/Manual).
+- [ ] `luna://com.palm.systemservice/time/getSystemTime '{"subscribe":true}'` answers `utc` (seconds) and `offset`
+      (minutes ahead of UTC) for our bus identity, and answers again, without a `returnValue`, when the time is set.
+      Time and date's header then reads the TV's own date and time ("Wed, Nov 11, 2026 · 9:41 PM"), in the TV's zone
+      and its 12- or 24-hour format (`timeFormat`).
+- [ ] With Automatic off, stepping a part of the clock sets the TV (Left/Right or OK on Year, Month, Day, Hour,
+      Minute: one `time/setSystemTime {utc}` a moment after the last step), LG's own clock shows the new time, and a
+      month stepped across a daylight-saving change keeps the hour shown. With Automatic on the five rows are greyed
+      and say why. UNVERIFIED: whether our bus identity may call `time/setSystemTime` (`permissions.sh` asks for the
+      groups the TV lists the method in under the service's newer name); a refusal shows "Not changed" and the old
+      time.
+- [ ] `getPreferenceValues '{"key":"timeZone"}'` lists the zones; Time zone's picker shows those of the current
+      zone's country, and choosing one (`setPreferences {timeZone: <the whole zone object>}`) sticks and moves the
+      time shown.
+- [ ] The clock starts again at the first second of 2019 (UTC) on every boot with no time source (no network time,
+      no broadcast): the TV keeps no clock while unplugged. After it is set by hand, the Look service follows within a
+      minute (Look, Automatic seasonal: the season and holiday of the new date).
 - [ ] `getSystemSettings '{"category":"","keys":["eulaStatus","localeInfo"]}'` answers for our appId (eulaStatus is
       not in settingsservice.allow), with all eight of telemetry-off's `EULA_KEYS` as booleans.
 - [ ] `luna-send -n 1 luna://dev.themepack.look.service/getTelemetry '{}'` says `"kit":"active"` after a cold boot

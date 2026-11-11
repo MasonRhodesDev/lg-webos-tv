@@ -47,6 +47,9 @@ test('the guard lets through only keys that change nothing', async () => {
   assert.match(guard('ENTER', menu(row('style', 'choice'))), /would change/);
   assert.strictEqual(guard('ENTER', menu(row('theme', 'toggle')), { look: true }), null);
   assert.match(guard('LEFT', menu(row('item', 'slider'))), /step/);
+  // A part of the clock: OK, Left and Right each step it, so the suite presses none of them there.
+  for (const k of ['LEFT', 'RIGHT']) assert.match(guard(k, menu(row('item', 'stepper'))), /step/, k);
+  assert.match(guard('ENTER', menu(row('item', 'stepper'))), /would change/);
   assert.match(guard('RIGHT', menu(row('item', 'value'))), /slider/);
   assert.strictEqual(guard('LEFT', menu(row('item', 'value'))), null, 'Left goes back a page');
   assert.match(guard('LEFT', quick(row('item', 'value'))), /volume/);
