@@ -113,7 +113,7 @@ What the DT describes, and whether mainline has a driver for it:
 | `lg115x` | older LG driver/HAL naming still used for fb, audio, USB, macb and `libhal_lg115x.so` |
 | `/proc/lg/base`: `platform 0x2000`, `chip_rev 0x23a1`, `board_opt 0x2904024` | LG's own IDs |
 
-The earlier note that the SoC is "not MediaTek" stands: only WiFi (`wlan_mt7668`) and Bluetooth (`btmtk_usb`) are MediaTek USB parts.
+The SoC is not a MediaTek part: only WiFi (`wlan_mt7668`) and Bluetooth (`btmtk_usb`) are MediaTek USB parts.
 
 ### Memory map
 
@@ -159,7 +159,7 @@ Kernel ~5–25 MB, initramfs 1–100 MB. LG-TV-OSS keeps only kernel + a 1 MB bo
 
 ## Watchdogs (critical)
 
-Three different things on this TV; none of them is the O22 mechanism the earlier draft assumed.
+Three different things on this TV; none of them is the O22 mechanism (a command to the micom through a mailbox).
 
 1. **SoC watchdog, SP805 @ `0xfd200000`** — driver built in, `/dev/watchdog0` exists, and **no process holds it open** (checked every `/proc/*/fd`). The sp805 driver only starts counting when the device is opened, so it is idle on the stock system. It is not what would reset a kexec'd kernel.
 
@@ -211,7 +211,7 @@ Platform devices `audio`, `lg115x-codec.0`–`7`, `lg115x-dai.0`–`7`, `lg115x-
 | [Pokropow/LG-TV-OSS](https://github.com/Pokropow/LG-TV-OSS) (1 ★, updated 2026-10-17) | LG OLED65C21LA, 2022, **LG1213 "o22"**, aarch64, LG 5.4.96 / 5.4.268 GPL drops | kexec boot of a modified stock kernel, Alpine root on USB, UART + telnet, Ethernet, basic GPU (panfrost on 5.4) and audio, Plasma Bigscreen; 4K at 15 fps. Static kexec-tools 2.0.32, **no `--dtb`** (stock FDT reused), `fix_stuck_cpus.ko` to get past `cpus_are_stuck_in_kernel()`. **Micom solved**: a separate always-on MCU resets the SoC ~22 s after silence; stock feeds it from `/usr/sbin/micomservice`; patch `0001-lg1k-micom-watchdog-petting.patch` adds `drivers/soc/lg1k/micom_pet.c` — a 3-byte read of command `0xC0` through the ARM→MICOM mailbox at `0xF0004000`, every 200 ms from `early_initcall`, protocol copied from `kdriver/chip/o22/ucom/ucom_o22_func.c`. | Same `lg1k` family and the same workflow (GPL drop + kdriver, kexec from HBC, USB rootfs). The micom *mechanism* does **not** transfer: LG1314 has no `0xF0004000` mailbox and the heartbeat is userspace I2C (above). The kdriver-in-the-drop finding and the cmdline hygiene (`tv-env.sh` kept off the TV and out of git) do. Code is largely AI-generated (disclosed). |
 | [throwaway96/webos-kernel-drivers](https://github.com/throwaway96/webos-kernel-drivers) | many webOS SoCs | "Kernel modules for various webOS versions/SoCs. Mostly serial drivers." Lists M16P3 under LX in a non-exhaustive SoC list; ships `ch341.ko`/`cp210x.ko` in an `aarch64-4.4.84-lx` folder; says to get source and toolchain from opensource.lge.com. | Shows a 4.4.84 aarch64 LX tree has been built by someone; it is not a driver-extraction tool and not a confirmation of anything about M16P3 specifically. |
 
-The earlier draft's owner names for the first two and its "LG-TV-OSS solved the micom on O22 with cmd 0xC0 via mailbox, M16P3 will have different addresses" were right about O22 and wrong about this TV; the previous links 404.
+LG-TV-OSS's micom fix on O22 (command `0xC0` through a mailbox) is specific to that SoC and does not carry over to this TV.
 
 ## Kernel source
 
@@ -244,7 +244,7 @@ custom-initramfs (aarch64, or armv7 via CONFIG_COMPAT)
 └── /opt/gui/                   fbdev / EGL-on-Mali / Wayland client
 ```
 
-Display options for the GUI are unchanged from the earlier draft: direct framebuffer, Weston/Cage on a DRM/KMS stack (none exists yet), or an EGL/GLES app on the Mali blob.
+Display options for the GUI: direct framebuffer, Weston/Cage on a DRM/KMS stack (none exists yet), or an EGL/GLES app on the Mali blob.
 
 ## kexec transition concerns
 
@@ -285,7 +285,7 @@ Every step from 1 on reboots the TV on failure; a failed kexec is a power cycle 
 
 | Phase | Effort | Dependencies |
 |---|---|---|
-| Stage/unload PoC + re-kexec of LG's kernel | hours | unpacking `LZ4P`, owner present |
+| Stage/unload PoC + re-kexec of LG's kernel | hours | unpacking `LZ4P`, someone at the TV |
 | Micom host-alive RE + feeder | days | Ghidra on `tvservice`/`libhal_lg115x`; one attended test |
 | GPL drop builds and boots via kexec | days | LG delivers IMP 4.0; toolchain |
 | Minimal custom kernel + initramfs with SSH | days | above |
@@ -294,7 +294,7 @@ Every step from 1 on reboots the TV on failure; a failed kexec is a power cycle 
 | GUI | weeks | display |
 | **Usable HDMI-monitor OS** | **1–3 months** | active development |
 
-Compared with the earlier draft, the kexec-tools and device-tree work disappears (both are on the TV), the display work is better understood (GPL kdriver, two GPUs identified), and the micom work changed shape (I2C from userspace, not a kernel mailbox).
+What the read-only survey changed: the kexec-tools and device-tree work disappears (both are on the TV), the display work is better understood (GPL kdriver, two GPUs identified), and the micom work changed shape (I2C from userspace, not a kernel mailbox).
 
 ## Comparison with Path B
 

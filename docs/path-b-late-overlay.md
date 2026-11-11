@@ -2,6 +2,8 @@
 
 Take control of the TV's runtime at ~35s via HBC init.d scripts. The stock boot runs unmodified through lxboot verification, kernel, upstart, and all service starts. At ~35s, HBC `startup.sh` fires and runs `/var/lib/webosbrew/init.d/*`. From that point, we own the runtime.
 
+**Status (2026-11):** built and running on the test TV. The pieces are [scripts/50-custom-runtime](../scripts/50-custom-runtime) (LAN trimming, preloads) and [tools/telemetry-off/](../tools/telemetry-off/README.md) (telemetry, ads, voice, the securitymanager no-op), installed as separate `init.d` hooks. The script on this page is the first design; the shipped scripts differ. The theme-pack UI layer ([tools/theme-pack/](../tools/theme-pack/README.md)) also loads from this hook.
+
 ## What this gives you
 
 - Kill unwanted services (telemetry, ads, voice, casting, preloads, updates)
@@ -209,6 +211,8 @@ To revert: delete the init.d script and reboot. Everything returns to stock.
 | init.d script has a bug | Medium | Medium | Failsafe flag trips after 10s of no crash; worst case = stock boot with failsafe toast |
 
 ## Next steps
+
+The plan as first written. Steps 1–3 are done (see the status at the top). For step 4, the custom GUI became a QML layer in LG's compositor, not a web app ([home-takeover.md](home-takeover.md)).
 
 1. Write and deploy the init.d script (start conservative — telemetry + voice only)
 2. Test one service group at a time over SSH, verify stability across reboots

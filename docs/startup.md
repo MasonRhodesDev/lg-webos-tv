@@ -1,5 +1,7 @@
 # Boot chain & upstart jobs
 
+How the TV starts, from upstart to Homebrew Channel's `init.d` hook; the security holes a fresh root leaves open; and what each upstart job is for. The audit was read-only. Later changes (the telnet fix, the ACR and ads block) are dated in their own sections.
+
 Read-only audit as root, 2026-10-25 (~20–25 min uptime). One scratch file was briefly created and removed on `/tmp`; nothing else was written, started or stopped.
 
 ## Security findings

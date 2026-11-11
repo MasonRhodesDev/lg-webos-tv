@@ -1,6 +1,6 @@
 # Load average & memory
 
-Observed 2026-10-25, ~16–23 min after boot.
+Why an idle TV shows a load average of 11–15, and whether it is short of memory. Observed 2026-10-25, ~16–23 min after boot. Done; nothing was changed on the TV.
 
 ## Load ~11–15 is cosmetic
 

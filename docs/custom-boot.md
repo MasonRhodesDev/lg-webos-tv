@@ -2,6 +2,8 @@
 
 Research into cutting the LG B9's 35-second boot time and gaining early control of startup. 2026-10-25.
 
+**Status:** done. Every early hook is ruled out. Path B (the late overlay) is in use, Path C (kexec) has its own page, [path-c-kexec.md](path-c-kexec.md), and the snapshot option in the verdict was ruled out on 2026-10-26 ([snapshot-boot.md](snapshot-boot.md)).
+
 ## The bsppart overlay — early boot hook
 
 The bsppart partition (p30, 28MB squashfs) is the Board Support Package layer. It's mounted as a read-only overlay on `/` via `pivot_root`, **before any service starts**. This is the earliest possible userspace hook.
@@ -194,7 +196,7 @@ Every path to early boot control (before ~35s) is blocked by the same wall: LG's
 The remaining realistic options are:
 1. **Path B (late overlay)**: Maximize what can be done at 35s — kill services, overlay configs, replace securitymanager. Achieves the goal of custom services and trimmed startup, just with a 35-second stock preamble.
 2. **Path C (kexec)**: After the 35s stock boot, load a completely custom kernel+initramfs. Total control after a 35s+transition delay. Heavy development investment (M19A1 drivers). Community kexec projects target different SoCs.
-3. **Snapshot boot (Path B + hibernation)**: Apply the late overlay, then snapshot the modified state to p48 via `snapshot-boot-manager --make`. Every subsequent cold boot resumes into the custom runtime in ~3–5 s. p48 is NOT in lxboot's RSA verification table; the signing is done by `libsb.so` from root. See [snapshot-boot.md](snapshot-boot.md) for the full analysis.
+3. **Snapshot boot (Path B + hibernation)**, *ruled out on 2026-10-26; see [snapshot-boot.md](snapshot-boot.md)*: Apply the late overlay, then snapshot the modified state to p48 via `snapshot-boot-manager --make`. Every subsequent cold boot resumes into the custom runtime in ~3–5 s. p48 is NOT in lxboot's RSA verification table; the signing is done by `libsb.so` from root. See [snapshot-boot.md](snapshot-boot.md) for the full analysis.
 
 ## Stock boot timeline
 
