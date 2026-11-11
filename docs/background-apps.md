@@ -14,7 +14,7 @@ Memory in MB from `/proc/PID/status` and summed `/proc/PID/smaps` (Pss, SwapPss)
 | `cobalt` | `youtube.leanback.v4` | 39.7 / 24.1 / 0 | LG preload ~10 min after boot; policy `oneshot`, `semi-full` | preload-manager policy | low |
 | WAM renderer + `/usr/sbin/airplay` + `homekit` | `airplay` | 42.9 / 23.4 / 18.4; daemon 11.8 / 4.0; homekit 5.9 RSS | **AirPlay preloads its own UI**: caller `airplay.service`; `libairplay-webengine.so.1` calls `setPreloadPolicy` with `isEnabled:true` at runtime (static files say `false`) | **TV Settings → AirPlay & HomeKit → off** (inferred to stop the self-enable; not verified live) | lose AirPlay; supported setting, survives updates |
 | WAM renderer | `com.webos.app.googleassistant` | 30.6 / 12.9 / 3.3 | LG preload at +55 s; `periodic`, `isPinUp:true`; also `KeepOnLaunchEx` | preload policy; disabling GA in Settings may also work (unverified) | low–medium |
-| WAM renderer | `org.webosbrew.hbchannel` | 42.8 / 23.8 / 3.7 | **not a preload** — opened by the user this session | close it | none |
+| WAM renderer | `org.webosbrew.hbchannel` | 42.8 / 23.8 / 3.7 | **not a preload** — opened by hand during the survey | close it | none |
 | `com.webos.app.inputcommon` | `com.webos.app.hdmi2` | 66.5 / 40.5 / 14.6 | foreground input (`BootTimeApps`) | don't | — |
 | `com.webos.app.home` | launcher | 63.9 / 37.9 / 3.7 | `BootTimeApps`, `KeepOnLaunchEx`, criu preload | don't | high |
 | WAM browser / zygote | web runtime | 66.8 / 30.5 / 7.0; 28.0 / 8.7 / 3.7 | hosts web apps | shrinks if web preloads go | — |
