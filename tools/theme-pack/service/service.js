@@ -265,8 +265,20 @@ function setLook(message) {
     reports.push({ at: new Date().toISOString(), from: 'service', kind: 'error', text: 'look not saved: ' + String(e && e.message || e) });
   }
 })();
+// The time is also written down every minute (seconds since 1970), because the next boot's clock starts years back:
+// the boot hook starts it from this instead, late by however long the TV was off but on about the right day, until
+// a time source or the owner sets it. A clock that reads earlier than this file's own date is one nobody has set
+// yet, so that time is not kept.
+var clockFile = path.join(__dirname, 'data', 'clock');
+var built = Math.floor(fs.statSync(__filename).mtime.getTime() / 1000);
+function keepTime() {
+  var now = Math.floor(Date.now() / 1000);
+  if (now < built) return;
+  try { fs.writeFileSync(clockFile, String(now)); } catch (e) {}
+}
 function eachMinute() {
   var timer = setTimeout(function () {
+    keepTime();
     try { if (newDay()) notify(); } catch (e) {
       reports.push({ at: new Date().toISOString(), from: 'service', kind: 'error', text: 'calendar: ' + String(e && e.message || e) });
     }

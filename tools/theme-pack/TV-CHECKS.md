@@ -166,6 +166,17 @@ Board content: the adapters behind the designed pages (UNVERIFIED reads, from LG
 - [ ] The clock starts again at the first second of 2019 (UTC) on every boot with no time source (no network time,
       no broadcast): the TV keeps no clock while unplugged. After it is set by hand, the Look service follows within a
       minute (Look, Automatic seasonal: the season and holiday of the new date).
+- [x] `tv/set-clock.sh` sets the TV's clock to that of the machine running it. With Automatic off it answered
+      "TV clock set: ... (0 s from this machine's)": `time/setSystemTime` returned true for root, and the TV's
+      `date` then read the same second.
+- [ ] After a power-on with no time source, `/tmp/themepack.log` says "clock started from the last time kept" and
+      the TV's date is the day it was switched off, not 2019 (the Look service writes the time to its `data/clock`
+      each minute, and never a time before its own build); the layer and the stub then load as on any boot. Where
+      the clock is already right (network time), the log says "clock left as it is".
+- [ ] With a time server named (`TV_TIME_URL=<url> install-boot.sh install`), the hook's log says "clock set from the
+      time server" or "clock agrees with the time server", and after a power-on the clock is right to within two
+      seconds; when the network comes up only after the hook, "clock set from the time server, after the hook"
+      follows within two minutes. `TV_TIME_URL=` with nothing forgets the server.
 - [ ] `getSystemSettings '{"category":"","keys":["eulaStatus","localeInfo"]}'` answers for our appId (eulaStatus is
       not in settingsservice.allow), with all eight of telemetry-off's `EULA_KEYS` as booleans.
 - [ ] `luna-send -n 1 luna://dev.themepack.look.service/getTelemetry '{}'` says `"kit":"active"` after a cold boot

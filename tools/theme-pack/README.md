@@ -77,6 +77,7 @@ node --test tools/theme-pack/test/*.test.js
 ```
 
 `test/settings-stub.test.js` builds the Look package with `tv/build-ipk.sh`, so the tests need `tar` and `gzip`.
+`test/boot-clock.test.js` runs the boot hook's clock step under `busybox` (the TV's shell), and is skipped without it.
 
 The packs are checked as data (`test/assets.test.js`, `test/kit.test.js`): every style defines every token, recipes
 name only known targets, tokens and assets, the kit decorates exactly the contract's targets with the states each
@@ -137,6 +138,14 @@ TV_HOST=<tv address> sh tools/theme-pack/tv/install-tv.sh tools/theme-pack/dist/
 ```
 
 `install-tv.sh` needs root SSH, which Homebrew Channel provides. It copies the package to `/tmp` on the TV and installs it with the TV's own `appInstallService`.
+
+A TV with no time source (network time blocked, no broadcast) keeps no time while it is off, and starts every boot
+years back. `tv/set-clock.sh` sets its clock to that of the machine running it, to the second; the boot hook (see
+"Every boot") keeps the date about right in between.
+
+```sh
+TV_HOST=<tv address> sh tools/theme-pack/tv/set-clock.sh
+```
 
 The Look app draws nothing: it is the Settings stub's page (below) with no LG targets, so every launch asks the Look
 service for our Settings at its Look page (`openSettings {"target": "Look"}`) and closes. Style and themes are
@@ -431,5 +440,18 @@ The read-only system and the boot snapshot undo mounts and bus permissions at ea
 TV_HOST=<tv address> sh tools/theme-pack/webos/install-boot.sh install   # build the stub, install it and the hook, run the hook
 TV_HOST=<tv address> sh tools/theme-pack/webos/install-boot.sh remove    # remove both; LG's Settings is back at once
 ```
+
+The hook's first step is the clock, for a TV that has no time source and so starts every boot years back. The Look
+service writes the time down each minute, and the hook starts the clock from that: late by however long the TV was
+off, but on about the right day, which is what the seasonal themes go by. For the right time, name a time server
+when installing: any web server the TV can reach will do, because the hook reads the time from the `Date` line of
+its answer (good to a second or two; an `https` server's certificate is not checked, since none is valid yet by a clock that
+is years back). The hook asks it at every boot, for two minutes more if the network is not up yet.
+
+```sh
+TV_HOST=<tv address> TV_TIME_URL=http://<a web server on your network>/ sh tools/theme-pack/webos/install-boot.sh install
+```
+
+The address is kept on the TV; an install with `TV_TIME_URL=` (nothing after it) forgets it.
 
 The layer step runs once `own-layer-tv.sh apply` has put the layer on the TV.

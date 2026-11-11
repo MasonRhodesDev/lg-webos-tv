@@ -319,7 +319,7 @@ function applyLayer(s, how) {
   return loaded;
 }
 function hook(s) {
-  const log = ['=== ' + iso()];
+  const log = ['=== ' + iso(), 'clock left as it is'];
   if (s.installed) log.push('service permissions set', 'bus rescanned'); else log.push('Look service not installed; skipping permissions');
   let loaded = false;
   if (s.layerFiles) { loaded = applyLayer(s, 'apply'); log.push(loaded ? 'UI layer loaded (see /tmp/own-layer.log)' : 'UI layer did not load (see /tmp/own-layer.log)'); }
@@ -620,7 +620,7 @@ export function ssh(s, cmd, stdin) {
   if (/^chmod 755 \S+05-clean-poweroff \S+99-clear-failsafe \S+failsafe-recover\.sh && \S+99-clear-failsafe$/.test(cmd)) { s.poweroffHook = !!s.files['/var/lib/webosbrew/init.d/05-clean-poweroff']; return r(); }
   if (/activitymanager\/cancel .*themepack\.failsafe-recover/.test(cmd)) return r();
   if (/^rm -f \S+60-themepack( \S+05-clean-poweroff \S+99-clear-failsafe \S+failsafe-recover\.sh)?$/.test(cmd)) { s.hook = false; if (/05-clean-poweroff/.test(cmd)) s.poweroffHook = false; return r(); }
-  if (/^rm -rf \S+\/settings \S+\/settings-stub; echo removed$/.test(cmd)) { s.stub = false; return r('removed\n'); }
+  if (/^rm -rf \S+\/settings \S+\/settings-stub \S+\/time-url; echo removed$/.test(cmd)) { s.stub = false; return r('removed\n'); }
   if (/^s=\/media\/developer\/apps\/usr\/palm\/services\/\S+\/permissions\.sh; if/.test(cmd))
     return r(s.installed ? 'compositor groups: dev.themepack.look.service.group settings.read settings.write audio\n' : '');
   if (/appInstallService\/dev\/install/.test(cmd)) {

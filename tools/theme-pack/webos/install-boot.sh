@@ -3,6 +3,8 @@
 # 60-themepack mounts over LG's Settings app, and failsafe-recover.sh with the activity that runs it.
 #   TV_HOST=<address> install-boot.sh install
 #   TV_HOST=<address> install-boot.sh remove
+# TV_TIME_URL=<url>, with install, names a time server for the hook's clock step: any web server the TV can reach
+# (the Date line of its answer is the time). It is kept on the TV until an install with TV_TIME_URL= clears it.
 # Running install again repairs a missing or outdated hook or stub. Needs root SSH (Homebrew Channel) and node.
 set -eu
 host=${TV_HOST:?set TV_HOST to the TV address}
@@ -32,6 +34,11 @@ case "${1:-}" in
     scp -q "$here/failsafe-recover.sh" "root@$host:$recover"
     # 99-clear-failsafe also schedules the recovery.
     ssh "root@$host" "chmod 755 $poweroff $cleared $recover && $cleared"
+    if [ -n "${TV_TIME_URL:-}" ]; then
+      printf '%s\n' "$TV_TIME_URL" | ssh "root@$host" "mkdir -p $root && cat > $root/time-url"
+    elif [ -n "${TV_TIME_URL+set}" ]; then
+      ssh "root@$host" "rm -f $root/time-url"
+    fi
     scp -q "$here/60-themepack" "root@$host:$hook"
     ssh "root@$host" "chmod 755 $hook && $hook; tail -8 /tmp/themepack.log"
     ;;
@@ -39,7 +46,7 @@ case "${1:-}" in
     ssh "root@$host" "rm -f $hook $poweroff $cleared $recover"
     ssh "root@$host" "luna-send -n 1 -w 5000 luna://com.webos.service.activitymanager/cancel '{\"activityName\":\"themepack.failsafe-recover\"}' </dev/null >/dev/null"
     ssh "root@$host" sh -s < "$here/settings-unmount.sh"
-    ssh "root@$host" "rm -rf $root/settings $root/settings-stub; echo removed"
+    ssh "root@$host" "rm -rf $root/settings $root/settings-stub $root/time-url; echo removed"
     ;;
   *)
     echo "usage: TV_HOST=... install-boot.sh install | remove" >&2

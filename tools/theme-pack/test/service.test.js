@@ -38,7 +38,9 @@ function start(opts) {
       respond: (m) => answers.push(JSON.parse(JSON.stringify(m))) });
     return answers;
   }
-  return { call, saved: () => JSON.parse(fs.readFileSync(path.join(root, 'data', 'look.json'), 'utf8')) };
+  const kept = path.join(root, 'data', 'clock');
+  return { call, saved: () => JSON.parse(fs.readFileSync(path.join(root, 'data', 'look.json'), 'utf8')),
+    keptTime: () => (fs.existsSync(kept) ? fs.readFileSync(kept, 'utf8') : null) };
 }
 
 test('the service is ES5, for the TV\'s Node 0.12', () => {
@@ -285,6 +287,21 @@ test('the calendar is read again when the day turns, and subscribers hear only w
   assert.deepStrictEqual(sub[sub.length - 1].look.themes, ['glow', 'winter', 'newyear'], '1 January, across New Year');
   for (let i = 0; i < 3; i++) t.mock.timers.tick(24 * HOUR);
   assert.deepStrictEqual(sub[sub.length - 1].look.themes, ['glow', 'winter'], '4 January');
+});
+
+test('the time is written down each minute for the next boot, but not a clock nobody has set', (t) => {
+  // The service's file is as old as this run, so 2019 is before it and 2031 after it.
+  clock(t, 2019, 1, 1);
+  const { keptTime } = start({ themes: sample });
+  t.mock.timers.tick(60000);
+  assert.strictEqual(keptTime(), null, 'the clock a boot starts with is not kept');
+
+  t.mock.timers.setTime(noon(2031, 3, 9));
+  t.mock.timers.tick(60000);
+  assert.strictEqual(keptTime(), String(Math.floor(Date.now() / 1000)), 'seconds since 1970');
+  const first = Number(keptTime());
+  t.mock.timers.tick(60000);
+  assert.strictEqual(Number(keptTime()), first + 60, 'and again a minute on');
 });
 
 test('a clock set after the service started is heard within a minute, and a clock set back is followed too', (t) => {

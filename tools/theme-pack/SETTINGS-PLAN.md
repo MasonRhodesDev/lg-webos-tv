@@ -280,7 +280,8 @@ and writes. Pages bind to it and never call the bus.
   alone. Time zone lists `getPreferenceValues {key: "timeZone"}`'s zones for the current zone's country and writes
   the whole zone object back. The 12- or 24-hour form follows `timeFormat`. Write timeouts are counted in ticks,
   not read off the clock, since a write here moves the clock. The Look service checks the day once a minute for the
-  same reason: a date set by hand moves its seasonal calendar within the minute.
+  same reason: a date set by hand moves its seasonal calendar within the minute. Between settings, the boot hook
+  starts each boot's clock from the last time the service wrote down, or from a time server (README, "Every boot").
 - **Never hardcode enums.** The catalog's `domain` is the offline seed and what the mocks use; on the TV the desc's
   `values.arrayExt` (with its `visible`/`active` per value) decides what a picker lists.
 - **Identity.** The store's `Service` objects take their `appId` from one property, so the choice in section 1 is one
