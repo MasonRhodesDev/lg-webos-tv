@@ -48,6 +48,28 @@ QtObject {
     })
     // tv.display getHDMIInfo: the current HDMI input's signal.
     property var hdmi: ({ "returnValue": true, "HDMImode": true, "width": 3840, "height": 2160, "frameRate": 120, "scanType": true })
+    // The Home dock's data. eim getAllInputStatus: the inputs, HDMI 2 watched (the foreground app), HDMI 4 renamed by
+    // its owner. applicationManager listLaunchPoints: LG's apps and two installed ones (removable). An app id launched
+    // through applicationManager/launch becomes the foreground app.
+    property var inputs: [
+        { "id": "AV_1", "label": "AV", "port": 1, "appId": "com.webos.app.externalinput.av1", "connected": true, "activate": false, "modified": false },
+        { "id": "HDMI_1", "label": "HDMI 1", "port": 1, "appId": "com.webos.app.hdmi1", "connected": true, "activate": true, "hdmiPlugIn": true, "modified": false },
+        { "id": "HDMI_2", "label": "HDMI 2", "port": 2, "appId": "com.webos.app.hdmi2", "connected": true, "activate": true, "hdmiPlugIn": true, "modified": false },
+        { "id": "HDMI_3", "label": "HDMI 3", "port": 3, "appId": "com.webos.app.hdmi3", "connected": true, "activate": false, "hdmiPlugIn": false, "modified": false },
+        { "id": "HDMI_4", "label": "Console", "port": 4, "appId": "com.webos.app.hdmi4", "connected": true, "activate": false, "hdmiPlugIn": false, "modified": true }
+    ]
+    property var launchPoints: [
+        { "id": "com.webos.app.browser", "title": "Web Browser", "icon": "", "removable": false, "systemApp": true },
+        { "id": "com.webos.app.photovideo", "title": "Photo & Video", "icon": "", "removable": false, "systemApp": true },
+        { "id": "org.example.player", "title": "Player", "icon": "", "removable": true, "systemApp": false },
+        { "id": "org.example.radio", "title": "Radio", "icon": "", "removable": true, "systemApp": false }
+    ]
+    property string foreground: "com.webos.app.hdmi2"
+    // attachedstoragemanager listDevices: LG's internal stores, and a USB drive once a scene plugs one in.
+    property var storage: [{ "deviceId": "INTERNAL_STORAGE_SAMPLE_PHOTO", "deviceUri": "/usr/palm/applications/com.webos.app.photovideo/assets/samplePhoto",
+                             "deviceType": "internal sample photo", "deviceName": "Sample photos" }]
+    function setForeground(appId) { foreground = appId; notify("", "foreground"); }
+
     // tv.systemproperty getSystemInfo and systemservice osInfo/query.
     property var system: ({ "modelName": "OLED55B9PUA", "firmwareVersion": "05.40.45", "core_os_release": "4.10.0" })
     // The Look service's getTelemetry: tools/telemetry-off in force this boot.
@@ -123,6 +145,7 @@ QtObject {
             if (s.kind === "wifi" && key === "wifi") answer(s.svc, "/getstatus", { "returnValue": true, "status": wifiState });
             if (s.kind === "networks" && key === "wifi") answer(s.svc, "/findnetworks", foundNetworks());
             if (s.kind === "bt" && key === "bt") answer(s.svc, "/device/getStatus", btStatus());
+            if (s.kind === "foreground" && key === "foreground") answer(s.svc, "/getForegroundAppInfo", { "returnValue": true, "appId": foreground, "windowId": "", "processId": "" });
         }
     }
     function cancel(svc) {
@@ -244,7 +267,8 @@ QtObject {
         if (["com.webos.settingsservice", "com.webos.service.tv.time", "com.webos.service.connectionmanager", "com.webos.audio",
              "com.webos.service.tv.display", "com.webos.service.tvpower", "com.webos.applicationManager",
              "com.webos.service.tv.systemproperty", "com.palm.systemservice",
-             "com.webos.service.wifi", "com.webos.service.btaudiosrc", "com.webos.service.bluetooth2", "com.webos.notification"].indexOf(service) < 0) return false;
+             "com.webos.service.wifi", "com.webos.service.btaudiosrc", "com.webos.service.bluetooth2", "com.webos.notification",
+             "com.webos.service.eim", "com.webos.service.attachedstoragemanager"].indexOf(service) < 0) return false;
         calls.push({ "uri": uri, "method": method, "params": p });
         var key;
         if (service === "com.webos.settingsservice") {
@@ -297,6 +321,18 @@ QtObject {
         } else if (service === "com.webos.service.tv.display" && method === "/getHDMIInfo") {
             if (p.subscribe) subs.push({ "svc": svc, "kind": "signal" });
             answer(svc, method, hdmi);
+        } else if (service === "com.webos.service.eim" && method === "/getAllInputStatus") {
+            answer(svc, method, { "returnValue": true, "devices": inputs, "totalCount": inputs.length });
+        } else if (service === "com.webos.service.attachedstoragemanager" && method === "/listDevices") {
+            answer(svc, method, { "returnValue": true, "devices": storage });
+        } else if (service === "com.webos.applicationManager" && method === "/listLaunchPoints") {
+            answer(svc, method, { "returnValue": true, "launchPoints": launchPoints });
+        } else if (service === "com.webos.applicationManager" && method === "/getForegroundAppInfo") {
+            if (p.subscribe) subs.push({ "svc": svc, "kind": "foreground" });
+            answer(svc, method, { "returnValue": true, "appId": foreground, "windowId": "", "processId": "" });
+        } else if (service === "com.webos.applicationManager" && method === "/launch") {
+            answer(svc, method, { "returnValue": true });
+            setForeground(p.id);
         } else if (service === "com.webos.service.tv.systemproperty" && method === "/getSystemInfo") {
             var info = { "returnValue": true };
             for (var i = 0; i < p.keys.length; i++) if (system[p.keys[i]] !== undefined) info[p.keys[i]] = system[p.keys[i]];

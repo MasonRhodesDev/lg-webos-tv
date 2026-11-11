@@ -82,7 +82,22 @@ export const COVERAGE = [
   // Bluetooth: bluetooth2 for status, btaudiosrc for actions
   { id: 'bt2-status', match: 'The Bluetooth page lists the paired speakers from `luna://com.webos.service.bluetooth2/device/getStatus`', how: MAN, by: 'manual bluetooth', reason: 'turning a speaker on and off is a person\'s' },
   { id: 'bt-remote-hidden', match: 'The magic remote ("LGE MR19", BLE) is never listed', how: MAN, by: 'manual bluetooth', reason: 'the suite does not yet read the Bluetooth page\'s rows' },
-  { id: 'bt-actions', match: 'These btaudiosrc calls, LG\'s own Settings\' methods, answer from our identity', how: MAN, by: 'manual bluetooth', reason: 'pairing and forgetting a real speaker change the household\'s devices' }
+  { id: 'bt-actions', match: 'These btaudiosrc calls, LG\'s own Settings\' methods, answer from our identity', how: MAN, by: 'manual bluetooth', reason: 'pairing and forgetting a real speaker change the household\'s devices' },
+  // The Home dock
+  { id: 'home-filter-in', match: 'The reports have `ok` "home: the Home key opens our dock', how: MAN, by: 'manual home-keys', reason: 'installing the key filter is gated on a person holding the remote' },
+  { id: 'home-other-keys', match: 'Arrows, OK, Back and volume behave as before, with the dock closed', how: MAN, by: 'manual home-keys', reason: 'a lost key is a person\'s to notice' },
+  { id: 'home-open-close', match: 'A short Home opens the dock along the bottom', how: MAN, by: 'manual home-keys', reason: 'the network input sends whole presses; the press length is a person\'s' },
+  { id: 'home-switch', match: 'Left and right move focus; OK on an input switches', how: MAN, by: 'manual home-keys', reason: 'switching input changes what the household is watching' },
+  { id: 'home-long', match: 'Holding Home about a second opens LG', how: MAN, by: 'manual home-keys', reason: 'only a real hold shows it' },
+  { id: 'home-pointer', match: 'The magic remote: pointing at a tile focuses it', how: MAN, by: 'manual home-pointer', reason: 'the network input\'s pointer cannot be aimed' },
+  { id: 'home-handover', match: 'Our quick sheet open, then Home', how: MAN, by: 'manual home-handover', reason: 'needs the gear and Home pressed in turn on the remote' },
+  { id: 'home-reapply', match: 'A second `apply`: the reports have', how: MAN, by: 'manual home-reapply', reason: 'reinstalls the key filter, gated on a person holding the remote' },
+  { id: 'home-power', match: 'Power off with the remote, wait for the Quick Start+ background boot', how: MAN, by: 'manual home-power', reason: 'a power cycle is a person\'s' },
+  { id: 'home-launch', match: 'from SSH opens the dock too', how: MAN, by: 'manual home-keys', reason: 'checked with the key steps' },
+  { id: 'home-no-dock', match: 'With our layer gone (no `homeReady`)', how: NO, reason: 'the suite deploys no layer without the dock' },
+  { id: 'home-usb', match: 'The USB tile with a drive attached', how: MAN, by: 'manual home-later', reason: 'a drive is plugged in by a person' },
+  { id: 'home-tiles', match: 'The Settings tile opens our Settings', how: MAN, by: 'manual home-later', reason: 'not yet in a scenario' },
+  { id: 'home-foreground', match: 'A change of the app in front', how: MAN, by: 'manual home-later', reason: 'an app is launched from outside the TV' }
 ];
 
 // TV-CHECKS.md's items: a "- [ ]" line and its indented continuation lines, as one line.

@@ -1,7 +1,7 @@
 # Getting our UI into webOS 4 without restarting anything
 
 Notes on what was tried on an LG B9 (`Rockhopper release 4.10.0-17`, Qt 5.6.2), what works, what does not carry over
-from newer webOS, and the plan for Home. Everything here was read or tried on the TV itself; LG's behaviour is
+from newer webOS, and how our Home is built. Everything here was read or tried on the TV itself; LG's behaviour is
 described, not quoted.
 
 ## The problem
@@ -76,7 +76,9 @@ table back. This is `ui/Look/settings/SystemUiHook.qml` and `QuickSettingsEntry.
 at startup and whenever the key filters reload) is ignored.
 
 The same table takes *new* entries: an id of ours with a file of ours is then launchable by
-`systemUIManager/launch '{"appId":"<our id>"}'` from anywhere, including a key filter.
+`systemUIManager/launch '{"appId":"<our id>"}'` from anywhere, including a key filter. The manager answers
+`returnValue: true` to a launch of any id, also one that is not in its table, so a caller cannot tell from the answer
+whether anything loaded.
 
 ## The key filter chain
 
@@ -95,9 +97,14 @@ Every remote key passes through a chain of scripts in the compositor before any 
   mode, an app that turned the ribbon off). A short press launches the Home app with `{"category":"home"}`; a long
   press launches it with `{"activateType":"recent"}`.
 - Filters are plain scripts on Qt 5.6's ES5 engine: no `let`, `const` or arrow functions, and they should not create
-  QML.
+  QML. Each file gets its own scope (LG's two files both define `init`).
+- The bus caller in that scope calls as `com.webos.starfish.keyfilters`. Its calls to LG's services are answered.
+  Reports a filter of ours sent to our own service never showed up there; why was not found, so the filter does not
+  report.
+- The chain runs in list order: the screen saver's wake-up, accessibility (a long Mute), AV reset and a broadcast
+  helper come before LG's Home handling (`handleSystemKeys`).
 
-Two ways to put a filter first in the chain:
+Two ways to add a filter to the chain:
 
 | | How | Lasts | Risk |
 |---|---|---|---|
@@ -105,7 +112,9 @@ Two ways to put a filter first in the chain:
 | in memory | assign the key filter's list from the layer, as with the overlay table | until the compositor restarts or the layer retires | a reboot clears it |
 
 The layer uses the second: nothing persistent is written, the boot hook loads the layer at every boot anyway, and
-power-cycling the TV always gives LG's own chain back.
+power-cycling the TV always gives LG's own chain back. Assigning the list breaks its binding to configd's value, so the
+layer follows configd's change signal itself while installed, and puts LG's list back as a plain value when it
+retires.
 
 ## What does not carry over from webOS 6 and later
 
@@ -125,12 +134,20 @@ that restart.
 What does carry over is its webOS 4 approach to the Home key: a generated filter, first in the chain, wrapped in
 try/catch so an error always passes the key on, that launches its own home instead of LG's.
 
-## Home: the plan
+## Home: what is built
 
-Home is not built yet. The design, each step checked against the TV, is in [home-dock-plan.md](home-dock-plan.md):
-a key filter installed in memory takes the Home key and asks the system UI manager for an overlay entry of ours; the
+A key filter installed in memory takes the Home key and asks the system UI manager for an overlay entry of ours; the
 entry tells the layer; the layer draws a dock of inputs and apps along the bottom of the screen, over whatever is
-playing. A long press of Home still opens LG's Home, and so does any failure.
+playing. A long press of Home still opens LG's Home, and so does any failure. The design and its pieces are in
+[home-dock-plan.md](home-dock-plan.md); the files are described in the theme-pack README ("Our Home dock").
+
+- Our filter goes just ahead of LG's `handleSystemKeys`, not first: the filters before it (the screen saver's wake-up
+  above all) keep seeing every key first.
+- Because the manager answers `true` to any id, the filter cannot detect a missing entry. Instead the layer installs
+  the filter only while its system UI table holds our entry, and takes it out whenever the table goes back to LG's.
+  With the entry present but no dock listening, the entry itself opens LG's Home.
+- Our filter consumes the Home press, so LG's long-press timer never starts; the filter times the press itself and
+  opens LG's Home on a release after about a second.
 
 What opens when nothing is in front, and Back out of the last app, is LG's Home either way: neither goes through the
 key chain.

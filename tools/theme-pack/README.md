@@ -240,7 +240,7 @@ TV_HOST=<tv address> sh tools/theme-pack/webos/own-layer-tv.sh reports  # what t
 TV_HOST=<tv address> sh tools/theme-pack/webos/own-layer-tv.sh capture out.png  # the on-screen UI, without the video
 ```
 
-`apply` and `revert` take a lock on the TV, so several working copies can test in turn. The compositor keeps every QML file it has loaded, by path, so `own-layer.sh apply` loads each time from a fresh copy of `ui/` under `/tmp`; the layer's own files import each other by relative path (`import "."`, `import ".."`), so nothing has to be on the compositor's import path. The layer reports to the Look service as it loads. If no report arrives within 30 one-second rounds (counted, so a suspend or a clock step in the middle does not cut the wait short), or the injector reports an error, `apply` exits 1 and the screen is left as it was: LG's UI, or the layer loaded before. Only a compositor restart unloads the layer (`revert`, or any reboot). Both scripts append what they did, with the uptime, to `/var/lib/webosbrew/themepack-boot.log` (kept across reboots, one 32 KB generation as `.old`). The boot hook (`60-themepack`) runs `apply` in every boot at once, also in a Quick Start+ background boot, so the layer is there when the screen comes on. A broken layer leaves LG's UI running and reports its error. Read the reports with `luna-send -n 1 luna://dev.themepack.look.service/getReports '{}'` (the compositor's own QML warnings go nowhere).
+`apply` and `revert` take a lock on the TV, so several working copies can test in turn. The compositor keeps every QML file it has loaded, by path, so `own-layer.sh apply` loads each time from a fresh copy of `ui/` under `/tmp`; the layer's own files import each other by relative path (`import "."`, `import ".."`), so nothing has to be on the compositor's import path. The layer reports to the Look service as it loads. If no report arrives within 30 one-second rounds (counted, so a suspend or a clock step in the middle does not cut the wait short), or the injector reports an error, `apply` exits 1 and the screen is left as it was: LG's UI, or the layer loaded before. Only a compositor restart unloads the layer (`revert`, or any reboot). Both scripts append what they did, with the uptime, to `/var/lib/webosbrew/themepack-boot.log` (kept across reboots, one 32 KB generation as `.old`). The boot hook (`60-themepack`) runs `apply` in every boot at once, also in a Quick Start+ background boot, so the layer is there when the screen comes on, and with it the Home key's filter (see "Our Home dock"). A broken layer leaves LG's UI running and reports its error. Read the reports with `luna-send -n 1 luna://dev.themepack.look.service/getReports '{}'` (the compositor's own QML warnings go nowhere).
 
 The layer calls the bus as `com.webos.surfacemanager.wedge` (`Look.busName`). It is one of the names the compositor's role file allows it, LG's QML does not use it, and it belongs to no permission group, so `service/permissions.sh` grants it the service's group. A bus client gets its groups when it connects, and the compositor's own connections date from the boot snapshot, before any grant; a name that first connects when the layer loads gets them.
 
@@ -270,6 +270,64 @@ covers text or a value, and decoration on a disabled component is drawn at half 
 The ring box is the outset box. The QML Ring reads a recipe's placement from its `style` (`ui/Look/place.js`), the same declarations `render-assets.mjs` composes the art by: `width`/`height` in px size the ring, and `left:auto`/`top:auto` put it against the right/bottom edge (`right:auto`/`bottom:auto` against the left/top). Without a size it fills the box. Edges only take `auto`, since the outset sets them; the tests reject anything else.
 
 `node tools/theme-pack/render-assets.mjs` renders each `asset` from its recipe's html (needs `rsvg-convert`); the PNGs are committed, so building doesn't need it. The html must be one `<svg>`, or a field of `<svg>`s placed with `left`/`top` (sized from the style, or the 1920×1080 screen for a `screen` target). It renders at the CSS size ×2, at the svg's own aspect (`width="100%"`: 128 px on the longer side), and a screen-wide box at ×1. The ring's style `opacity` is baked in. It lists html it can't draw (a `<div>`, a CSS background), which then fails the tests: draw gradients and glows inside the svg.
+
+## Our Home dock
+
+The remote's Home key opens a dock of our own: one ribbon of inputs and apps along the bottom of the screen, drawn by
+the layer over whatever is playing. Nothing is mounted over LG's Home app and nothing restarts. Holding Home about a
+second opens LG's Home, where LG's own apps live, and so does any failure on the way. Why it is built this way is in
+[docs/home-takeover.md](../../docs/home-takeover.md).
+
+```
+Home key ─▶ ui/home-key.js (in LG's key filter chain, in memory, just ahead of LG's Home handling)
+              │ short press                                │ held about 1 s, or a failure
+              ▼                                            ▼
+   systemUIManager/launch {"appId":"dev.themepack.home"}   LG's Home
+              ▼
+   LG's system UI table ─▶ ui/Look/settings/HomeEntry.qml (draws nothing, unloads at once)
+              ▼ SettingsBus.homeRequested
+   ui/Look/parts/Home.qml: the dock
+```
+
+- `ui/home-key.js` is a key filter script for LG's chain: plain ES5, run in the key filter's scope, names prefixed
+  `themepack`. It takes only Home, and only when LG itself would open Home (no modal alert, the ribbon on, Home not
+  disabled, not in first-use setup, LG's Home not already showing); everything else goes on to the next filter. On
+  the release of a short press it asks LG's system UI manager for our entry; a long press, a refused launch or a
+  throw opens LG's Home the way LG's own short press does. It does not report what it does (reports sent from the key
+  filter's bus connection never reached the Look service); the dock's part reports each request.
+- `ui/Look/settings/HomeKeyHook.qml` puts the filter in. The compositor's key filter object holds the live chain as a
+  property bound to configd's list; the hook assigns a copy with our entry added, re-makes it when configd's list
+  changes, and on retire assigns LG's list back as a plain value. Every assignment reloads the whole chain (LG's
+  filters re-send their startup preloads, which our entries ignore). Nothing is written to configd, so a compositor
+  restart or a reboot always gives LG's chain back.
+- `ui/Look/settings/SystemUiHook.qml` (Hook A) adds our entry, `dev.themepack.home`, to LG's system UI table beside
+  its Quick Settings change. `HomeEntry.qml` is what that entry loads: it emits `SettingsBus.homeRequested` and exits;
+  with no dock listening it opens LG's Home instead. The dock installs the key filter only while Hook A's table holds
+  the entry, so Home never launches an id LG cannot load.
+- `ui/Look/parts/Home.qml` is the dock, an own part (no `claims`). It is built only from the kit: a bottom `Scrim`, a
+  bare `Panel`, `Header` ("Inputs and apps", with an Offline badge when the internet is down and the clock once the
+  TV's year is set), one `TileRibbon` and `KeyHints`. The tiles: each input (its port icon and hue from
+  `parts/inputs.js`, shared with the input picker; "Signal" or "No signal", or the format such as "4K · 60 Hz" and the
+  Watching badge for the input in front), each app the user installed, USB (disabled with "No drive" until a drive is
+  attached), Settings (opens our Settings) and LG Home. OK launches the tile's app through the application manager and
+  closes the dock. Back closes it (the ribbon's Back, or LG's `backReleased`), so does a second Home, a click outside
+  the ribbon, and a change of the app in front (one standing `getForegroundAppInfo` subscription; its first answer is
+  where things stand, not a change). Its `probe` is `{ open, focus, tiles, keys }`.
+- While open the dock holds focus in LG's focus chain at layer 7 and lives in LG's popup plane, as our Settings does.
+  `ui/Look/settings/Hold.qml` is the one holder of that plane for both: a part that wants it says so on
+  `SettingsBus.planeWanted` first, and a part holding it closes at once, so the plane's height and visibility are
+  always given back in the order they were taken.
+- `retire()` closes the dock, gives back the plane and focus, and puts LG's key filter chain back.
+
+The data comes from the bus as `Look.busName`: `eim/getAllInputStatus`, `applicationManager/listLaunchPoints` (the
+`removable` ones are the user's), `attachedstoragemanager/listDevices` (a type not starting with `internal` is a
+drive), `tv.display/getHDMIInfo`, `connectionmanager/getstatus` and `applicationManager/getForegroundAppInfo`, each
+in `METHODS` in `service/permissions.sh`. The USB tile opens `com.webos.app.photovideo`.
+
+Locally: `preview/scenes/Home.qml` draws the dock against the settings mock (`preview/mocks/Preview/TvSettings.qml`
+answers the calls above), and `preview/tests/tst_HomeDock.qml` (run by `test/layer.test.js`) drives it with keys
+against a fake LG root. `test/home-key.test.js` runs the filter script in node's `vm` with a stand-in for the key
+filter's scope. On the TV, the checks and their results are in [TV-CHECKS.md](TV-CHECKS.md) ("Home dock").
 
 ## TV integration suite
 

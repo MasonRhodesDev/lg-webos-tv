@@ -1,5 +1,6 @@
 import QtQuick 2.4
 import ".."
+import "inputs.js" as Inputs
 
 // Our input picker. LG's InputPickerMainView keeps all of its logic (the input list, keys, the 5 s hotkey timer,
 // launching, eject, the add-on button's actions, the tooltip); this only draws what it shows. LG's tiles stay in the
@@ -40,23 +41,8 @@ Item {
         if (!s) return "";
         return type === "usb" ? s.usb : type === "dlna" ? s.contentShare : type === "input" ? s.input : "";
     }
-    function iconFor(e) {
-        if (e.id === "titleItem") return "home";
-        if (e.inputType === "usb") return "usb";
-        if (e.inputType === "dlna") return "cast";
-        if (String(e.appId).indexOf("livetv") >= 0) return "screen";
-        if (String(e.appId).indexOf("hdmi") >= 0 || String(e.appId).indexOf("av") >= 0) return "port";
-        return "grid";
-    }
-    // Each HDMI input keeps its own hue across the picker, the banner and the hotkey popup.
-    function hueFor(e, i) {
-        var m = /hdmi(\d+)/.exec(String(e.appId));
-        if (m) return (parseInt(m[1], 10) - 1) % 4;
-        if (e.id === "titleItem") return 6;
-        if (e.inputType === "usb") return 5;
-        if (e.inputType === "dlna") return 3;
-        return 4;
-    }
+    function iconFor(e) { return Inputs.iconFor(e); }
+    function hueFor(e, i) { return Inputs.hueFor(e); }
     function isCurrent(e) {
         if (e.id === "USB" || e.id === "DLNA" || e.id === "titleItem") return false;
         return e.appId === watching && (e.isSecondDepth ? e.lastUniqueId === e.uniqueId : true);

@@ -15,7 +15,7 @@ API=$DEV/api-permissions.d/$SVC.api.public.json
 CLIENT=$DEV/client-permissions.d/$SVC.compositor.json
 
 printf '{"public":["%s/*"]}' $SVC > $API
-# The methods ui/Look/settings/Store.qml and parts/Settings.qml call.
+# The methods ui/Look/settings/Store.qml, parts/Settings.qml and parts/Home.qml call.
 METHODS='com.webos.settingsservice/getSystemSettings com.webos.settingsservice/getSystemSettingDesc
 com.webos.settingsservice/getSystemSettingValues com.webos.settingsservice/setSystemSettings
 com.webos.settingsservice/resetSystemSettings com.webos.settingsservice/batch
@@ -30,7 +30,9 @@ com.webos.service.wifi/getstatus com.webos.service.wifi/setstate com.webos.servi
 com.webos.service.wifi/connect com.webos.service.wifi/deleteprofile
 com.webos.service.bluetooth2/device/getStatus
 com.webos.service.btaudiosrc/startDiscovery com.webos.service.btaudiosrc/connect com.webos.service.btaudiosrc/disconnect
-com.webos.service.btaudiosrc/removePairedDevice'
+com.webos.service.btaudiosrc/removePairedDevice
+com.webos.service.eim/getAllInputStatus com.webos.applicationManager/listLaunchPoints
+com.webos.applicationManager/getForegroundAppInfo com.webos.service.attachedstoragemanager/listDevices'
 node -e '
 var fs = require("fs"), path = require("path"), out = [process.argv[1] + ".group"], methods = process.argv[2].split(/\s+/);
 function covers(pattern, m) { return pattern === m || (/\*$/.test(pattern) && m.indexOf(pattern.slice(0, -1)) === 0); }
