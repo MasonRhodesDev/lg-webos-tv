@@ -192,3 +192,33 @@ Bluetooth (bluetooth2 for status, btaudiosrc for actions)
       bluetooth2 equivalents to try are `adapter/startDiscovery`, `adapter/pair`, `a2dp/connect`, `a2dp/disconnect`,
       `adapter/unpair`.
 
+
+## Home dock (the Home key, parts/Home.qml)
+
+Setup: our layer applied (`own-layer-tv.sh apply`), `service/permissions.sh` run with the dock's methods and the bus
+rescanned. Reports: `own-layer-tv.sh reports`. Someone holds the remote: the key filter is the one piece that can
+cost keys, and a power cycle gives LG's chain back if it ever does.
+
+Checked on an LG B9 (webOS 4.10) on 2026-11-11:
+- [x] The reports have `ok` "home: the Home key opens our dock (key filter 5 of 12)": our filter sits just ahead of
+      LG's `handleSystemKeys`, and LG's eleven filters are all still there.
+- [x] Arrows, OK, Back and volume behave as before, with the dock closed.
+- [x] A short Home opens the dock along the bottom (`home: requested (n)` in the reports); Back closes it; a second
+      Home closes it.
+- [x] Left and right move focus; OK on an input switches to it and closes the dock.
+- [x] Holding Home about a second opens LG's Home.
+- [x] The magic remote: pointing at a tile focuses it, a click switches, a click above the dock closes it.
+- [x] Our quick sheet open, then Home: the sheet closes and the dock opens; the gear then closes the dock and opens
+      the sheet; Back closes it.
+- [x] A second `apply`: the reports have "home: LG's key filter chain restored" from the old layer, then the new
+      layer's "the Home key opens our dock"; every check above still passes.
+- [x] Power off with the remote, wait for the Quick Start+ background boot, power on: a short Home opens our dock.
+- [x] `luna-send -n 1 luna://com.webos.service.systemUIManager/launch '{"appId":"dev.themepack.home"}'` from SSH
+      opens the dock too, and again closes it.
+
+Not checked yet
+- [ ] With our layer gone (no `homeReady`), a launch of `dev.themepack.home` opens LG's Home (HomeEntry.qml's
+      fallback).
+- [ ] The USB tile with a drive attached: enabled, named after the drive, and OK opens `com.webos.app.photovideo`.
+- [ ] The Settings tile opens our Settings; the "LG Home" tile opens LG's Home.
+- [ ] A change of the app in front (a Netflix launch from a phone) closes an open dock.

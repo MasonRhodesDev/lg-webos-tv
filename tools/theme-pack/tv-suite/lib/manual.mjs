@@ -100,6 +100,28 @@ export const CHECKLIST = [
     { id: 'decisions', covers: ['pin-no-limit', 'input-locks', 'app-locks'], later: true,
       press: 'Owner decisions and research, nothing to press: a limit on wrong PIN tries; the lockable-input list and the app-lock call for the pages still to build.',
       look: '-', pass: 'Decided, or recorded as still open.' }
+  ] },
+  { group: '5. The Home dock (the key filter can cost keys: a power cycle gives LG\'s chain back)', items: [
+    { id: 'home-keys', restores: 'input', covers: ['home-filter-in', 'home-other-keys', 'home-open-close', 'home-switch', 'home-long', 'home-launch'],
+      press: 'With the dock closed, press the arrows, OK, BACK and volume. Then a short HOME; BACK; HOME twice; HOME, then LEFT/RIGHT and OK on another input; finally hold HOME for two seconds. Afterwards put the input back.',
+      look: 'Other keys as before; the dock along the bottom; it closes on BACK and on the second HOME; OK switches and closes; a long HOME opens LG\'s Home. The reports say the filter is in and count each request.',
+      pass: 'Every step does what it says, and no key is lost.' },
+    { id: 'home-pointer', covers: ['home-pointer'],
+      press: 'Open the dock with HOME, shake the magic remote, point at tiles, click one, then open the dock again and click above it.',
+      look: 'Focus follows the pointer; a click switches; a click outside closes.', pass: 'All three.' },
+    { id: 'home-handover', covers: ['home-handover'],
+      press: 'Open the gear sheet, press HOME, press the gear again, then BACK.',
+      look: 'Only one of ours is open at a time.', pass: 'The sheet gives way to the dock and back; BACK closes.' },
+    { id: 'home-reapply', covers: ['home-reapply'],
+      press: 'Run own-layer-tv.sh apply a second time, then repeat home-keys.',
+      look: 'The old layer reports LG\'s chain restored, the new one the filter in.', pass: 'home-keys passes again.' },
+    { id: 'home-power', covers: ['home-power'], later: true,
+      press: 'Power off with the remote, wait a minute (the Quick Start+ background boot), power on, press HOME.',
+      look: 'What HOME opens.', pass: 'Our dock.' },
+    { id: 'home-later', covers: ['home-usb', 'home-tiles', 'home-foreground'], later: true,
+      press: 'Plug in a USB drive and open the dock; OK on USB. Open the dock, OK on Settings; again, OK on LG Home. Open the dock and launch an app from a phone.',
+      look: 'The USB tile named after the drive and what it opens; our Settings; LG\'s Home; the dock closing.',
+      pass: 'Each tile opens what it names; the dock closes when another app comes in front.' }
   ] }
 ];
 
