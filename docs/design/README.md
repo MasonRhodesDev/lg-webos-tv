@@ -1,19 +1,15 @@
 # Design
 
-The design source of truth for our TV UI layer (`tools/theme-pack/`) is a private Claude Design canvas,
-"TV Launcher Redesign":
-<private-artifact>
+The UI layer in `tools/theme-pack/` was designed on a set of boards kept outside this repository. The code is the
+record here: styles and themes live in `tools/theme-pack/packs/`, and the token list and the decoration targets in
+`tools/theme-pack/packs/tokens.js`.
 
-That link is the owner's private canvas; outsiders cannot open it. The boards and the theme code are the record:
-the repo keeps no design maps or token docs. Styles and themes live in `tools/theme-pack/packs/`, the token list and
-the decoration targets in `tools/theme-pack/packs/tokens.js`.
+`node tools/theme-pack/export-previews.mjs OUT_DIR` renders preview shots of our surfaces in a few looks from the QML
+kit (see the theme-pack README, "Export the canvas's pack page").
 
-Snapshot: none committed yet. `node tools/theme-pack/export-previews.mjs OUT_DIR` renders the generated `pack` page's
-shots from the QML kit (see the theme-pack README, "Export the canvas's pack page").
+## Boards
 
-## Pages
-
-| Page id | Covers |
+| Board | Covers |
 |---|---|
 | `layers` | The layer system: anatomy, per-layer outsets, render order (board 3, option C), states, nesting, what each layer holds |
 | `smoke` | Smoke, the TV style: the spec board (tokens, type, radii, states, components) and every screen |
@@ -24,13 +20,12 @@ shots from the QML kit (see the theme-pack README, "Export the canvas's pack pag
 
 ## Status
 
-`approved`: the Smoke screens that have boards on the `smoke` page. Home dock, Input banner, Volume and toast, Input
+Approved: the Smoke screens that have boards on the `smoke` board. Home dock, Input banner, Volume and toast, Input
 picker, Hotkey popup, Quick settings, Input options, Notification center, Settings (Picture, Picture mode drill-in,
 Sound, Connection, General, Accessibility, Support), Alert, PIN prompt, Keyboard, Screensaver, AirPlay receiver and
 App launch. A screen without a board is not designed yet; Bubble changes Smoke's tokens only.
 
 ## Layer system
 
-The model is the canvas's `layers` page (the `layer-system` skill describes the same model). In code it is
-`tools/theme-pack/ui/Look/Decor.qml` (one component's layers) and `Passes.qml` (paint order), checked by
-`tools/theme-pack/preview/tests/Passes.qml` and `Decoration.qml`.
+The model is on the `layers` board. In code it is `tools/theme-pack/ui/Look/Decor.qml` (one component's layers)
+and `Passes.qml` (paint order), checked by `tools/theme-pack/preview/tests/Passes.qml` and `Decoration.qml`.

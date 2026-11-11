@@ -3,8 +3,8 @@
 A swappable look for a 10-foot TV interface. One **style** sets how things look (typeface, palette, radii, how focus is drawn). Any number of **themes** add decoration on top (holiday eye candy and the like). Swap either one without touching the other.
 
 Our UI layer in the TV's compositor draws every surface from one QML component kit (`ui/Look/`), so a style and its
-themes reach everything it draws. The design is the owner's canvas, linked from
-[docs/design/README.md](../../docs/design/README.md); the boards and the packs here are the record.
+themes reach everything it draws. [docs/design/README.md](../../docs/design/README.md) lists the design boards;
+the packs here are the record.
 
 ## Layer model
 
