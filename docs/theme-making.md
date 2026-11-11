@@ -13,7 +13,7 @@ check them, and the preview harness draws every screen with them. The full refer
 | What it is | The look of every component: colours, radii, sizes, type, motion | Decoration around components: glows, rings, artwork |
 | How many are active | exactly one | any number, stacked |
 | Made of | a value for every token in `TOKENS` (`packs/tokens.js`), a font, `behaviour.focusFill` | `recipes`, each drawing one ring on one decoration target |
-| Existing ones | `smoke`, `bubble` | `glow`, `winter`, `halloween` |
+| Existing ones | `smoke`, `bubble` | `glow` (any season), then by the calendar: `newyear`, `winter`, `valentine`, `stpatrick`, `spring`, `easter`, `fireworks`, `summer`, `autumn`, `halloween`, `thanksgiving`, `christmas`, `hanukkah` |
 
 Most new looks are themes. Write a style only when the components themselves should change shape, colour or type.
 
@@ -23,6 +23,30 @@ Each component is four layers: −1 back decoration, 0 the component as the styl
 its attachments (chips, badges). **A theme owns −1 and +1 only.** Focus, state and meaning are in the origin, so the
 UI is complete with every theme off, and a theme can never hide which row is focused. Decoration does not cover
 text or a value. Later themes wrap further out.
+
+## Where a theme shows up: group and season
+
+Every theme names its group, which decides where the Look settings page lists it.
+
+```js
+group: 'seasonal', season: [{ from: '12-01', to: '12-25' }],
+```
+
+- `group` is `seasonal` (listed under the holiday and season themes, and eligible for automatic calendar mode) or
+  `custom` (the plain themes list: `glow`, and any theme you make that is not tied to a date).
+- `season` is a non-empty list of date windows, on seasonal themes only. Each entry is one of:
+  - `{ from: 'MM-DD', to: 'MM-DD' }`: a fixed window, both days included. It crosses New Year when `from` is later in
+    the year than `to` (`12-26` to `01-03`).
+  - `{ rule: 'easter', before: N, after: N }`: Western Easter Sunday, widened by N days on each side.
+  - `{ rule: 'hanukkah', before: N, after: N }`: the eight days from 25 Kislev; `before: 1` adds the evening of the
+    first candle.
+  - `{ rule: 'weekday', month: 11, weekday: 4, nth: 4, before: N, after: N }`: the nth given weekday of a month
+    (`weekday` 0 is Sunday; `nth: -1` is the last one). This example is US Thanksgiving.
+
+  `before` and `after` are whole days and default to 0. Windows may overlap other themes' windows: Winter, Christmas
+  lights and Hanukkah all cover December. Automatic calendar mode calls a window longer than 45 days a season and
+  one of 45 days or fewer a holiday. Of the seasons covering today the longest wins; of the holidays, the shortest.
+  Keep every season above 45 days and every holiday at or below it.
 
 ## A recipe
 
