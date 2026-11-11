@@ -15,18 +15,22 @@ var themepackLongPress = 1000;
 // When the Home press we took went down (ms since the epoch); 0 while we hold no press.
 var themepackPressedAt = 0;
 
+// It cannot report what it does: the Look service never hears from the key filter's bus connection. The dock's part
+// reports each request it gets ("home: requested").
 function init() {
 }
 
-// LG's own conditions for ignoring Home (a modal alert, the ribbon turned off, Home disabled, first-use setup). In
-// each of these the key goes on to LG, which decides as it always has.
-function themepackHomeAllowed() {
-    if (modalAlert.visible) return false;
-    if (!access.ribbon || !overlayView.access.ribbon) return false;
-    if (settingsService.disableHome) return false;
-    if (bootManager.bootFirstUse && !systemPropertyService.powerOnlyMode) return false;
-    if (homeView.visible) return false;
-    return true;
+// LG's own conditions for ignoring Home (a modal alert, the ribbon turned off, Home disabled, first-use setup), and
+// LG's Home already showing. Returns which one holds, or "" when Home is ours. In each case the key goes on to LG,
+// which decides as it always has.
+function themepackHomeRefused() {
+    if (modalAlert.visible) return "a modal alert is up";
+    if (!access.ribbon) return "the ribbon is off";
+    if (!overlayView.access.ribbon) return "an overlay turned the ribbon off";
+    if (settingsService.disableHome) return "Home is disabled";
+    if (bootManager.bootFirstUse && !systemPropertyService.powerOnlyMode) return "first-use setup";
+    if (homeView.visible) return "LG's Home is showing";
+    return "";
 }
 
 // LG's Home, the way LG's short press opens it.
@@ -59,7 +63,8 @@ function themepackHandleHome(key, pressed, autoRepeat) {
         if (pressed) {
             if (autoRepeat) return took ? KeyPolicy.Accepted : KeyPolicy.NextPolicy;
             themepackPressedAt = 0;
-            if (!themepackHomeAllowed()) return KeyPolicy.NextPolicy;
+            var refused = themepackHomeRefused();
+            if (refused) return KeyPolicy.NextPolicy;
             themepackPressedAt = new Date().getTime() || 1;
             return KeyPolicy.Accepted;
         }

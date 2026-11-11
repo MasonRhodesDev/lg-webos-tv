@@ -44,6 +44,7 @@ test('home-key.js defines init and its handler and nothing outside the themepack
   const s = scope();
   assert.strictEqual(typeof s.init, 'function');
   assert.strictEqual(typeof s.themepackHandleHome, 'function');
+  s.init();
   const names = (src.match(/^(?:function|var)\s+([\w$]+)/gm) || []).map((d) => d.split(/\s+/)[1]);
   assert.ok(names.length > 0);
   for (const n of names) assert.ok(n === 'init' || /^themepack/.test(n), n + ' is not prefixed');
