@@ -114,7 +114,7 @@ First run: `/mnt/lg/cmn_data/admanager/cache` (39 ad creatives), `admanager/cook
 How things start on this firmware decides the disable method:
 
 - **Upstart job** (`/etc/init/*.conf`, PPID 1). `initctl stop` holds it until the next boot. A `respawn` job must be stopped, not killed.
-- **ls-hubd on-demand** (`Type=dynamic` in `/usr/share/luna-service2/services.d/`, or any entry in `/usr/share/dbus-1/system-services/`; PPID = ls-hubd, 1477 today). `initctl` can't touch it, and ls-hubd relaunches it on the next luna call, often from an activitymanager trigger in `/etc/palm/activities/`. The only post-boot lever is a stub bind-mounted over the `Exec` binary, then a kill.
+- **ls-hubd on-demand** (`Type=dynamic` in `/usr/share/luna-service2/services.d/`, or any entry in `/usr/share/dbus-1/system-services/`; PPID = ls-hubd, PID 1477 on 2026-10-25). `initctl` can't touch it, and ls-hubd relaunches it on the next luna call, often from an activitymanager trigger in `/etc/palm/activities/`. The only post-boot lever is a stub bind-mounted over the `Exec` binary, then a kill.
 - Several are both (an upstart job plus a luna name).
 
 ### Collectors and senders
@@ -140,7 +140,7 @@ How things start on this firmware decides the disable method:
 | **nlpadapter** (Google Assistant) | ls-hubd on demand via `jailer -t native_mvpd -i com.webos.app.googleassistant` | `embeddedassistant.googleapis.com`, gRPC | stub (see jail gap) + kill; EULA `voice*`; hosts | Google Assistant | low |
 | **performer** (ThinQ action handler) | ls-hubd on demand via jailer (`com.webos.app.actionhandler`) | `wau.lgtvcommon.com`; `/tmp/performer/rekognition` | stub (jail gap) + kill; hosts | ThinQ voice actions | low |
 | **amazon-alexa-adapter** | upstart (`mount-readwrite`) and ls-hubd via jailer (`amazon.alexa.view`) | `alexa.na.gateway.devices.a2z.com`, `d2na8397m465mh.cloudfront.net`; `/tmp/avs/alexaInput.pcm` | stub (jail gap) + stop + kill | Alexa built-in | low |
-| **aiservice** | upstart (`boot-done`) and ls-hubd dynamic | Downloads AI models through sdx (`models.json`) | stub + stop. live: someone else's stub already on it | model updates | low |
+| **aiservice** | upstart (`boot-done`) and ls-hubd dynamic | Downloads AI models through sdx (`models.json`) | stub + stop. live: a stub from an earlier, separate tool was already on it | model updates | low |
 | **lg.thinqai.adapter** | ls-hubd via jailer | `he-kr-qa-ai.lgthinq.com`; `/tmp/thinqai/request_*` | stub (jail gap) | ThinQ AI | low |
 | **iot-client** | upstart (`rest-boot-done`, respawn) and ls-hubd | ThinQ/OCF: `common.lgthinq.com/route`, `kr.lgeapi.com`, `lss.lgthinq.com`; certs in `/mnt/lg/cmn_data/.ocf` | stub + stop | ThinQ app pairing | low |
 | **ocf-onboarding** | ls-hubd on demand | OCF IoT onboarding (`/mnt/lg/cmn_data/.ocf/oic_prvn_mng.db`) | stub | ThinQ onboarding | low |
@@ -249,7 +249,7 @@ Kept on purpose:
 - `/mnt/flash/data/prs/PRS_DB*.db`: watched history. prs is stubbed, so the files are inert. Deleting them is a one-off `rm`.
 - `/mnt/flash/data/scd/fp`: scd fingerprints.
 - `/mnt/lg/cmn_data/acr/data/*`: acr2's state, including `eula_allowed`.
-- `/var/log/crashd`: local crash dumps, useful for debugging. Empty today.
+- `/var/log/crashd`: local crash dumps, useful for debugging. Empty on 2026-10-25.
 
 ## Phase 1 dry run and baseline (2026-10-25 19:00 TV time)
 
@@ -267,13 +267,13 @@ Kept on purpose:
 
 The other sockets were LAN, loopback, or allow-listed listeners.
 
-`install.sh --dry-run`: 636 names into hosts, 22 binds (2 skipped as foreign), `initctl stop nudge`, 5 kills, 2 settings and 8 agreement flags to flip, and 8 wipe targets. The output is in the report and reproducible with the command. The scratch copy in `/tmp` was removed. Afterwards `/tmp/telemetry-off*`, `/var/lib/telemetry-off` and `/var/log/telemetry-off.log` are all absent on the TV.
+`install.sh --dry-run`: 636 names into hosts, 22 binds (2 skipped as foreign), `initctl stop nudge`, 5 kills, 2 settings and 8 agreement flags to flip, and 8 wipe targets. Run the command to reproduce the output. The scratch copy in `/tmp` was removed. Afterwards `/tmp/telemetry-off*`, `/var/lib/telemetry-off` and `/var/log/telemetry-off.log` are all absent on the TV.
 
 ## Network-side verification at the router
 
 The TV can't prove its own silence: anything that ignores `/etc/hosts` (Netflix's resolver, hardcoded IPs, the 10 s boot window) only shows up at the router.
 
-### Before Phase 2: record ground truth (now, while internet is still blocked)
+### Before Phase 2: record ground truth, while the TV's internet is still blocked
 
 The steps assume a router or firewall that can block a single device's internet traffic, restrict its DNS, and log its flows and DNS queries. Most prosumer routers and firewalls can.
 
@@ -310,7 +310,7 @@ Blocking `lgappstv.com` and `lgtvsdp.com` at the router breaks the LG Content St
 
 - DNS to the router.
 - `lgtvonline.lge.com` (HTTP GET, connectivity check), unless you choose to block it (see open questions).
-- The streaming apps you open (Netflix, YouTube, Prime, Disney+, Twitch, Emby), and their CDNs (`nflxvideo.net`, `googlevideo.com`, `cloudfront.net`, `akamaized.net`…).
+- The streaming apps you open, and their CDNs (`nflxvideo.net`, `googlevideo.com`, `cloudfront.net`, `akamaized.net`…).
 - NTP (UDP 123) only if `AllowNTPTime` is ever enabled; it ships `false`, and the clock comes from the micom RTC.
 
 **Failure, investigate:**

@@ -2,7 +2,7 @@
 
 Take control of the TV's runtime at ~35s via HBC init.d scripts. The stock boot runs unmodified through lxboot verification, kernel, upstart, and all service starts. At ~35s, HBC `startup.sh` fires and runs `/var/lib/webosbrew/init.d/*`. From that point, we own the runtime.
 
-**Status (2026-11):** built and running on the test TV. The pieces are [scripts/50-custom-runtime](../scripts/50-custom-runtime) (LAN trimming, preloads) and [tools/telemetry-off/](../tools/telemetry-off/README.md) (telemetry, ads, voice, the securitymanager no-op), installed as separate `init.d` hooks. The script on this page is the first design; the shipped scripts differ. The theme-pack UI layer ([tools/theme-pack/](../tools/theme-pack/README.md)) also loads from this hook.
+**Status (2026-10-26):** built and running on the test TV. The pieces are [scripts/50-custom-runtime](../scripts/50-custom-runtime) (LAN trimming, preloads) and [tools/telemetry-off/](../tools/telemetry-off/README.md) (telemetry, ads, voice, the securitymanager no-op), installed as separate `init.d` hooks. The script on this page is the first design; the shipped scripts differ. The theme-pack UI layer ([tools/theme-pack/](../tools/theme-pack/README.md)) also loads from this hook.
 
 ## What this gives you
 

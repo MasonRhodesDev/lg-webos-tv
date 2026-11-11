@@ -258,7 +258,7 @@ Display options for the GUI: direct framebuffer, Weston/Cage on a DRM/KMS stack 
 
 ## Development workflow
 
-Every step from 1 on reboots the TV on failure; a failed kexec is a power cycle back to stock (nothing on eMMC changes). Step 0 is the first action on this TV that is not read-only — ask first.
+Every step from 1 on reboots the TV on failure; a failed kexec is a power cycle back to stock (nothing on eMMC changes). Step 0 is the first step that is not read-only: take a backup first ([backup-and-restore.md](backup-and-restore.md)).
 
 0. **Stage and unload, no reboot** (the lg-webos-kexec PoC): `kexec -l /boot/kdImage-1.0.15-169 --append="root=/dev/mmcblk0p28 ro rootfstype=squashfs rootwait console=ttyAMA0,115200n81 init=/sbin/init.kdump loglevel=6 maxcpus=1" --mem-max=0x3e3fffff -d`, read `/sys/kernel/kexec_loaded` (expect `1`), `kexec -u` (expect `0`). Proves the LG backport accepts a load and shows where segments land.
 1. **Attended, re-kexec LG's kernel**: unpack `Image.lz4` on the host, stage it with the stock cmdline minus `snapshot resume=`/`criu_enabled`/`quiet loglevel=0`, `kexec -e`. Success = the stock UI comes back and SSH works; measure the transition time. Failure modes: frozen frame then reset (watchdog or hardware state) → the micom question gets an empirical answer for free. 1b: the same with `kdImage` + `init=/sbin/init.kdump` (blind; only "does it stay up" is observable).

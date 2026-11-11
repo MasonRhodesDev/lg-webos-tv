@@ -19,7 +19,7 @@ the projects that do.
   - `node` for `scripts/tv-settings`, `scripts/install` and `tools/theme-pack/`;
   - `jq` and `sha256sum` for `scripts/backup.sh`;
   - GNU `tar` for `tools/telemetry-off/`;
-  - `python3` 3.8 or later for `tools/ui-atlas/`;
+  - `python3` 3.8 or later, `unsquashfs` (squashfs-tools) and `tar` for `tools/ui-atlas/`;
   - optionally, Qt 5's `qml` and `qmltestrunner` plus Xvfb, for the theme-pack's QML tests and preview renders.
 
 ## Safety
@@ -35,14 +35,18 @@ boots.
 - **Close the open root shell.** A freshly rooted TV runs a root telnet with no password on the LAN until you turn
   it off ([docs/startup.md](docs/startup.md#security-findings)).
 - **Read-only:** `scripts/backup.sh`, `scripts/cold-boot-verify`, `scripts/tv-settings read`, `diff` and `dump`,
-  `tools/telemetry-off/verify.sh`, and `tools/ui-atlas/` (it works on a backup, off the TV).
+  `tools/telemetry-off/verify.sh`, and the `tools/ui-atlas/` build (it works on a backup, off the TV; its optional
+  screenshots are a separate, manual step on the TV, described in its README).
   `tools/telemetry-off/install.sh --dry-run` copies the kit to `/tmp` on the TV, prints what it would do, and
   deletes it.
 - **Writes to the TV:** `scripts/tv-settings write` and `push`, `scripts/install`, `tools/telemetry-off/install.sh`,
-  and the theme-pack's installers. Everything they write lands on the data partition (`/var`, settings and Homebrew
-  Channel's `init.d` hooks). None of them writes a firmware partition, and each has a way back:
+  and the theme-pack's installers. What they write persists only on the writable partitions: the TV's settings,
+  files under `/var` (Homebrew Channel's `init.d` hooks among them) and `/media/developer`. Everything else they do
+  is undone by a reboot. None of them writes a firmware partition. The ways back:
   - `scripts/install --remove`, then a reboot;
   - `tools/telemetry-off/uninstall.sh`, which reverts live;
+  - `tools/theme-pack/webos/install-boot.sh remove` (see [tools/theme-pack/README.md](tools/theme-pack/README.md));
+  - `scripts/tv-settings write` has no undo: keep the `tv-config.json` that `read` gave you, and write it back;
   - for a bad boot hook, Homebrew Channel's failsafe: after a crash during startup, the next boot skips the hooks
     and starts only a root telnet ([docs/startup.md](docs/startup.md#boot-chain)). Whether that still happens once
     you have turned telnet off is unverified ([docs/recovery.md](docs/recovery.md)).
@@ -76,7 +80,7 @@ Dates are when the observation was made, on the TV described above.
 | Boot chain, upstart jobs, security holes after rooting | [docs/startup.md](docs/startup.md) | done; telnet fix and ACR/ads block applied |
 | Boot trimming & custom firmware | [docs/boot-trimming.md](docs/boot-trimming.md) | done: trimming can't make the picture appear sooner |
 | Custom boot paths (bsppart, env, kexec) | [docs/custom-boot.md](docs/custom-boot.md) | done; early hooks ruled out by lxboot analysis |
-| Path B: take over the runtime from Homebrew Channel's hook | [docs/path-b-late-overlay.md](docs/path-b-late-overlay.md) | in use on the test TV |
+| Path B: take over the runtime from Homebrew Channel's hook | [docs/path-b-late-overlay.md](docs/path-b-late-overlay.md) | in use on the test TV since 2026-10-26 |
 | Path C: kexec a custom kernel after the stock boot | [docs/path-c-kexec.md](docs/path-c-kexec.md) | researched read-only; nothing staged or executed |
 | Snapshot boot: fast resume into a custom runtime | [docs/snapshot-boot.md](docs/snapshot-boot.md) | ruled out by design |
 | Community projects | [docs/community.md](docs/community.md) | survey, 2026-10-26 |
@@ -93,12 +97,12 @@ Dates are when the observation was made, on the TV described above.
 | Tool | What it does | Touches the TV | Status |
 |---|---|---|---|
 | [scripts/backup.sh](scripts/backup.sh) | Full read-only backup: partitions, settings, runtime state | reads | done |
-| [scripts/tv-settings](scripts/tv-settings) | Read, diff and write luna settings from `tv-config.json` | reads; `write` and `push` write | working |
-| [scripts/install](scripts/install) | Installs [scripts/50-custom-runtime](scripts/50-custom-runtime), a boot hook that trims LAN and casting services and closes preloaded apps, then applies the settings | writes | in use on the test TV |
-| [scripts/cold-boot-verify](scripts/cold-boot-verify) | After a cold boot, checks that the hooks this repo installs actually ran | reads | working |
+| [scripts/tv-settings](scripts/tv-settings) | Read, diff and write luna settings from `tv-config.json` | reads; `write` and `push` write | used on the test TV |
+| [scripts/install](scripts/install) | Installs [scripts/50-custom-runtime](scripts/50-custom-runtime), a boot hook that trims LAN and casting services and closes preloaded apps, then applies the settings | writes | used on the test TV (2026-10-26) |
+| [scripts/cold-boot-verify](scripts/cold-boot-verify) | After a cold boot, checks that the hooks this repo installs actually ran | reads | new; written for the Quick Start+ cold-boot tests |
 | [tools/telemetry-off/](tools/telemetry-off/README.md) | Stops LG's telemetry, ACR, ads and voice services at boot, blackholes LG's domains, withdraws the data agreements | writes; `verify.sh` reads | applied on the test TV |
 | [tools/theme-pack/](tools/theme-pack/README.md) | Our QML UI layer in LG's compositor: a component kit, Smoke and Bubble styles, Glow, Winter and Halloween themes, our Settings and its Look page, the Look service, tests and a preview harness | writes | built and tested off the TV; [TV-CHECKS.md](tools/theme-pack/TV-CHECKS.md) lists what the TV must still confirm |
-| [tools/ui-atlas/](tools/ui-atlas/README.md) | Builds a browsable catalogue of the stock UI (apps, overlays, assets) from your own backup | no; works on a backup | v2. The output holds LG's files, so it stays on your machine |
+| [tools/ui-atlas/](tools/ui-atlas/README.md) | Builds a browsable catalogue of the stock UI (apps, overlays, assets) from your own backup | the build doesn't; optional screenshots are taken by hand | v2. The output holds LG's files, so it stays on your machine |
 
 ### Settings tool
 
