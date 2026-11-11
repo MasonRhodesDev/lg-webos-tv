@@ -12,6 +12,5 @@
   "lockable": false,
   "noSplashOnLaunch": true,
   "disableBackHistoryAPI": true,
-  "supportQuickStart": false,
-  "trustLevel": "trusted"
+  "supportQuickStart": false
 }

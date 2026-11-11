@@ -39,7 +39,9 @@ The Look app (Home's Look icon)
       Settings at its Look page, with nothing of the app on screen (no splash, no frame) and the picture underneath
       unchanged; the app has left `applicationManager/running` within 1 s.
 - [ ] The app's bus calls reach the Look service as `dev.themepack.look` (its own package), with no permission error
-      in `/var/log/messages` (it is `"trustLevel": "trusted"`, as the stub and LG's stock Settings are).
+      in `/var/log/messages`. Its appinfo names no `trustLevel`: the TV's app manager does not list an installed app
+      that calls itself trusted (`getAppInfo` answers "Invalid appId specified OR Unsupported Application Type"), so
+      Home would have no Look icon. The stub can, because it stands in LG's own Settings app.
 
 Every deep link lands on the right page
 - [ ] For every key of `settings/catalog.json` `lgTargets.map`:
