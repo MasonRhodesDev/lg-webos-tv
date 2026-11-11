@@ -147,3 +147,75 @@ test('picking a seasonal theme replaces the seasonal themes that are on; the cal
   const quiet = plainRows(P.lookRows(null, lookWith({ style: 'smoke', themes: ['glow'], auto: true, skip: [] }, themes)));
   assert.strictEqual(quiet.find((r) => r.kind === 'auto').hint, 'Nothing is in season today');
 });
+
+// The clock: the TV's time (seconds, UTC) and its zone (minutes ahead of UTC) as the Time and date page shows them.
+const clock = () => { const K = vm.createContext({}); lib('clock.js', K); return K; };
+
+test('the clock\'s parts come from the TV\'s time and zone offset, whatever zone this runs in', () => {
+  const K = clock();
+  const utc = Date.UTC(2026, 10, 12, 2, 41, 5) / 1000;
+  const east = plainRows(K.parts(utc, -300));
+  assert.deepStrictEqual(east, { year: 2026, month: 11, day: 11, hour: 21, minute: 41, second: 5, weekday: 3 });
+  assert.strictEqual(K.utcOf(east, -300), utc);
+  // The same moment further east is already the next day.
+  const tokyo = plainRows(K.parts(utc, 540));
+  assert.deepStrictEqual([tokyo.day, tokyo.hour, tokyo.weekday], [12, 11, 4]);
+  assert.strictEqual(K.utcOf(tokyo, 540), utc);
+  // A boot without a network: the first second of 2019, UTC.
+  const boot = K.parts(Date.UTC(2019, 0, 1) / 1000, -480);
+  assert.strictEqual(K.dateLabel(boot) + ' ' + K.timeLabel(boot, false), 'Mon, Dec 31, 2018 4:00 PM');
+  assert.strictEqual(K.dateLabel(east), 'Wed, Nov 11, 2026');
+  assert.strictEqual(K.timeLabel(east, false), '9:41 PM');
+  assert.strictEqual(K.timeLabel(east, true), '21:41');
+  assert.strictEqual(K.timeLabel({ hour: 0, minute: 7 }, false), '12:07 AM');
+  assert.strictEqual(K.timeLabel({ hour: 0, minute: 7 }, true), '00:07');
+  assert.strictEqual(K.timeLabel({ hour: 12, minute: 0 }, false), '12:00 PM');
+});
+
+test('one part of the clock changes at a time, and the day stays inside its month', () => {
+  const K = clock();
+  assert.deepStrictEqual([K.daysIn(2026, 2), K.daysIn(2028, 2), K.daysIn(2026, 4), K.daysIn(2026, 12)], [28, 29, 30, 31]);
+  const p = { year: 2028, month: 3, day: 31, hour: 23, minute: 59, second: 42, weekday: 5 };
+  assert.deepStrictEqual(plainRows(K.withPart(p, 'month', 2)), { year: 2028, month: 2, day: 29, hour: 23, minute: 59, second: 42 });
+  assert.deepStrictEqual(plainRows(K.withPart(K.withPart(p, 'month', 2), 'year', 2027)).day, 28, 'the leap day leaves with its year');
+  assert.strictEqual(K.withPart(p, 'hour', 0).second, 42, 'the seconds keep running under every part but the minute');
+  assert.strictEqual(K.withPart(p, 'minute', 0).second, 0, 'a minute set by hand starts at its first second');
+  assert.strictEqual(p.month, 3, 'the parts given are left as they were');
+  const labels = (part, at, h24) => plainRows(K.choices(part, at, h24)).map((c) => c.label);
+  const values = (part, at) => plainRows(K.choices(part, at, false)).map((c) => c.value);
+  assert.deepStrictEqual([values('year', p)[0], values('year', p).pop()], [2019, 2037]);
+  assert.deepStrictEqual([values('year', { year: 2018 })[0], values('year', { year: 2040 }).pop()], [2018, 2040], 'a year outside the range is still one of the choices');
+  assert.deepStrictEqual(labels('month', p).slice(0, 2).concat(labels('month', p).length), ['January', 'February', 12]);
+  assert.strictEqual(values('day', { year: 2026, month: 2 }).length, 28);
+  assert.deepStrictEqual(labels('hour', p, false).filter((l, i) => [0, 1, 11, 12, 13, 23].includes(i)), ['12 AM', '1 AM', '11 AM', '12 PM', '1 PM', '11 PM']);
+  assert.deepStrictEqual(labels('hour', p, true).filter((l, i) => [0, 9, 23].includes(i)), ['00', '09', '23']);
+  assert.deepStrictEqual([labels('minute', p)[0], labels('minute', p)[7], labels('minute', p).length], ['00', '07', 60]);
+});
+
+test('a part of the clock is a stepper row that wraps, and is greyed until the clock is read', () => {
+  const { M, P } = modules();
+  const K = clock();
+  const at = K.parts(Date.UTC(2026, 10, 12, 2, 41, 5) / 1000, -300);
+  const store = (read, auto) => ({
+    state: (ref) => {
+      const it = M.extra[ref];
+      if (it.part && read) return { item: it, visible: true, active: true, value: at[it.part], options: K.choices(it.part, at, false) };
+      return { item: it, visible: true, active: true, value: ref === 'autoTime' ? auto : undefined, options: [] };
+    },
+    holds: (when) => !when || when.is.includes(auto), item: (ref) => M.extra[ref],
+  });
+  const spec = (id) => M.pages.TimeDate.rows.find((r) => r.item === id);
+  const minute = plainRows(P.row(spec('clockMinute'), store(true, 'off'), 0));
+  assert.deepStrictEqual([minute.variant, minute.kind, minute.options[minute.index], minute.values[minute.index], !!minute.disabled], ['stepper', 'item', '41', 41, false]);
+  assert.strictEqual(P.steppedTo(minute, 1), 42);
+  assert.strictEqual(P.steppedTo(minute, -42), 59, 'back past the first is the last');
+  assert.strictEqual(P.steppedTo(Object.assign({}, minute, { index: 59 }), 1), 0);
+  const hour = plainRows(P.row(spec('clockHour'), store(true, 'off'), 0));
+  assert.deepStrictEqual([hour.options[hour.index], hour.values[hour.index]], ['9 PM', 21]);
+  // Automatic time owns the clock: the parts show, greyed, and say how to change them.
+  const held = plainRows(P.row(spec('clockMinute'), store(true, 'on'), 0));
+  assert.deepStrictEqual([held.disabled, held.hint, held.options[held.index]], [true, 'Turn off Automatic to set it', '41']);
+  const unread = plainRows(P.row(spec('clockYear'), store(false, 'off'), 0));
+  assert.deepStrictEqual([unread.variant, unread.disabled, unread.options], ['stepper', true, []]);
+  assert.strictEqual(P.steppedTo(unread, 1), undefined);
+});

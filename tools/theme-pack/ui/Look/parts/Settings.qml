@@ -87,7 +87,8 @@ FocusScope {
         if (hot && !store.item(hot)) { settings(hot); return; }
         if (hot) { menu.close(); quick.openWith(params); openedAt = now; return; }
         if (shown) {
-            if (now - openedAt < Look.px("motion-enter")) return;
+            // (A time before it opened is a clock set back since, not a repeat.)
+            if (now >= openedAt && now - openedAt < Look.px("motion-enter")) return;
             quick.close();
             menu.close();
             return;

@@ -36,6 +36,7 @@ var ICONS = {
     up: 'M6 15l6-6 6 6',
     down: 'M6 9l6 6 6-6',
     clock: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 7v5l3 2',
+    calendar: 'M4 6h16v14H4zM4 10h16M8 3v4M16 3v4',
     aspect: 'M3 6h18v12H3zM7 10V9h2M17 14v1h-2',
     eq: 'M6 4v16M12 4v16M18 4v16M3 15h6M9 8h6M15 13h6',
     eject: 'M12 5l7 8H5zM5 18h14',
