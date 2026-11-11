@@ -68,41 +68,12 @@ FocusScope {
 
     property bool holding: false
     onShownChanged: {
-        if (shown && !holding) { holding = true; borrowPopupPlane(); focusLink.request(part); }
-        else if (!shown && holding) { holding = false; focusLink.release(part); returnPopupPlane(); }
+        if (shown && !holding) { holding = true; plane.take(); focusLink.request(part); }
+        else if (!shown && holding) { holding = false; focusLink.release(part); plane.give(); }
     }
 
-    // LG's key filter hands Back to the focused item only in a few cases; one is "LG's popup plane has focus and no
-    // popup in it claims Back" (KeyFilters/systemUi.js). Otherwise it emits backReleased and LG goes Home. So while a
-    // menu of ours is open it lives inside the popup plane, which is shown for the time (it hides itself when empty).
-    property Item plane: null
-    property Item home: null
-    property real planeZ: 0
-    function findPopupPlane() {
-        var kids = host ? host.children : [];
-        for (var i = 0; i < kids.length; i++)
-            if (kids[i].backKeyFilter !== undefined && kids[i].currentView !== undefined && kids[i].layerNumber === 6) return kids[i];
-        return null;
-    }
-    function borrowPopupPlane() {
-        var p = findPopupPlane();
-        if (!p) { Look.report("gap", "settings: LG's popup plane not found; Back goes to LG"); return; }
-        plane = p;
-        home = part.parent;
-        planeZ = p.z;
-        // Raised to our layer's height too: in its own place LG's views above it would take the pointer.
-        p.z = home ? home.z : p.z;
-        p.visible = true;
-        part.parent = p;
-    }
-    function returnPopupPlane() {
-        if (!plane) return;
-        var p = plane;
-        plane = null;
-        part.parent = home;
-        p.z = planeZ;
-        p.visible = Qt.binding(function () { return p.model.count > 0; });
-    }
+    // LG's popup plane, shared with the Home dock (Hold.qml says why ours live in it). The dock asking for it closes ours.
+    Hold { id: plane; host: part.host; item: part; onYielded: part.closeAll() }
 
     // A gear press while the sheet is still arriving is the remote repeating a held key, not a second press.
     property real openedAt: 0
@@ -215,6 +186,7 @@ FocusScope {
         if (retired) return;
         retired = true;
         closeAll();
+        plane.retire();
         SettingsBus.ready = false;
         if (hook) hook.restore();
         Look.settingsRequested.disconnect(part.settings);
