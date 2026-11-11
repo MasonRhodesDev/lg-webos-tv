@@ -9,11 +9,18 @@ const dir = path.join(__dirname, '..');
 
 // The service as the package installs it: service.js next to its exported packs and a writable data/, with a stand-in
 // for webos-service that records the registered methods so a test can call them as the bus would.
-function start() {
+// `themes` replaces the exported theme packs with the given ones; `look` is a data/look.json from an earlier run.
+function start(opts) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'look-service-'));
   fs.copyFileSync(path.join(dir, 'service', 'service.js'), path.join(root, 'service.js'));
   execFileSync('node', [path.join(dir, 'export-json.mjs'), path.join(root, 'packs')]);
   fs.mkdirSync(path.join(root, 'data'));
+  if (opts && opts.themes) {
+    const at = path.join(root, 'packs', 'themes');
+    for (const f of fs.readdirSync(at)) fs.unlinkSync(path.join(at, f));
+    for (const t of opts.themes) fs.writeFileSync(path.join(at, t.id + '.json'), JSON.stringify(t));
+  }
+  if (opts && opts.look) fs.writeFileSync(path.join(root, 'data', 'look.json'), JSON.stringify(opts.look));
   const fake = path.join(root, 'node_modules', 'webos-service');
   fs.mkdirSync(fake, { recursive: true });
   fs.writeFileSync(path.join(fake, 'index.js'), [
@@ -31,7 +38,7 @@ function start() {
       respond: (m) => answers.push(JSON.parse(JSON.stringify(m))) });
     return answers;
   }
-  return { call };
+  return { call, saved: () => JSON.parse(fs.readFileSync(path.join(root, 'data', 'look.json'), 'utf8')) };
 }
 
 test('the service is ES5, for the TV\'s Node 0.12', () => {
@@ -156,4 +163,198 @@ test('probing is off at start, tells the layer through the Look subscription, re
   call('setProbing', { on: false });
   assert.strictEqual(sub[sub.length - 1].probing, false);
   assert.ok(!require('node:fs').readFileSync(require('node:path').join(dir, 'service', 'service.js'), 'utf8').match(/probing[^\n]*writeFileSync/), 'never written to disk');
+});
+
+// The calendar. These run on a clock the test sets, at local noon, so they hold in any time zone.
+const noon = (y, m, d) => new Date(y, m - 1, d, 12).getTime();
+const HOUR = 3600000;
+function clock(t, y, m, d) { t.mock.timers.enable({ apis: ['Date', 'setTimeout'], now: noon(y, m, d) }); }
+const seasonal = (id, season) => ({ id, name: id, group: 'seasonal', season, decorate: [] });
+const sample = [
+  { id: 'glow', name: 'Glow', decorate: [] },
+  seasonal('winter', [{ from: '12-01', to: '03-19' }]),
+  seasonal('autumn', [{ from: '09-23', to: '11-30' }]),
+  seasonal('christmas', [{ from: '12-01', to: '12-25' }]),
+  seasonal('newyear', [{ from: '12-26', to: '01-03' }]),
+  seasonal('halloween', [{ from: '10-17', to: '10-31' }]),
+  seasonal('thanksgiving', [{ rule: 'weekday', month: 11, weekday: 4, nth: 4, before: 7 }]),
+  seasonal('easter', [{ rule: 'easter', before: 7, after: 1 }]),
+  seasonal('hanukkah', [{ rule: 'hanukkah' }])
+];
+const listed = (answer) => answer.available.themes;
+const datesOf = (answer, id) => listed(answer).find((x) => x.id === id).dates;
+
+test('the theme listing passes on group and season, and orders seasonal themes by the calendar', (t) => {
+  clock(t, 2026, 11, 11);
+  const { call } = start({ themes: sample });
+  const got = call('getLook')[0];
+  assert.strictEqual(got.today, '2026-11-11');
+  assert.deepStrictEqual(listed(got).map((x) => x.id),
+    ['glow', 'winter', 'newyear', 'easter', 'autumn', 'halloween', 'thanksgiving', 'christmas', 'hanukkah']);
+  assert.deepStrictEqual(listed(got)[0], { id: 'glow', name: 'Glow', description: '', group: 'custom' });
+  const autumn = listed(got).find((x) => x.id === 'autumn');
+  assert.deepStrictEqual(autumn, { id: 'autumn', name: 'autumn', description: '', group: 'seasonal',
+    season: [{ from: '09-23', to: '11-30' }], dates: [{ from: '2026-09-23', to: '2026-11-30' }], inSeason: true });
+  // A window that has passed gives its next run; one that crosses New Year ends in the next year.
+  assert.deepStrictEqual(datesOf(got, 'halloween'), [{ from: '2027-10-17', to: '2027-10-31' }]);
+  assert.deepStrictEqual(datesOf(got, 'newyear'), [{ from: '2026-12-26', to: '2027-01-03' }]);
+  assert.strictEqual(listed(got).find((x) => x.id === 'winter').inSeason, false);
+});
+
+test('the days that move are worked out for the year: Thanksgiving, Easter, Hanukkah', (t) => {
+  const cases = [
+    // year, Thanksgiving, Easter Sunday, first day of Hanukkah
+    [2024, '2024-11-28', '2024-03-31', '2024-12-26'],
+    [2025, '2025-11-27', '2025-04-20', '2025-12-15'],
+    [2026, '2026-11-26', '2026-04-05', '2026-12-05'],
+    [2027, '2027-11-25', '2027-03-28', '2027-12-25'],
+    [2030, '2030-11-28', '2030-04-21', '2030-12-21'],
+    [2038, '2038-11-25', '2038-04-25', '2038-12-22']
+  ];
+  const day = (iso, by) => new Date(Date.parse(iso + 'T00:00:00Z') + by * 86400000).toISOString().slice(0, 10);
+  for (const [year, thanksgiving, easter, hanukkah] of cases) {
+    t.mock.timers.enable({ apis: ['Date', 'setTimeout'], now: noon(year, 2, 1) });
+    const got = start({ themes: sample }).call('getLook')[0];
+    assert.deepStrictEqual(datesOf(got, 'thanksgiving'), [{ from: day(thanksgiving, -7), to: thanksgiving }], 'Thanksgiving ' + year);
+    assert.deepStrictEqual(datesOf(got, 'easter'), [{ from: day(easter, -7), to: day(easter, 1) }], 'Easter ' + year);
+    assert.deepStrictEqual(datesOf(got, 'hanukkah'), [{ from: hanukkah, to: day(hanukkah, 7) }], 'Hanukkah ' + year);
+    t.mock.timers.reset();
+  }
+});
+
+test('Hanukkah starts on 25 Kislev in every year the TV could see', (t) => {
+  const hebrew = new Intl.DateTimeFormat('en-u-ca-hebrew', { timeZone: 'UTC', day: 'numeric', month: 'long' });
+  if (!/Kislev/.test(hebrew.format(new Date(Date.UTC(2026, 11, 5))))) return t.skip('this Node has no Hebrew calendar');
+  for (let year = 2020; year <= 2099; year++) {
+    t.mock.timers.enable({ apis: ['Date', 'setTimeout'], now: noon(year, 6, 1) });
+    const from = datesOf(start({ themes: [seasonal('hanukkah', [{ rule: 'hanukkah' }])] }).call('getLook')[0], 'hanukkah')[0].from;
+    assert.strictEqual(hebrew.format(new Date(from + 'T00:00:00Z')), '25 Kislev', String(year));
+    t.mock.timers.reset();
+  }
+});
+
+test('auto turns on the season and one holiday that cover today, and keeps the other themes', (t) => {
+  clock(t, 2026, 11, 11);
+  const { call, saved } = start({ themes: sample, look: { themes: ['halloween', 'glow'] } });
+  const sub = call('getLook', {}, true);
+  assert.deepStrictEqual(sub[0].look, { style: sub[0].look.style, themes: ['halloween', 'glow'], auto: false, skip: [] });
+
+  const on = call('setLook', { auto: true })[0];
+  assert.strictEqual(on.returnValue, true);
+  assert.deepStrictEqual(on.look.themes, ['glow', 'autumn'], 'Halloween is out of its window; autumn is in');
+  assert.deepStrictEqual(on.themes.map((x) => x.id), ['glow', 'autumn']);
+  assert.strictEqual(saved().auto, true);
+  assert.strictEqual(sub.length, 2);
+
+  // A theme asked for by hand while auto is on: the calendar still owns the seasonal ones.
+  assert.deepStrictEqual(call('setLook', { themes: ['christmas'] })[0].look.themes, ['autumn']);
+  // Off again: the look stays as the calendar left it, and is the household's to change.
+  assert.deepStrictEqual(call('setLook', { auto: false, themes: ['glow', 'autumn'] })[0].look.themes, ['glow', 'autumn']);
+  assert.deepStrictEqual(call('setLook', { themes: ['christmas'] })[0].look.themes, ['christmas']);
+});
+
+test('a season lies under its holiday; of two holidays the shorter window wins', (t) => {
+  clock(t, 2026, 12, 6);
+  const { call } = start({ themes: sample });
+  // 6 December 2026: winter, Christmas (25 days) and Hanukkah (8 days) all cover the day.
+  assert.deepStrictEqual(call('setLook', { auto: true })[0].look.themes, ['winter', 'hanukkah']);
+  assert.deepStrictEqual(call('setLook', { skip: ['hanukkah'] })[0].look.themes, ['winter', 'christmas']);
+  assert.deepStrictEqual(call('setLook', { skip: ['hanukkah', 'winter'] })[0].look.themes, ['christmas']);
+  assert.deepStrictEqual(call('setLook', { skip: ['hanukkah', 'winter', 'christmas'] })[0].look.themes, []);
+  const back = call('setLook', { skip: [] })[0];
+  assert.deepStrictEqual([back.look.themes, back.look.skip], [['winter', 'hanukkah'], []]);
+});
+
+test('the calendar is read again each midnight, and subscribers hear only when something changed', (t) => {
+  clock(t, 2026, 11, 25);
+  const { call, saved } = start({ themes: sample, look: { auto: true, themes: ['glow'] } });
+  const sub = call('getLook', {}, true);
+  assert.deepStrictEqual(sub[0].look.themes, ['glow', 'autumn', 'thanksgiving'], 'read at start');
+  assert.deepStrictEqual(saved().themes, ['glow', 'autumn', 'thanksgiving']);
+
+  t.mock.timers.tick(24 * HOUR);
+  assert.strictEqual(sub.length, 1, '26 November: the same themes, the same dates, nothing to say');
+  t.mock.timers.tick(24 * HOUR);
+  assert.deepStrictEqual(sub[1].look.themes, ['glow', 'autumn'], '27 November: Thanksgiving is over');
+  assert.strictEqual(sub[1].today, '2026-11-27');
+  assert.deepStrictEqual(datesOf(sub[1], 'thanksgiving'), [{ from: '2027-11-18', to: '2027-11-25' }]);
+  for (let i = 0; i < 4; i++) t.mock.timers.tick(24 * HOUR);
+  assert.deepStrictEqual(sub[sub.length - 1].look.themes, ['glow', 'winter', 'christmas'], '1 December');
+  assert.deepStrictEqual(saved().themes, ['glow', 'winter', 'christmas']);
+  for (let i = 0; i < 31; i++) t.mock.timers.tick(24 * HOUR);
+  assert.deepStrictEqual(sub[sub.length - 1].look.themes, ['glow', 'winter', 'newyear'], '1 January, across New Year');
+  for (let i = 0; i < 3; i++) t.mock.timers.tick(24 * HOUR);
+  assert.deepStrictEqual(sub[sub.length - 1].look.themes, ['glow', 'winter'], '4 January');
+});
+
+test('with auto off the calendar changes no theme, and a day that turned unseen is caught up on the next call', (t) => {
+  clock(t, 2026, 10, 31);
+  const { call } = start({ themes: sample, look: { themes: ['halloween'] } });
+  const sub = call('getLook', {}, true);
+  t.mock.timers.tick(24 * HOUR);
+  assert.deepStrictEqual(sub[sub.length - 1].look.themes, ['halloween'], 'a theme picked by hand stays');
+  assert.strictEqual(listed(sub[sub.length - 1]).find((x) => x.id === 'halloween').inSeason, false);
+
+  // The clock jumps (set late after a boot, or a long sleep) with no timer run: the next call sees the new day.
+  t.mock.timers.setTime(noon(2026, 12, 24));
+  const got = call('setLook', { auto: true })[0];
+  assert.strictEqual(got.today, '2026-12-24');
+  assert.deepStrictEqual(got.look.themes, ['winter', 'christmas']);
+});
+
+test('setLook refuses an auto that is not a boolean and a skip that is not a list of seasonal themes', (t) => {
+  clock(t, 2026, 11, 11);
+  const { call } = start({ themes: sample });
+  const sub = call('getLook', {}, true);
+  for (const bad of [{ auto: 'yes' }, { auto: 1 }, { skip: 'winter' }, { skip: ['glow'] }, { skip: ['nothing'] }]) {
+    const r = call('setLook', bad)[0];
+    assert.strictEqual(r.returnValue, false, JSON.stringify(bad));
+    assert.ok(r.errorText);
+  }
+  assert.strictEqual(sub.length, 1, 'subscribers hear nothing');
+});
+
+test('a seasonal pack with a window the service cannot read is said so, and one with none is a custom theme', (t) => {
+  clock(t, 2026, 11, 11);
+  const { call } = start({ themes: [
+    seasonal('half', [{ from: '11-01', to: '11-30' }, { from: '13-01', to: '13-09' }]),
+    seasonal('lost', [{ rule: 'solstice' }]),
+    seasonal('empty', []),
+    { id: 'odd', name: 'odd', group: 'seasonal', season: [{ from: '02-30', to: '03-01' }, { rule: 'easter', before: -1 },
+      { rule: 'weekday', month: 11, weekday: 7, nth: 4 }, { from: '03-01', to: '03-09', before: 2 }], decorate: [] }
+  ] });
+  const got = call('getLook')[0];
+  assert.deepStrictEqual(listed(got).map((x) => [x.id, x.group]),
+    [['empty', 'custom'], ['lost', 'custom'], ['odd', 'custom'], ['half', 'seasonal']]);
+  assert.deepStrictEqual(datesOf(got, 'half'), [{ from: '2026-11-01', to: '2026-11-30' }]);
+  const said = call('getReports')[0].reports.filter((r) => r.from === 'service').map((r) => r.kind + ' ' + r.text.split(':')[0]);
+  assert.deepStrictEqual(said.sort(), ['error theme empty', 'error theme lost', 'error theme odd', 'gap theme half']);
+});
+
+test('every theme pack names a known group, and every seasonal pack gives windows the service reads', (t) => {
+  clock(t, 2026, 11, 11);
+  const { call } = start();
+  const keys = { fixed: ['from', 'to'], easter: ['after', 'before', 'rule'], hanukkah: ['after', 'before', 'rule'],
+                 weekday: ['after', 'before', 'month', 'nth', 'rule', 'weekday'] };
+  const got = call('getLook')[0];
+  for (const f of fs.readdirSync(path.join(dir, 'packs', 'themes'))) {
+    const pack = require(path.join(dir, 'packs', 'themes', f));
+    const item = listed(got).find((x) => x.id === pack.id);
+    // No group is a custom theme.
+    assert.ok(pack.group === undefined || pack.group === 'seasonal' || pack.group === 'custom', pack.id + ': group ' + pack.group);
+    if (pack.group !== 'seasonal') {
+      assert.strictEqual(pack.season, undefined, pack.id + ': only a seasonal theme has a season');
+      assert.strictEqual(item.group, 'custom');
+      continue;
+    }
+    assert.ok(Array.isArray(pack.season) && pack.season.length > 0, pack.id + ': a seasonal theme needs a season');
+    for (const w of pack.season) {
+      const allowed = keys[w.rule === undefined ? 'fixed' : w.rule];
+      assert.ok(allowed, pack.id + ': unknown rule ' + w.rule);
+      for (const k of Object.keys(w)) assert.ok(allowed.includes(k), pack.id + ': season key ' + k);
+    }
+    assert.strictEqual(item.group, 'seasonal', pack.id);
+    assert.strictEqual(item.dates.length, pack.season.length, pack.id + ': every window read');
+  }
+  assert.deepStrictEqual(call('getReports')[0].reports.filter((r) => r.from === 'service'), []);
 });
