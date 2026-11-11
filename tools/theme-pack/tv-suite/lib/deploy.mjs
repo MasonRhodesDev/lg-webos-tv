@@ -120,6 +120,8 @@ export const STEPS = [
       if (r.status !== 0) return 'own-layer-tv.sh apply failed: ' + lastLine(r.out);
       const failed = r.out.split('\n').find((l) => /the screen is left as it was/.test(l));
       if (failed) return 'the layer did not load: ' + failed.trim();
+      const silent = r.out.split('\n').find((l) => /no report from the new layer/.test(l));
+      if (silent) return 'the layer did not report: ' + silent.trim();
       if (!/layer loaded after/.test(r.out)) return 'own-layer.sh never said "layer loaded": ' + lastLine(r.out);
       return null;
     },

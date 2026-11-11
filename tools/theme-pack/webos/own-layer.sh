@@ -6,8 +6,8 @@
 #   own-layer.sh revert         restart the compositor on stock, which is the only way to unload the layer
 # apply restarts nothing and the screen never blanks: LG's system UI manager loads ui/Inject.qml as an overlay that
 # draws nothing, and that file creates the layer under LG's root. A new layer that does not load leaves the loaded
-# one running (exit 1). No LG file is edited or mounted over either way. restart and revert blank the screen for
-# about 15 s.
+# one running (exit 1). One that is launched and never heard from may be loaded all the same: its files stay and the
+# exit is 1. No LG file is edited or mounted over either way. restart and revert blank the screen for about 15 s.
 export PATH=/usr/sbin:/usr/bin:/sbin:/bin:$PATH
 root=$(cd "$(dirname "$0")" && pwd)
 q=/usr/lib/qt5/qml
@@ -78,11 +78,13 @@ case "$1" in
       note "layer loaded after $i rounds (no restart)"
       # Copies from earlier runs; their layers are gone.
       for d in /tmp/themepack-layer.*; do [ "$d" = "$copy" ] || rm -rf "$d"; done
+    elif [ $sent != 1 ] || [ -n "$why" ]; then
+      # No new layer was made. One loaded earlier is still running, from its own copy.
+      note "${why:-the system UI manager did not take the launch}; the screen is left as it was"; rm -rf $copy; rc=1
     else
-      # A layer loaded earlier is still running, from its own copy.
-      if [ $sent != 1 ]; then why="the system UI manager did not take the launch"
-      else why=${why:-no report from the new layer}; fi
-      note "$why; the screen is left as it was"; rm -rf $copy; rc=1
+      # Silence does not say the layer is not there: it may be loaded with its reports lost (the Look service not
+      # up yet, say). A loaded layer reads files from its copy as they are first needed, so the copy stays.
+      note "no report from the new layer in $i rounds; it may be loaded all the same, so its files stay"; rc=1
     fi
     ;;
   restart)

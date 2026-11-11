@@ -6,8 +6,8 @@ import "../../ui/Look" as Ours
 // Inject.qml against a fake LG root: LG's system UI container loads it, it creates the layer under the root and asks
 // to be unloaded; the layer must keep working after that, a second injection must replace it, and one whose layer
 // does not compile must leave the loaded one. A layer replaced while one of its menus is open (in LG's popup plane, not
-// under the layer) must still give everything back before the new one starts. Prints each step and exits 1 on the
-// first failure:
+// under the layer) must still give everything back before the new one starts. A loaded layer from before layers could
+// disconnect themselves must be put aside alive, not destroyed. Prints each step and exits 1 on the first failure:
 //   qml Inject.qml -- <a copy of ui/ whose Look/Layer.qml does not compile>
 Window {
     id: win
@@ -53,6 +53,20 @@ Window {
             Loader { id: loader }
         }
     }
+
+    // A layer from before unlink(): it can retire, and stays connected to what outlives it.
+    Component {
+        id: olderType
+        Item {
+            objectName: "themepackLayer"
+            property bool retired: false
+            function retire() { retired = true; }
+            Component.onDestruction: win.olderDestroyed = true
+        }
+    }
+    property Item older: null
+    property bool olderDestroyed: false
+    property bool firstDestroyed: false
 
     // A copy of ui/ with a Layer.qml that does not compile.
     readonly property string brokenUi: Qt.application.arguments[Qt.application.arguments.indexOf("--") + 1]
@@ -104,7 +118,10 @@ Window {
     readonly property var steps: [
         function () {
             check(layers().length === 0, "startup: no layer under LG's root");
+            older = olderType.createObject(host);
             launch();
+            check(older.retired && older.parent === null, "injected over an older layer: the older one retired and left LG's tree");
+            check(reports("gap", "the old layer cannot disconnect itself") === 1, "injected over an older layer: reported as left alive");
             check(layers().length === 1 && layers()[0].host === host, "injected: one layer under LG's root, with it as host");
             check(reports("ready", "layer created by injection") === 1, "injected: reported ready");
             check(gearOpensOurs(), "injected: the gear opens our quick sheet");
@@ -113,6 +130,8 @@ Window {
         },
         function () {
             gc();
+            // On the TV a destroyed layer that is still connected takes the compositor down at the next signal.
+            check(!olderDestroyed && older.retired, "injector unloaded: the older layer, which cannot disconnect itself, is still alive");
             check(layers().length === 1 && layers()[0].waiting.length > 0, "injector unloaded: the layer and its parts are still there");
             // A waiting part is visible through a binding on what it holds. Bindings stop when the context their
             // object was created in is destroyed, so this one tells whether the layer depends on the injector.
@@ -128,6 +147,7 @@ Window {
             check(probesSent() > 0, "injector unloaded: the layer's own handlers still run");
             check(homeFilters() === 1, "injected: the Home key filter is in LG's chain");
             var first = layers()[0];
+            first.Component.destruction.connect(function () { win.firstDestroyed = true; });
             // Replaced while the Home dock is open: the dock sits in LG's popup plane, not under the layer.
             Ours.SettingsBus.homeRequested(null);
             check(plane.children.length === 1, "the Home dock is open, in LG's popup plane");
@@ -148,6 +168,8 @@ Window {
         },
         function () {
             // The replaced layer is destroyed by now; what it undoes must not reach the new one.
+            check(firstDestroyed && !olderDestroyed, "injected again: the replaced layer, which disconnected itself, is destroyed");
+            check(reports("gap", "the old layer cannot disconnect itself") === 1, "injected again: only the older layer was left alive");
             check(gearOpensOurs(), "injected again: the gear still opens our quick sheet once the old layer is destroyed");
             check(homeFilters() === 1, "injected again: one Home key filter in the chain once the old layer is destroyed");
             // Replaced while our Settings is open.

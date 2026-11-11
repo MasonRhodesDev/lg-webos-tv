@@ -33,12 +33,15 @@ Item {
         // The loaded layer makes way for this one.
         var old = loaded(host);
         if (old) {
-            // An older layer may not know how to retire; it is destroyed all the same.
             try { old.retire(); } catch (e) { Look.report("gap", "inject: the old layer could not hand LG's items back: " + e); }
             // Out of LG's tree at once, so the new layer's parts cannot find anything in it.
             old.objectName = "";
             old.parent = null;
-            old.destroy();
+            // A layer from before unlink() stays connected to what outlives it (its own Look for one), and the
+            // compositor's Qt would call into it after it is destroyed and crash. Such a layer is left alive, out of
+            // sight, until the compositor restarts.
+            if (typeof old.unlink === "function") old.destroy();
+            else Look.report("gap", "inject: the old layer cannot disconnect itself; left alive, out of sight");
         }
         var made = Inject.create(ready.component, host);
         Look.report(made.error ? "error" : "ready", made.error ? "inject: " + made.error : "layer created by injection");

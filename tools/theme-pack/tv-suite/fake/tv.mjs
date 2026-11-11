@@ -293,7 +293,7 @@ function key(s, k) {
 // ---- LG's side ----
 
 // own-layer.sh apply: a new layer goes in place of the loaded one. Returns whether it reported. One that does not
-// compile, or whose reports nobody takes, leaves the TV as it was.
+// compile leaves the TV as it was; one that is never heard from is not known to be loaded.
 function layerUp(s) {
   if (!s.installed || s.faults.layerFails) return false;
   const at = iso();
@@ -315,7 +315,10 @@ function applyLayer(s, how) {
   if (how === 'revert') { s.layer = false; s.ownLayerLog += 'stock\ndone\n'; return false; }
   const loaded = layerUp(s);
   if (loaded) s.layerInstance = (s.layerInstance || 1) + 1;
-  s.ownLayerLog += (loaded ? 'layer loaded after 1 rounds (no restart)' : 'no report from the new layer; the screen is left as it was') + '\ndone\n';
+  const said = s.reports.filter((r) => r.kind === 'error' && /^inject: /.test(r.text)).pop();
+  s.ownLayerLog += (loaded ? 'layer loaded after 1 rounds (no restart)'
+    : said && s.broken === 'layer' ? said.text.replace(/^inject: /, '') + '; the screen is left as it was'
+      : 'no report from the new layer in 30 rounds; it may be loaded all the same, so its files stay') + '\ndone\n';
   return loaded;
 }
 function hook(s) {
