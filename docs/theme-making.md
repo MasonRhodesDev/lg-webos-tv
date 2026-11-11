@@ -13,7 +13,7 @@ check them, and the preview harness draws every screen with them. The full refer
 | What it is | The look of every component: colours, radii, sizes, type, motion | Decoration around components: glows, rings, artwork |
 | How many are active | exactly one | any number, stacked |
 | Made of | a value for every token in `TOKENS` (`packs/tokens.js`), a font, `behaviour.focusFill` | `recipes`, each drawing one ring on one decoration target |
-| Existing ones | `smoke`, `bubble` | `glow`, `winter`, `halloween` |
+| Existing ones | `smoke`, `bubble` | `glow` (any season), then by the calendar: `newyear`, `winter`, `valentine`, `stpatrick`, `spring`, `easter`, `fireworks`, `summer`, `autumn`, `halloween`, `thanksgiving`, `christmas`, `hanukkah` |
 
 Most new looks are themes. Write a style only when the components themselves should change shape, colour or type.
 
