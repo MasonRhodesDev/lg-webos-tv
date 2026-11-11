@@ -377,6 +377,64 @@ Item {
                                           "themes": [], "settings": { "open": false, "at": 7 } }));
         }
 
+        // The Look page's seasonal themes: picked by hand, one at a time, or left to the service's calendar.
+        function test_3c_look_seasonal() {
+            function look(chosen, at) {
+                Fixture.load(JSON.stringify({ "returnValue": true, "look": chosen, "style": { "id": "smoke", "tokens": {} }, "themes": [],
+                    "settings": { "open": true, "target": "Look", "at": at },
+                    "available": { "styles": [{ "id": "smoke", "name": "Smoke" }],
+                        "themes": [{ "id": "glow", "name": "Glow", "group": "custom" },
+                            { "id": "newyear", "name": "New Year", "group": "seasonal", "dates": [{ "from": "2026-12-26", "to": "2027-01-03" }] },
+                            { "id": "autumn", "name": "Autumn", "group": "seasonal", "dates": [{ "from": "2026-09-23", "to": "2026-11-30" }], "inSeason": true },
+                            { "id": "christmas", "name": "Christmas", "group": "seasonal", "dates": [{ "from": "2026-12-01", "to": "2026-12-25" }] }] } }));
+            }
+            function sent() { return Fixture.commands[Fixture.commands.length - 1]; }
+            function labels() { var l = rows().rows, out = []; for (var i = 0; i < l.length; i++) out.push(l[i].section || l[i].label); return out; }
+
+            look({ "style": "smoke", "themes": ["glow", "autumn"], "auto": false, "skip": [] }, 60);
+            compare(topId(), "Look");
+            compare(labels(), ["Style", "Smoke", "Seasonal themes", "Automatic", "None", "New Year", "Autumn", "Christmas", "Themes", "Glow"]);
+            compare(specNamed("Autumn").variant, "radio");
+            verify(specNamed("Autumn").checked && !specNamed("Christmas").checked && !specNamed("None").checked, "the theme picked by hand is marked");
+            compare(specNamed("New Year").hint, "Dec 26 \u2013 Jan 3", "a row shows its dates");
+            compare(specNamed("Christmas").hint, "Dec 1 \u2013 25");
+            verify(!specNamed("Automatic").on && specNamed("Glow").on);
+
+            down("Christmas");
+            keyClick(Qt.Key_Return);
+            compare(sent().method, "/setLook");
+            compare(sent().params, { "themes": ["glow", "christmas"] }, "a seasonal theme takes the place of the one that was on");
+            down("None");
+            keyClick(Qt.Key_Return);
+            compare(sent().params, { "themes": ["glow"] }, "None turns the seasonal theme off and leaves the others");
+            down("Automatic");
+            keyClick(Qt.Key_Return);
+            compare(sent().params, { "auto": true });
+
+            // The service's answer: the calendar has the themes now, and each row is that theme's place in it.
+            look({ "style": "smoke", "themes": ["glow", "autumn"], "auto": true, "skip": ["christmas"] }, 60);
+            compare(focused(), "Automatic", "focus stays on the switch");
+            compare(labels(), ["Style", "Smoke", "Seasonal themes", "Automatic", "In the calendar", "New Year", "Autumn", "Christmas", "Themes", "Glow"]);
+            verify(specNamed("Automatic").on);
+            compare(specNamed("Automatic").hint, "On now: Autumn");
+            compare(specNamed("Autumn").variant, "toggle");
+            verify(specNamed("Autumn").on && specNamed("New Year").on && !specNamed("Christmas").on, "a theme left out of the calendar is off");
+            compare(specNamed("Autumn").hint, "Sep 23 \u2013 Nov 30 \u00b7 On now");
+            down("New Year");
+            keyClick(Qt.Key_Return);
+            compare(sent().params, { "skip": ["christmas", "newyear"] }, "OK takes a theme out of the calendar");
+            down("Christmas");
+            keyClick(Qt.Key_Return);
+            compare(sent().params, { "skip": [] }, "and puts one back");
+            down("Automatic");
+            keyClick(Qt.Key_Return);
+            compare(sent().params, { "auto": false });
+
+            for (var i = 0; i < 4 && part.menu.open; i++) keyClick(Qt.Key_Escape);
+            Fixture.load(JSON.stringify({ "returnValue": true, "look": { "style": "smoke", "themes": [] }, "style": { "id": "smoke", "tokens": {} },
+                                          "themes": [], "settings": { "open": false, "at": 61 } }));
+        }
+
         function test_4_quick_sheet() {
             var container = Qt.createComponent(Qt.resolvedUrl("parts/FakeSystemUiContainer.qml")).createObject(root);
             var entry = Qt.createComponent(Qt.resolvedUrl("../../ui/Look/settings/QuickSettingsEntry.qml")).createObject(container);

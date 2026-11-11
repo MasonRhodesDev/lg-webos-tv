@@ -9,8 +9,10 @@
 //   { id: "pick:<ref>", ref, title, then }  a value picker: one choice row per value, OK chooses and goes back
 //   { id: "adjust:<ref>", ref, title }      a range on its own page, as a slider row
 // Each model row carries, beside its ListRow properties, what OK does: kind "item" (ref), "page" (entry), "action"
-// (ref), "settings" (open all Settings), "choose" (ref, value), "style" (value), "theme" (value), "network" (net),
-// "device" (dev), "search" (ref), "text" (ref, text), "changePin". `locked` rows ask for the PIN first.
+// (ref), "settings" (open all Settings), "choose" (ref, value), "style" (value), "theme" (value), "auto" (the
+// calendar chooses the seasonal themes), "season" (the one seasonal theme to show, "" for none), "skip" (a seasonal
+// theme in or out of the calendar), "network" (net), "device" (dev), "search" (ref), "text" (ref, text), "changePin".
+// `locked` rows ask for the PIN first.
 
 function words(id) { return Menu.words(id); }
 
@@ -265,16 +267,78 @@ function row(spec, store, hue) {
     return r;
 }
 
+// The Look page: the styles, then the themes in two groups. A seasonal theme (group "seasonal" in the service's
+// listing) belongs to a part of the year, and the service says which dates. With Automatic off, one of them is picked
+// by hand; with it on, the service's calendar turns them on and off, and each row says whether the calendar may use
+// that theme. The other themes are switches, any number on at once.
+var MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+// One run of a season, { from, to } as 'YYYY-MM-DD', as a caption: "Dec 1 \u2013 25", "Dec 26 \u2013 Jan 3".
+function dateSpan(d) {
+    var a = /^(\d+)-(\d\d)-(\d\d)$/.exec(d && d.from || ""), b = /^(\d+)-(\d\d)-(\d\d)$/.exec(d && d.to || "");
+    if (!a || !b || !MONTHS[a[2] - 1] || !MONTHS[b[2] - 1]) return "";
+    var from = MONTHS[a[2] - 1] + " " + Number(a[3]), sameMonth = a[1] === b[1] && a[2] === b[2];
+    if (sameMonth && a[3] === b[3]) return from;
+    return from + " \u2013 " + (sameMonth ? "" : MONTHS[b[2] - 1] + " ") + Number(b[3]);
+}
+function seasonDates(theme) {
+    var out = [], dates = theme.dates || [];
+    for (var i = 0; i < dates.length; i++) { var s = dateSpan(dates[i]); if (s) out.push(s); }
+    return out.join(", ");
+}
+function seasonal(Look) {
+    var out = [], themes = Look.available.themes || [];
+    for (var i = 0; i < themes.length; i++) if (themes[i].group === "seasonal") out.push(themes[i]);
+    return out;
+}
+// The themes to ask for when one seasonal theme is picked by hand ("" for none): it takes the place of every
+// seasonal theme that is on, over the other themes.
+function seasonPicked(Look, id) {
+    var out = [], on = Look.chosen.themes || [], season = seasonal(Look), ids = [], i;
+    for (i = 0; i < season.length; i++) ids.push(season[i].id);
+    for (i = 0; i < on.length; i++) if (ids.indexOf(on[i]) < 0) out.push(on[i]);
+    if (id) out.push(id);
+    return out;
+}
+// The seasonal themes the calendar leaves out, with one switched.
+function skipFlipped(Look, id) {
+    var out = (Look.chosen.skip || []).slice(), at = out.indexOf(id);
+    if (at >= 0) out.splice(at, 1); else out.push(id);
+    return out;
+}
+
 function lookRows(store, Look) {
     var out = [{ "section": "Style" }], styles = Look.available.styles || [], themes = Look.available.themes || [], i;
     for (i = 0; i < styles.length; i++)
         out.push({ "variant": "choice", "label": styles[i].name, "icon": "palette", "hue": i, "kind": "style", "value": "",
                    "choice": styles[i].id, "checked": styles[i].id === Look.chosen.style, "current": styles[i].id === Look.chosen.style });
+    var on = Look.chosen.themes || [], season = seasonal(Look), hue = styles.length;
+    if (season.length) {
+        var auto = !!Look.chosen.auto, skip = Look.chosen.skip || [], now = [];
+        for (i = 0; i < season.length; i++) if (on.indexOf(season[i].id) >= 0) now.push(season[i].name);
+        out.push({ "section": "Seasonal themes" });
+        out.push({ "variant": "toggle", "label": "Automatic", "icon": "clock", "hue": hue++, "kind": "auto", "on": auto,
+                   "hint": !auto ? "Follow the calendar: a season, and a holiday over it"
+                                 : now.length ? "On now: " + now.join(", ") : "Nothing is in season today" });
+        if (auto) out.push({ "section": "In the calendar" });
+        else out.push({ "variant": "radio", "label": "None", "icon": "close", "kind": "season", "choice": "", "checked": !now.length });
+        for (i = 0; i < season.length; i++) {
+            var active = on.indexOf(season[i].id) >= 0, dates = seasonDates(season[i]);
+            var r = { "label": season[i].name, "icon": "leaf", "hue": hue++, "choice": season[i].id, "current": active };
+            if (auto) {
+                r.variant = "toggle"; r.kind = "skip"; r.on = skip.indexOf(season[i].id) < 0;
+                r.hint = dates + (active ? (dates ? " \u00b7 " : "") + "On now" : "");
+            } else {
+                r.variant = "radio"; r.kind = "season"; r.checked = active; r.hint = dates;
+            }
+            out.push(r);
+        }
+    }
     out.push({ "section": "Themes" });
-    var on = Look.chosen.themes || [];
-    for (i = 0; i < themes.length; i++)
+    for (i = 0; i < themes.length; i++) {
+        if (themes[i].group === "seasonal") continue;
         out.push({ "variant": "toggle", "label": themes[i].name, "hint": themes[i].description || "", "icon": "sparkle",
-                   "hue": styles.length + i, "kind": "theme", "choice": themes[i].id, "on": on.indexOf(themes[i].id) >= 0 });
+                   "hue": hue++, "kind": "theme", "choice": themes[i].id, "on": on.indexOf(themes[i].id) >= 0 });
+    }
     return out;
 }
 

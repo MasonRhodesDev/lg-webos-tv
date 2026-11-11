@@ -18,10 +18,12 @@ QtObject {
     property string font: ""
     property var fontSpec: ({ "family": "", "files": [] })
     property string fontsDir: ""
-    // The chosen look as the service holds it: { style, themes: [ids] }.
+    // The chosen look as the service holds it: { style, themes: [ids], auto, skip: [ids] }. With `auto` the service's
+    // calendar chooses the seasonal themes, leaving out those in `skip`.
     property var chosen: ({ "style": "", "themes": [] })
     property var behaviour: ({})
-    // What can be chosen: { styles: [{id, name}], themes: [{id, name, description}] }.
+    // What can be chosen: { styles: [{id, name}], themes: [{id, name, description, group}] }. A theme of group
+    // "seasonal" also has `dates`, its current or next runs as [{ from, to }] ('YYYY-MM-DD'), and `inSeason`.
     property var available: ({ "styles": [], "themes": [] })
     property bool online: false
     // The TV suite's probing (service.js setProbing): parts' probes go to the service only while it is on.

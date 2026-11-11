@@ -89,7 +89,10 @@ FocusScope {
             var on = (Look.chosen.themes || []).slice(), at = on.indexOf(r.choice);
             if (at >= 0) on.splice(at, 1); else on.push(r.choice);
             Look.setLook({ "themes": on });
-        } else if (r.kind === "item") {
+        } else if (r.kind === "auto") Look.setLook({ "auto": !Look.chosen.auto });
+        else if (r.kind === "season") Look.setLook({ "themes": Pages.seasonPicked(Look, r.choice) });
+        else if (r.kind === "skip") Look.setLook({ "skip": Pages.skipFlipped(Look, r.choice) });
+        else if (r.kind === "item") {
             if (r.variant === "toggle") store.set(r.ref, Pages.flipped(r));
             else if (r.variant === "value") open(Pages.drill(r, Pages.title(entry)));
         } else if (r.kind === "network" || r.kind === "text") {

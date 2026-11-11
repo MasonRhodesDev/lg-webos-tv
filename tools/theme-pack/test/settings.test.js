@@ -101,3 +101,49 @@ test('the footer and Privacy and terms claim only what LG\'s eulaStatus reply an
   assert.strictEqual(M.telemetryLabel(undefined, stringTrue), 'telemetry on', 'accepted as a string');
   assert.strictEqual(M.valueLabel('agreements', stringTrue), 'Accepted');
 });
+
+// The Look page's rows, from the service's answer as Look.qml holds it.
+const lookWith = (chosen, themes) => ({ chosen, available: { styles: [{ id: 'smoke', name: 'Smoke' }], themes } });
+const plainRows = (rows) => JSON.parse(JSON.stringify(rows));
+
+test('the Look page keeps one themes list when the service lists no seasonal theme', () => {
+  const { P } = modules();
+  // An older service: no group, no auto.
+  const rows = plainRows(P.lookRows(null, lookWith({ style: 'smoke', themes: ['winter'] },
+    [{ id: 'glow', name: 'Glow', description: 'A glow' }, { id: 'winter', name: 'Winter' }])));
+  assert.deepStrictEqual(rows.map((r) => r.section || r.label), ['Style', 'Smoke', 'Themes', 'Glow', 'Winter']);
+  assert.deepStrictEqual(rows.slice(3).map((r) => [r.variant, r.kind, r.on, r.hint]), [['toggle', 'theme', false, 'A glow'], ['toggle', 'theme', true, '']]);
+});
+
+test('the Look page shows a season\'s dates, whatever the window', () => {
+  const { P } = modules();
+  const span = (from, to) => P.dateSpan({ from, to });
+  assert.strictEqual(span('2026-12-01', '2026-12-25'), 'Dec 1 – 25');
+  assert.strictEqual(span('2026-12-26', '2027-01-03'), 'Dec 26 – Jan 3');
+  assert.strictEqual(span('2026-09-23', '2026-11-30'), 'Sep 23 – Nov 30');
+  assert.strictEqual(span('2026-07-04', '2026-07-04'), 'Jul 4');
+  assert.strictEqual(span('2026-03-05', '2027-03-04'), 'Mar 5 – Mar 4', 'the same month a year on');
+  assert.strictEqual(span('soon', '2027-01-03'), '');
+  assert.strictEqual(P.seasonDates({ dates: [{ from: '2027-03-20', to: '2027-03-29' }, { from: '2027-09-01', to: '2027-09-02' }] }),
+    'Mar 20 – 29, Sep 1 – 2');
+  assert.strictEqual(P.seasonDates({}), '', 'a service that gives no dates');
+});
+
+test('picking a seasonal theme replaces the seasonal themes that are on; the calendar\'s list flips one theme', () => {
+  const { P } = modules();
+  const themes = [{ id: 'glow', name: 'Glow', group: 'custom' }, { id: 'mine', name: 'Mine' },
+    { id: 'winter', name: 'Winter', group: 'seasonal' }, { id: 'christmas', name: 'Christmas', group: 'seasonal' },
+    { id: 'autumn', name: 'Autumn', group: 'seasonal' }];
+  // What the calendar left on when Automatic was turned off: a season and a holiday.
+  const L = lookWith({ style: 'smoke', themes: ['winter', 'glow', 'christmas', 'mine'], auto: false, skip: ['autumn'] }, themes);
+  assert.deepStrictEqual(plainRows(P.seasonPicked(L, 'autumn')), ['glow', 'mine', 'autumn']);
+  assert.deepStrictEqual(plainRows(P.seasonPicked(L, '')), ['glow', 'mine']);
+  assert.deepStrictEqual(plainRows(P.skipFlipped(L, 'winter')), ['autumn', 'winter']);
+  assert.deepStrictEqual(plainRows(P.skipFlipped(L, 'autumn')), []);
+  const rows = plainRows(P.lookRows(null, L));
+  assert.deepStrictEqual(rows.filter((r) => r.kind === 'season').map((r) => [r.label, r.checked]),
+    [['None', false], ['Winter', true], ['Christmas', true], ['Autumn', false]], 'both are marked until one is picked');
+  assert.deepStrictEqual(rows.filter((r) => r.kind === 'theme').map((r) => r.label), ['Glow', 'Mine']);
+  const quiet = plainRows(P.lookRows(null, lookWith({ style: 'smoke', themes: ['glow'], auto: true, skip: [] }, themes)));
+  assert.strictEqual(quiet.find((r) => r.kind === 'auto').hint, 'Nothing is in season today');
+});
