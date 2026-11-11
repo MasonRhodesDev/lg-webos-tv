@@ -125,8 +125,9 @@ export const STEPS = [
     },
     async check(ctx) {
       const t0 = ctx.layerT0 || '';
-      const all = await ctx.tv.reports(t0);
-      const created = all.find((r) => r.text === 'layer created by injection' || /^inject: /.test(r.text));
+      // The injector reports last, once every part is made: seconds after the layer's first report, which is all
+      // own-layer.sh waits for.
+      const { hit: created } = await waitReport(ctx, t0, (r) => r.text === 'layer created by injection' || /^inject: /.test(r.text), 20);
       if (!created || created.kind !== 'ready') return created ? 'the injector says: ' + created.text : 'no "layer created by injection" report' + (t0 ? ' since ' + t0 : '');
       const { hit, rs } = await waitReport(ctx, t0, (r) => r.text === 'settings: host ready' || /^settings: host up, but/.test(r.text), 20);
       const errors = rs.filter((r) => r.kind === 'error');
