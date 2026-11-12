@@ -258,6 +258,21 @@ function row(spec, store, hue) {
         return r;
     }
     if (it.type === "enum") { r.variant = "value"; r.value = st.label; return r; }
+    // A value stepped in place with Left and Right (a part of the clock). Nothing to step until it is read.
+    if (it.type === "step") {
+        var opts = st.options || [];
+        r.variant = "stepper";
+        r.options = [];
+        r.values = [];
+        r.index = 0;
+        for (var i = 0; i < opts.length; i++) {
+            r.options.push(opts[i].label);
+            r.values.push(opts[i].value);
+            if (opts[i].value === st.value) r.index = i;
+        }
+        if (!opts.length) r.disabled = true;
+        return r;
+    }
     if (it.type === "info") { r.variant = "info"; r.value = st.label; return r; }
     // Lists, forms and files have pages of their own, still to come; shown, and visibly not built yet.
     r.variant = "info";
@@ -512,6 +527,13 @@ function stepped(store, ref, delta) {
     var st = store.state(ref), v = st.value;
     if (typeof v !== "number" || !isFinite(v)) return undefined;
     return Math.max(st.min, Math.min(st.max, v + delta * st.step));
+}
+
+// A stepper row's next value after Left/Right, around the ends, or undefined when it has none.
+function steppedTo(r, delta) {
+    var v = r.values || [], n = v.length;
+    if (!n) return undefined;
+    return v[((r.index + delta) % n + n) % n];
 }
 
 // The value a toggle row writes when flipped.

@@ -74,8 +74,54 @@ QtObject {
     property var system: ({ "modelName": "OLED55B9PUA", "firmwareVersion": "05.40.45", "core_os_release": "4.10.0" })
     // The Look service's getTelemetry: tools/telemetry-off in force this boot.
     property string telemetryKit: "active"
-    // systemservice getPreferences.
-    property var preferences: ({ "useNetworkTime": false, "timeZone": "America/New_York" })
+    // systemservice getPreferences: the first answer has every key asked for; a later post has only the key that
+    // changed, and no returnValue. The time zone is a whole zone, one of `zones` (getPreferenceValues lists them: on
+    // the TV a few hundred, here a handful, most of them the TV's own country's).
+    property var preferences: ({ "useNetworkTime": false, "useNetworkTimeZone": true, "timeFormat": "HH12",
+        "timeZone": { "ZoneID": "America/New_York", "City": "New York", "Description": "Eastern Time", "Country": "United States of America",
+                      "CountryCode": "US", "offsetFromUTC": -300, "supportsDST": 1, "preferred": true } })
+    property var zones: [
+        zoneNamed("Pacific/Honolulu", "Honolulu", "Hawaii-Aleutian Time", "United States of America", "US", -600, 0),
+        zoneNamed("America/Anchorage", "Anchorage", "Alaska Time", "United States of America", "US", -540, 1),
+        zoneNamed("America/Los_Angeles", "Los Angeles", "Pacific Time", "United States of America", "US", -480, 1),
+        zoneNamed("America/Denver", "Denver", "Mountain Time", "United States of America", "US", -420, 1),
+        zoneNamed("America/Phoenix", "Phoenix", "Mountain Time", "United States of America", "US", -420, 0),
+        zoneNamed("America/Chicago", "Chicago", "Central Time", "United States of America", "US", -360, 1),
+        zoneNamed("America/New_York", "New York", "Eastern Time", "United States of America", "US", -300, 1),
+        zoneNamed("America/Detroit", "Detroit", "Eastern Time", "United States of America", "US", -300, 1),
+        zoneNamed("America/Toronto", "Toronto", "Eastern Time", "Canada", "CA", -300, 1),
+        zoneNamed("Europe/London", "London", "Greenwich Mean Time", "United Kingdom", "GB", 0, 1),
+        zoneNamed("Asia/Tokyo", "Tokyo", "Japan Time", "Japan", "JP", 540, 0)
+    ]
+    function zoneNamed(id, city, description, country, code, offset, dst) {
+        return { "ZoneID": id, "City": city, "Description": description, "Country": country, "CountryCode": code,
+                 "offsetFromUTC": offset, "supportsDST": dst };
+    }
+    // The clock (systemservice time/getSystemTime, time/setSystemTime), in seconds since 1970. It stands still, so a
+    // scene shows the same minute on every run: Wednesday 11 November 2026, 9:41:05 PM in New York.
+    property real clockUtc: Date.UTC(2026, 10, 12, 2, 41, 5) / 1000
+    // The zone's offset at the clock's time, in minutes: an hour on from April to October where the zone keeps
+    // daylight saving (near enough for a preview).
+    function clockOffset() {
+        var z = preferences.timeZone, month = new Date((clockUtc + z.offsetFromUTC * 60) * 1000).getUTCMonth();
+        return z.offsetFromUTC + (z.supportsDST && month >= 3 && month <= 9 ? 60 : 0);
+    }
+    function systemTime() {
+        var offset = clockOffset(), d = new Date((clockUtc + offset * 60) * 1000);
+        return { "utc": clockUtc, "offset": offset, "timezone": preferences.timeZone.ZoneID, "isDST": offset !== preferences.timeZone.offsetFromUTC,
+                 "systemTimeSource": preferences.useNetworkTime ? "ntp" : "manual", "timeValid": true,
+                 "localtime": { "year": d.getUTCFullYear(), "month": d.getUTCMonth() + 1, "day": d.getUTCDate(),
+                                "hour": d.getUTCHours(), "minute": d.getUTCMinutes(), "second": d.getUTCSeconds() } };
+    }
+    function prefsOf(keys, only) {
+        var out = {}, n = 0;
+        for (var i = 0; i < keys.length; i++) {
+            if ((only && keys[i] !== only) || preferences[keys[i]] === undefined) continue;
+            out[keys[i]] = preferences[keys[i]];
+            n++;
+        }
+        return n ? out : null;
+    }
     // Wi-Fi as com.webos.service.wifi answers it (off, as on the boards; its networks show once a scene turns it on). `password` is what each secured network takes.
     property string wifiState: "serviceDisabled"
     property var networks: [
@@ -102,7 +148,7 @@ QtObject {
     }
     property var btNearby: [{ "address": "00:00:5E:00:53:03", "name": "Headphones", "type": "headset" }]
     // Keys ("category.key", "sleepTimer", "volume", "wifi.connect", "wifi.forget", "wifi.state", "bt.connect",
-    // "bt.disconnect", "bt.forget", "bt.search") whose next write fails, to show the rollback.
+    // "bt.disconnect", "bt.forget", "bt.search", "clock", "prefs.<key>") whose next write fails, to show the rollback.
     property var fail: ({})
     // Keys whose writes are never answered (a call the bus drops), to show the timeout rollback.
     property var silent: ({})
@@ -134,14 +180,17 @@ QtObject {
         return { "returnValue": true, "results": results };
     }
 
-    function notify(category, key) {
+    // Posts to the subscribers of one thing. For "prefs", `name` is the preference that changed (none: every one a
+    // subscriber asked for).
+    function notify(category, key, name) {
         for (var i = 0; i < subs.length; i++) {
             var s = subs[i];
             if (s.cancelled) continue;
+            if (s.kind === "prefs" && key === "prefs") { var post = prefsOf(s.keys, name); if (post) answer(s.svc, "/getPreferences", post); }
+            if (s.kind === "clock" && key === "clock") answer(s.svc, "/time/getSystemTime", systemTime());
             if (s.kind === "settings" && s.category === category && s.keys.indexOf(key) >= 0) answer(s.svc, "/getSystemSettings", settingsOf(category, s.keys));
             if (s.kind === "volume" && key === "volume") answer(s.svc, "/getVolume", { "returnValue": true, "volume": volume });
             if (s.kind === "signal" && key === "signal") answer(s.svc, "/getHDMIInfo", hdmi);
-            if (s.kind === "prefs" && key === "prefs") answer(s.svc, "/getPreferences", { "returnValue": true, "useNetworkTime": preferences.useNetworkTime });
             if (s.kind === "wifi" && key === "wifi") answer(s.svc, "/getstatus", { "returnValue": true, "status": wifiState });
             if (s.kind === "networks" && key === "wifi") answer(s.svc, "/findnetworks", foundNetworks());
             if (s.kind === "bt" && key === "bt") answer(s.svc, "/device/getStatus", btStatus());
@@ -340,12 +389,28 @@ QtObject {
         } else if (service === "com.palm.systemservice" && method === "/osInfo/query") {
             answer(svc, method, { "returnValue": true, "core_os_release": system.core_os_release });
         } else if (service === "com.palm.systemservice" && method === "/getPreferences") {
-            if (p.subscribe) subs.push({ "svc": svc, "kind": "prefs" });
-            answer(svc, method, { "returnValue": true, "useNetworkTime": preferences.useNetworkTime });
+            if (p.subscribe) subs.push({ "svc": svc, "kind": "prefs", "keys": p.keys || [] });
+            var prefs = prefsOf(p.keys || []) || {};
+            prefs.returnValue = true;
+            answer(svc, method, prefs);
         } else if (service === "com.palm.systemservice" && method === "/setPreferences") {
+            for (key in p) if (failing("prefs." + key, svc, method)) return true;
             for (key in p) preferences[key] = p[key];
             answer(svc, method, { "returnValue": true });
-            notify("", "prefs");
+            for (key in p) notify("", "prefs", key);
+        } else if (service === "com.palm.systemservice" && method === "/getPreferenceValues") {
+            answer(svc, method, p.key === "timeZone" ? { "returnValue": true, "timeZone": zones } : { "returnValue": false, "errorText": "not mocked" });
+        } else if (service === "com.palm.systemservice" && method === "/time/getSystemTime") {
+            if (p.subscribe) subs.push({ "svc": svc, "kind": "clock" });
+            var time = systemTime();
+            time.returnValue = true;
+            answer(svc, method, time);
+        } else if (service === "com.palm.systemservice" && method === "/time/setSystemTime") {
+            if (failing("clock", svc, method)) return true;
+            clockUtc = p.utc;
+            answer(svc, method, { "returnValue": true });
+            // A set posts to the subscribers too (with no returnValue).
+            notify("", "clock");
         } else {
             answer(svc, method, { "returnValue": true });
         }

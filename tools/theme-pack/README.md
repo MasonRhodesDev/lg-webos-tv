@@ -77,6 +77,7 @@ node --test tools/theme-pack/test/*.test.js
 ```
 
 `test/settings-stub.test.js` builds the Look package with `tv/build-ipk.sh`, so the tests need `tar` and `gzip`.
+`test/boot-clock.test.js` runs the boot hook's clock step under `busybox` (the TV's shell), and is skipped without it.
 
 The packs are checked as data (`test/assets.test.js`, `test/kit.test.js`): every style defines every token, recipes
 name only known targets, tokens and assets, the kit decorates exactly the contract's targets with the states each
@@ -137,6 +138,14 @@ TV_HOST=<tv address> sh tools/theme-pack/tv/install-tv.sh tools/theme-pack/dist/
 ```
 
 `install-tv.sh` needs root SSH, which Homebrew Channel provides. It copies the package to `/tmp` on the TV and installs it with the TV's own `appInstallService`.
+
+A TV with no time source (network time blocked, no broadcast) keeps no time while it is off, and starts every boot
+years back. `tv/set-clock.sh` sets its clock to that of the machine running it, to the second; the boot hook (see
+"Every boot") keeps the date about right in between.
+
+```sh
+TV_HOST=<tv address> sh tools/theme-pack/tv/set-clock.sh
+```
 
 The Look app draws nothing: it is the Settings stub's page (below) with no LG targets, so every launch asks the Look
 service for our Settings at its Look page (`openSettings {"target": "Look"}`) and closes. Style and themes are
@@ -213,8 +222,10 @@ Once live it reports `ready` "settings: host ready"; the boot hook mounts the Se
   closes.
 - The store's adapters beside settingsservice: the sleep timer, the network, the volume, the current input's signal
   (`tv.display getHDMIInfo`, for "HDMI 2 · 4K · 120 Hz"), the model and versions (`tv.systemproperty getSystemInfo`,
-  `systemservice osInfo/query`) and network time (`systemservice getPreferences`). The Settings footer is the board's
-  "Offline · telemetry off": online or not, then "telemetry off" only while `tools/telemetry-off` is in force this
+  `systemservice osInfo/query`), network time (`systemservice getPreferences`) and the TV's clock and time zone
+  (`systemservice time/getSystemTime`, `time/setSystemTime`, `getPreferenceValues`: Time and date sets the clock by
+  hand, a part at a time, for a TV that cannot reach a time server and so starts every boot in 2019). The Settings
+  footer is the board's "Offline · telemetry off": online or not, then "telemetry off" only while `tools/telemetry-off` is in force this
   boot (the Look service's `getTelemetry` finds its hosts blackhole live) and no LG data agreement is accepted;
   without the kit, "agreements withdrawn" when `eulaStatus` refuses every one, "telemetry on" when one is accepted,
   and nothing when the reply cannot say.
@@ -231,6 +242,7 @@ The volume bar, the input picker and the rest of the system UI are QML inside th
 - `ui/Look/Layer.qml` is our layer. Each part in `ui/Look/parts/` draws one component and names the LG item it replaces with `claims(item)`. The layer finds that item and makes it invisible, but leaves it running; the part reads it through `lg`. LG keeps deciding *when* (timeouts, the volume OSD setting, audio guidance); our component decides *how it looks*. If LG's item isn't found, LG's stays on screen and the gap is reported.
 - `ui/Look/Look.qml` is the active style's tokens, font and themes, live from the Look service. `Look.font` is the style's font family, loaded from the files the Look package installs; parts set `font.family: Look.font` on their text. `Decor.qml` is the layer model (back rings, origin, front rings, attachments), `Passes.qml` the container whose components paint in passes, and `Ring.qml` draws one recipe.
 - Parts are written from scratch on those three, so a style and its themes reach every pixel they draw. To add one, add its file to `parts` in `Layer.qml`.
+- A layer that is replaced must leave nothing connected to what outlives it: LG's items, and its own copy's `Look` and `SettingsBus`, which the compositor keeps for good. The compositor's Qt still calls a function connected with `signal.connect(f)` after the object `f` belongs to is destroyed, in a QML context that is gone, and it crashes on the first singleton that function names (the whole compositor restarts, on stock). So every such `connect` has its `disconnect`: the layer's own go through `link()` in `Layer.qml` and are undone when it retires, and a part undoes its own in `retire()` or `Component.onDestruction`. A desk Qt drops these connections by itself, so a test in `test/layer.test.js` reads the source for it. A loaded layer from a build before this rule (it has no `unlink()`) cannot be made safe to destroy, so the injector retires it, takes it out of LG's tree and leaves it alive until the compositor restarts; it reports that as a gap.
 - Some LG items don't exist when the layer starts: system UI overlays (Quick Settings, the input picker) are created when opened and destroyed when closed, and the toast view arrives with the notification view, which loads late. A part for one of them sets `onDemand: true`. At startup it reports `waiting` instead of a gap. The layer connects `currentViewChanged` on LG's system UI views (the root's children that have `viewName` and `currentView`; LG sets `currentView` once the overlay is loaded and shown) and the root's `notificationViewChanged`. On each change it offers the new item, three levels deep (for the toast, the notification view's siblings), to the on-demand parts that hold nothing. A claim hides LG's item and sets `lg`, and the first one reports `ok`. When LG destroys the item, `lg` goes back to null by itself and the part hides until LG shows it again. Nothing polls or watches the tree: it costs one search per overlay opening.
 
 ```sh
@@ -240,7 +252,7 @@ TV_HOST=<tv address> sh tools/theme-pack/webos/own-layer-tv.sh reports  # what t
 TV_HOST=<tv address> sh tools/theme-pack/webos/own-layer-tv.sh capture out.png  # the on-screen UI, without the video
 ```
 
-`apply` and `revert` take a lock on the TV, so several working copies can test in turn. The compositor keeps every QML file it has loaded, by path, so `own-layer.sh apply` loads each time from a fresh copy of `ui/` under `/tmp`; the layer's own files import each other by relative path (`import "."`, `import ".."`), so nothing has to be on the compositor's import path. The layer reports to the Look service as it loads. If no report arrives within 30 one-second rounds (counted, so a suspend or a clock step in the middle does not cut the wait short), or the injector reports an error, `apply` exits 1 and the screen is left as it was: LG's UI, or the layer loaded before. Only a compositor restart unloads the layer (`revert`, or any reboot). Both scripts append what they did, with the uptime, to `/var/lib/webosbrew/themepack-boot.log` (kept across reboots, one 32 KB generation as `.old`). The boot hook (`60-themepack`) runs `apply` in every boot at once, also in a Quick Start+ background boot, so the layer is there when the screen comes on, and with it the Home key's filter (see "Our Home dock"). A broken layer leaves LG's UI running and reports its error. Read the reports with `luna-send -n 1 luna://dev.themepack.look.service/getReports '{}'` (the compositor's own QML warnings go nowhere).
+`apply` and `revert` take a lock on the TV, so several working copies can test in turn. The compositor keeps every QML file it has loaded, by path, so `own-layer.sh apply` loads each time from a fresh copy of `ui/` under `/tmp`; the layer's own files import each other by relative path (`import "."`, `import ".."`), so nothing has to be on the compositor's import path. The layer reports to the Look service as it loads. If the system UI manager does not take the launch, or the injector reports an error, `apply` exits 1 and the screen is left as it was: LG's UI, or the layer loaded before. If the launch is taken and no report arrives within 30 one-second rounds (counted, so a suspend or a clock step in the middle does not cut the wait short), `apply` also exits 1, but the layer may be loaded all the same, with its reports lost (the Look service not answering, say): its copy stays, since a loaded layer reads files from it as they are first needed, and the next `apply` that reports replaces it. Only a compositor restart unloads the layer (`revert`, or any reboot). Both scripts append what they did, with the uptime, to `/var/lib/webosbrew/themepack-boot.log` (kept across reboots, one 32 KB generation as `.old`). The boot hook (`60-themepack`) runs `apply` in every boot at once, also in a Quick Start+ background boot, so the layer is there when the screen comes on, and with it the Home key's filter (see "Our Home dock"). A broken layer leaves LG's UI running and reports its error. Read the reports with `luna-send -n 1 luna://dev.themepack.look.service/getReports '{}'` (the compositor's own QML warnings go nowhere).
 
 The layer calls the bus as `com.webos.surfacemanager.wedge` (`Look.busName`). It is one of the names the compositor's role file allows it, LG's QML does not use it, and it belongs to no permission group, so `service/permissions.sh` grants it the service's group. A bus client gets its groups when it connects, and the compositor's own connections date from the boot snapshot, before any grant; a name that first connects when the layer loads gets them.
 
@@ -429,5 +441,18 @@ The read-only system and the boot snapshot undo mounts and bus permissions at ea
 TV_HOST=<tv address> sh tools/theme-pack/webos/install-boot.sh install   # build the stub, install it and the hook, run the hook
 TV_HOST=<tv address> sh tools/theme-pack/webos/install-boot.sh remove    # remove both; LG's Settings is back at once
 ```
+
+The hook's first step is the clock, for a TV that has no time source and so starts every boot years back. The Look
+service writes the time down each minute, and the hook starts the clock from that: late by however long the TV was
+off, but on about the right day, which is what the seasonal themes go by. For the right time, name a time server
+when installing: any web server the TV can reach will do, because the hook reads the time from the `Date` line of
+its answer (good to a second or two; an `https` server's certificate is not checked, since none is valid yet by a clock that
+is years back). The hook asks it at every boot, for two minutes more if the network is not up yet.
+
+```sh
+TV_HOST=<tv address> TV_TIME_URL=http://<a web server on your network>/ sh tools/theme-pack/webos/install-boot.sh install
+```
+
+The address is kept on the TV; an install with `TV_TIME_URL=` (nothing after it) forgets it.
 
 The layer step runs once `own-layer-tv.sh apply` has put the layer on the TV.

@@ -47,6 +47,9 @@ test('the guard lets through only keys that change nothing', async () => {
   assert.match(guard('ENTER', menu(row('style', 'choice'))), /would change/);
   assert.strictEqual(guard('ENTER', menu(row('theme', 'toggle')), { look: true }), null);
   assert.match(guard('LEFT', menu(row('item', 'slider'))), /step/);
+  // A part of the clock: OK, Left and Right each step it, so the suite presses none of them there.
+  for (const k of ['LEFT', 'RIGHT']) assert.match(guard(k, menu(row('item', 'stepper'))), /step/, k);
+  assert.match(guard('ENTER', menu(row('item', 'stepper'))), /would change/);
   assert.match(guard('RIGHT', menu(row('item', 'value'))), /slider/);
   assert.strictEqual(guard('LEFT', menu(row('item', 'value'))), null, 'Left goes back a page');
   assert.match(guard('LEFT', quick(row('item', 'value'))), /volume/);
@@ -195,7 +198,7 @@ test('dry run: deploy runs the real scripts against the fake TV, step by step, a
   assert.match(hookA.out, /rollback, newest first:\n {2}TV_HOST=\$TV_HOST sh tools\/theme-pack\/webos\/own-layer-tv\.sh revert\n {2}ssh root@\$TV_HOST/);
   assert.doesNotMatch(hookA.out, /== 3\/3/, 'it stops at the first failure');
   const broken = deploy(Object.assign({}, fresh, { faults: { layerFails: true } }));
-  assert.match(broken.out, /FAIL layer: the layer did not load: no report from the new layer; the screen is left as it was/);
+  assert.match(broken.out, /FAIL layer: the layer did not report: no report from the new layer in 30 rounds; it may be loaded all the same, so its files stay/);
   const refused = deploy(Object.assign({}, fresh, { faults: { installFails: true } }));
   assert.match(refused.out, /FAIL look: the TV refused the package/);
   const noLayer = deploy(Object.assign({}, base, { layerFiles: false, layer: false, mounted: false }), '--only', 'boot');

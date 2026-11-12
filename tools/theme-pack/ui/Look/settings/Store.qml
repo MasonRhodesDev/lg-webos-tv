@@ -3,6 +3,7 @@ import WebOSServices 1.0
 import ".."
 import "catalog.js" as Catalog
 import "menu.js" as Menu
+import "clock.js" as Clock
 
 // The settings data store (SETTINGS-PLAN.md, the data layer). It owns every read, subscription and write of our
 // Settings and quick sheet; pages bind to it and never call the bus.
@@ -20,6 +21,7 @@ import "menu.js" as Menu
 //   values.wifiEnabled ("enabled"/"disabled", ref wifiEnabled) and values.btPairedCount (ref btPairedCount, labelled
 //   "1 paired") come with the wifi and bluetooth channels, for other pages' values and conditions.
 //   pinMatches(pin), unlocked    the PIN, checked here against lock.systemPin; `unlocked` until Settings closes
+//   The TV's clock (ref clock, and its parts clockYear … clockMinute) is read and set here too: see setClock().
 //
 // Rows bind to `revision`, bumped on every change, plus their ref. A ref is a catalog item id (or "Page/id") or one of
 // menu.js's `extra` items.
@@ -61,7 +63,9 @@ QtObject {
         if (svc === "com.webos.audio") return "volume";
         if (svc === "com.webos.service.tv.display" && it.api.read === "getHDMIInfo") return "signal";
         if (svc === "com.webos.service.tv.systemproperty" || svc === "com.palm.systemservice/osInfo") return "system";
-        if (svc === "com.palm.systemservice" && it.api.read === "getPreferences") return "prefs";
+        if (svc === "com.palm.systemservice/time") return "clock";
+        // The time zone comes with the list of zones to choose from, so it has a channel of its own.
+        if (svc === "com.palm.systemservice" && it.api.read === "getPreferences") return it.api.keys && it.api.keys[0] === "timeZone" ? "zone" : "prefs";
         if (svc === "dev.themepack.look.service") return "kit";
         if (it.api.look) return "look";
         // Wi-Fi's on/off is cheap to watch; the scan of the air runs only while a page lists the networks.
@@ -115,6 +119,7 @@ QtObject {
         if (!ch) return;
         if (name === "bluetooth") btStop();
         if (name === "wifiScan") scanning.wifiNetworks = false;
+        if (name === "clock") clockTick.stop();
         // The PIN is read only while a page that asks for it shows, and kept no longer.
         if (name === "settings:lock") forgetPin();
         for (var i = 0; i < ch.services.length; i++) drop(ch.services[i]);
@@ -190,8 +195,39 @@ QtObject {
                 store.values.autoTime = m.useNetworkTime ? "on" : "off";
                 store.changed();
             });
-            prefs.call("luna://com.palm.systemservice", "/getPreferences", JSON.stringify({ "keys": ["useNetworkTime"], "subscribe": true }));
+            prefs.call(systemservice, "/getPreferences", JSON.stringify({ "keys": ["useNetworkTime"], "subscribe": true }));
             ch.services = [prefs];
+        } else if (name === "clock") {
+            // The time, and whether the household reads it on a 12 or a 24-hour clock.
+            var clk = service(), fmt = service();
+            clk.response.connect(function (method, payload) { store.onClock(store.parse(payload)); });
+            fmt.response.connect(function (method, payload) {
+                var m = store.parse(payload);
+                if (!m || m.returnValue === false || m.timeFormat === undefined) return;
+                store.values.timeFormat = m.timeFormat;
+                store.changed();
+            });
+            clk.call(systemservice, "/time/getSystemTime", JSON.stringify({ "subscribe": true }));
+            fmt.call(systemservice, "/getPreferences", JSON.stringify({ "keys": ["timeFormat"], "subscribe": true }));
+            ch.services = [clk, fmt];
+            clockTick.start();
+        } else if (name === "zone") {
+            var tz = service();
+            tz.response.connect(function (method, payload) {
+                var m = store.parse(payload);
+                if (!m || m.returnValue === false || !m.timeZone || !m.timeZone.ZoneID || store.pending.timeZone) return;
+                store.zone = m.timeZone;
+                store.values.timeZone = m.timeZone.ZoneID;
+                store.changed();
+            });
+            tz.call(systemservice, "/getPreferences", JSON.stringify({ "keys": ["timeZone"], "subscribe": true }));
+            ch.services = [tz];
+            // Every zone the TV knows, a few hundred of them: read once and kept.
+            if (!zones.length) request(systemservice, "/getPreferenceValues", JSON.stringify({ "key": "timeZone" }), function (m) {
+                if (!m || m.returnValue === false || !m.timeZone || !m.timeZone.length) return;
+                store.zones = m.timeZone;
+                store.changed();
+            }, null);
         } else if (name === "wifi") {
             var st = service();
             st.response.connect(function (method, payload) { store.onWifiState(payload); });
@@ -508,6 +544,122 @@ QtObject {
         return s;
     }
 
+    // The TV's clock (com.palm.systemservice): time/getSystemTime answers { utc (seconds), offset (the zone, minutes
+    // ahead of UTC) } and posts again when the time is set; time/setSystemTime { utc } sets it. A post, here and from
+    // getPreferences, carries no returnValue, and from getPreferences only the key that changed.
+    //
+    // `clock` is what the TV last said, kept as the TV's time less this process's so that it runs on between answers.
+    // Setting it by hand: each step of a part (setClock) moves `clockShift`, the seconds stepped that the TV has not
+    // been told yet, and the row shows the result at once; a moment after the last step the TV is told once
+    // (sendClock), and the answer is read back. A refusal drops the steps, so the rows show the TV's time again.
+    readonly property string systemservice: "luna://com.palm.systemservice"
+    property var clock: null
+    property real clockShift: 0
+    // The write in flight: { utc, offset }. The time shown stands still at it until the TV answers, since the clock
+    // this process reads may itself be the one being set.
+    property var clockSent: null
+    function clockUtc() {
+        if (!clock) return undefined;
+        if (clockSent) return clockSent.utc + clockShift;
+        return new Date().getTime() / 1000 + clock.skew + clockShift;
+    }
+    function onClock(m) {
+        if (!m || m.returnValue === false || typeof m.utc !== "number") return;
+        clock = { "skew": m.utc - new Date().getTime() / 1000, "offset": typeof m.offset === "number" ? m.offset : clock ? clock.offset : 0 };
+        changed();
+    }
+    // Read once more, after something that moves the clock. `sentOffset`: the zone offset a write was worked out in.
+    // Across a daylight-saving change the TV answers with another, and the wall time it shows is then an hour from
+    // the one asked for: the difference is sent once more (and not a third time: an hour that does not exist stays
+    // where the TV puts it).
+    function readClock(sentOffset) {
+        request(systemservice, "/time/getSystemTime", "{}", function (m) {
+            store.onClock(m);
+            if (sentOffset === undefined || !m || typeof m.offset !== "number" || m.offset === sentOffset) return;
+            store.clockShift += (sentOffset - m.offset) * 60;
+            store.changed();
+            store.sendClock(true);
+        }, null);
+    }
+    function setClock(part, value) {
+        var utc = clockUtc();
+        if (utc === undefined) return;
+        var wall = Clock.withPart(Clock.parts(utc, clock.offset), part, value);
+        clockShift += Clock.utcOf(wall, clock.offset) - utc;
+        changed();
+        clockSettle.restart();
+    }
+    function sendClock(corrected) {
+        if (!clock) return;
+        // One write at a time: steps made while one is in flight go in the next.
+        if (clockSent) { clockSettle.restart(); return; }
+        if (!clockShift) return;
+        var utc = Math.round(new Date().getTime() / 1000 + clock.skew + clockShift), offset = clock.offset;
+        clockSent = { "utc": utc, "offset": offset };
+        clockShift = 0;
+        function dropped(text) {
+            store.clockSent = null;
+            store.clockShift = 0;
+            store.clockSettle.stop();
+            store.changed();
+            store.failed("clock", text);
+        }
+        request(systemservice, "/time/setSystemTime", JSON.stringify({ "utc": utc }), function (m) {
+            if (!m || m.returnValue === false) { dropped(m && m.errorText ? m.errorText : "not set"); return; }
+            store.clock = { "skew": utc - new Date().getTime() / 1000, "offset": offset };
+            store.clockSent = null;
+            store.changed();
+            store.readClock(corrected ? undefined : offset);
+        }, function () { dropped("the TV did not answer"); });
+    }
+    property var clockSettle: Timer { interval: 600; onTriggered: store.sendClock(false) }
+    // While a page shows the clock, it follows the minute.
+    property real clockMinute: 0
+    property var clockTick: Timer {
+        interval: 1000
+        repeat: true
+        onTriggered: {
+            var utc = store.clockUtc(), minute = utc === undefined ? 0 : Math.floor(utc / 60);
+            if (minute !== store.clockMinute) { store.clockMinute = minute; store.changed(); }
+        }
+    }
+    // The clock, or one part of it, as state() answers it: a part lists what it can be set to.
+    function clockState(it) {
+        var utc = clockUtc(), h24 = values.timeFormat === "HH24";
+        var out = { "item": it, "value": undefined, "label": "", "visible": true, "active": true, "options": [], "min": 0, "max": 100, "step": 1 };
+        if (utc === undefined) return out;
+        var p = Clock.parts(utc, clock.offset);
+        if (!it.part) {
+            out.value = Math.floor(utc);
+            out.label = Clock.dateLabel(p) + " \u00b7 " + Clock.timeLabel(p, h24);
+            return out;
+        }
+        out.value = p[it.part];
+        out.options = Clock.choices(it.part, p, h24);
+        for (var i = 0; i < out.options.length; i++) {
+            out.options[i].active = true;
+            if (out.options[i].value === out.value) out.label = out.options[i].label;
+        }
+        return out;
+    }
+
+    // The time zone. The TV keeps it as a whole zone { ZoneID, Description, City, Country, CountryCode,
+    // offsetFromUTC, supportsDST }, answers it so from getPreferences, and takes it back so in setPreferences;
+    // getPreferenceValues { key: "timeZone" } lists every zone it knows. Our value is the ZoneID, and the picker offers
+    // the zones of the country the TV is in.
+    property var zone: null
+    property var zones: []
+    function zoneOf(id) {
+        if (zone && zone.ZoneID === id) return zone;
+        for (var i = 0; i < zones.length; i++) if (zones[i].ZoneID === id) return zones[i];
+        return null;
+    }
+    // "Pacific Time · Los Angeles".
+    function zoneLabel(z) {
+        if (!z) return "";
+        return [z.Description || "", z.City || ""].filter(function (x) { return !!x; }).join(" \u00b7 ") || z.ZoneID || "";
+    }
+
     function rawValue(it) {
         if (!it) return undefined;
         if (it.api && it.api.look === "style") return Look.chosen.style;
@@ -530,6 +682,16 @@ QtObject {
         if (it.api && it.api.look === "style") {
             var styles = Look.available.styles || [];
             for (i = 0; i < styles.length; i++) out.push({ "value": styles[i].id, "label": styles[i].name, "active": true });
+            return out;
+        }
+        if (it.id === "timeZone") {
+            var here = zoneOf(values.timeZone), listed = false;
+            for (i = 0; here && i < zones.length; i++) {
+                if (zones[i].CountryCode !== here.CountryCode) continue;
+                if (zones[i].ZoneID === here.ZoneID) listed = true;
+                out.push({ "value": zones[i].ZoneID, "label": zoneLabel(zones[i]), "active": true });
+            }
+            if (here && !listed) out.unshift({ "value": here.ZoneID, "label": zoneLabel(here), "active": true });
             return out;
         }
         var d = desc[keyOf(it)];
@@ -559,6 +721,7 @@ QtObject {
     function state(ref) {
         var it = item(ref);
         if (!it) return { "item": null, "visible": false, "active": false, "value": undefined, "label": "", "options": [] };
+        if (it.id === "clock" || it.from === "clock") return clockState(it);
         var d = desc[keyOf(it)] || {}, range = d.range || it.domain || {}, v = rawValue(it), label = "";
         if (it.type === "range") v = num(v);
         if (it.api && it.api.look === "style") {
@@ -577,6 +740,8 @@ QtObject {
                   : joined ? joined.name : values.wifiStatus || "On";
         } else if (it.id === "telemetry") {
             label = Menu.telemetryLabel(values.telemetryKit, v);
+        } else if (it.id === "timeZone") {
+            label = zoneLabel(zoneOf(v));
         } else {
             label = it.type === "info" && typeof v === "string" && !Menu.labels[it.id] ? v : Menu.valueLabel(it.id, v);
         }
@@ -608,6 +773,7 @@ QtObject {
         var it = item(ref);
         if (!it) return;
         if (it.api && it.api.look === "style") { Look.setLook({ "style": value }); return; }
+        if (it.part) { setClock(it.part, value); return; }
         var key = keyOf(it), previous = values[key];
         if (previous === value) return;
         if (it.type === "range") {
@@ -629,10 +795,12 @@ QtObject {
 
     // A call that expects one answer: answered(message) when it comes, unanswered() if none comes within
     // `timeout` (default writeTimeout; a missing bus group drops calls silently). Its Service is destroyed either way.
+    // The wait is counted down by the watchdog's own ticks, never read off the clock: a call may be the one that sets
+    // the clock, and a clock set forward or back must neither time the others out nor keep them waiting.
     property int writeTimeout: 5000
     property var inflight: []
     function request(uri, method, params, answered, unanswered, timeout) {
-        var s = service(), e = { "s": s, "at": new Date().getTime() + (timeout || writeTimeout), "unanswered": unanswered, "done": false };
+        var s = service(), e = { "s": s, "left": timeout || writeTimeout, "unanswered": unanswered, "done": false };
         inflight.push(e);
         s.response.connect(function (m, payload) {
             if (e.done) return;
@@ -652,9 +820,9 @@ QtObject {
         interval: 250
         repeat: true
         onTriggered: {
-            var now = new Date().getTime(), list = store.inflight.slice();
+            var list = store.inflight.slice();
             for (var i = 0; i < list.length; i++) {
-                if (list[i].done || now < list[i].at) continue;
+                if (list[i].done || (list[i].left -= interval) > 0) continue;
                 list[i].done = true;
                 store.retire(list[i]);
                 if (list[i].unanswered) list[i].unanswered();
@@ -684,9 +852,14 @@ QtObject {
         } else if (it.api.service === "com.webos.audio") {
             uri = "luna://com.webos.audio"; method = "/setVolume"; params = { "volume": value };
         } else if (it.api.service === "com.palm.systemservice" && it.api.write === "setPreferences") {
-            uri = "luna://com.palm.systemservice"; method = "/setPreferences";
+            uri = systemservice; method = "/setPreferences";
             params = {};
-            params[it.api.keys[0]] = value === "on";
+            if (it.api.keys[0] === "timeZone") {
+                // The whole zone, as the TV lists it.
+                var z = zoneOf(value);
+                if (!z) { console.warn("settings store: no such time zone: " + value); values[key] = previous; changed(); return; }
+                params.timeZone = z;
+            } else params[it.api.keys[0]] = value === "on";
         } else if (it.api.service === "com.webos.service.wifi" && it.api.write === "setstate") {
             uri = wifi; method = "/setstate"; params = { "state": value };
         } else {
@@ -705,6 +878,9 @@ QtObject {
             else if (it.api.service === "com.webos.service.tv.time") {
                 var ch = store.channels.sleep;
                 if (ch) { store.drop(ch.services[0]); ch.services = [store.readSleep()]; }
+            } else if (it.id === "timeZone" && store.clock) {
+                // Another zone is another offset: the clock is read again in it.
+                store.readClock();
             }
         }, function () { settle(); rollback("the TV did not answer"); });
         if (it.id === "pictureMode")

@@ -120,13 +120,16 @@ export const STEPS = [
       if (r.status !== 0) return 'own-layer-tv.sh apply failed: ' + lastLine(r.out);
       const failed = r.out.split('\n').find((l) => /the screen is left as it was/.test(l));
       if (failed) return 'the layer did not load: ' + failed.trim();
+      const silent = r.out.split('\n').find((l) => /no report from the new layer/.test(l));
+      if (silent) return 'the layer did not report: ' + silent.trim();
       if (!/layer loaded after/.test(r.out)) return 'own-layer.sh never said "layer loaded": ' + lastLine(r.out);
       return null;
     },
     async check(ctx) {
       const t0 = ctx.layerT0 || '';
-      const all = await ctx.tv.reports(t0);
-      const created = all.find((r) => r.text === 'layer created by injection' || /^inject: /.test(r.text));
+      // The injector reports last, once every part is made: seconds after the layer's first report, which is all
+      // own-layer.sh waits for.
+      const { hit: created } = await waitReport(ctx, t0, (r) => r.text === 'layer created by injection' || /^inject: /.test(r.text), 20);
       if (!created || created.kind !== 'ready') return created ? 'the injector says: ' + created.text : 'no "layer created by injection" report' + (t0 ? ' since ' + t0 : '');
       const { hit, rs } = await waitReport(ctx, t0, (r) => r.text === 'settings: host ready' || /^settings: host up, but/.test(r.text), 20);
       const errors = rs.filter((r) => r.kind === 'error');

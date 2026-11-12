@@ -839,6 +839,114 @@ Item {
         }
 
         // The probe the TV suite reads (Layer.qml publishes it): open pages, focus and the kind of row it is on, prompts.
+        // The TV keeps no time while it is unplugged, so with network time out of reach the household sets it here.
+        function setsOfClock() {
+            var n = 0;
+            for (var i = 0; i < TvSettings.calls.length; i++) if (TvSettings.calls[i].method === "/time/setSystemTime") n++;
+            return n;
+        }
+        function shown(label) { var r = specNamed(label); return r.options[r.index]; }
+        function test_8g_time_and_date() {
+            part.store.writeTimeout = 300;
+            openSettings("TimeDate", 30);
+            compare(topId(), "TimeDate");
+            compare(part.menu.stack[0].id, "General");
+            compare(part.menu.page.sub, "Wed, Nov 11, 2026 \u00b7 9:41 PM", "the page says what the TV's clock says");
+            compare(specNamed("Time zone").value, "Eastern Time \u00b7 New York");
+            compare([shown("Year"), shown("Month"), shown("Day"), shown("Hour"), shown("Minute")].join(), "2026,November,11,9 PM,41");
+            compare(specNamed("Year").variant, "stepper");
+
+            // Left and Right step a part; the TV is told once, a moment after the last step.
+            down("Minute");
+            var sets = setsOfClock();
+            keyClick(Qt.Key_Right);
+            compare(shown("Minute"), "42", "the step shows at once");
+            keyClick(Qt.Key_Right);
+            compare(setsOfClock(), sets, "and nothing is sent while stepping");
+            wait(900);
+            compare(setsOfClock(), sets + 1, "one write");
+            var want = Date.UTC(2026, 10, 12, 2, 43, 0) / 1000, sent = called("/time/setSystemTime").utc;
+            verify(sent >= want && sent <= want + 2, "of the new minute from its first second, in the TV's zone: " + (sent - want));
+            compare(TvSettings.clockUtc, sent);
+            compare(part.menu.page.sub, "Wed, Nov 11, 2026 \u00b7 9:43 PM");
+            down("Hour");
+            keyClick(Qt.Key_Left);
+            compare(shown("Hour"), "8 PM");
+            keyClick(Qt.Key_Return);
+            compare(shown("Hour"), "9 PM", "OK steps on, as Right does");
+            wait(900);
+            compare(setsOfClock(), sets + 2);
+            compare(part.menu.page.sub, "Wed, Nov 11, 2026 \u00b7 9:43 PM");
+
+            // Into summer time: the TV's zone is an hour on there, and the time asked for is the time shown.
+            down("Month");
+            for (var i = 0; i < 4; i++) keyClick(Qt.Key_Left);
+            compare(shown("Month"), "July");
+            wait(900);
+            compare(part.menu.page.sub, "Sat, Jul 11, 2026 \u00b7 9:43 PM", "9:43 in July, not 10:43");
+            compare(setsOfClock(), sets + 4, "set, then set right once the TV said which offset July has");
+            verify(Math.abs(TvSettings.clockUtc - Date.UTC(2026, 6, 12, 1, 43, 0) / 1000) < 30);
+
+            // The TV refuses, or does not answer: the rows show its clock again, and the household is told.
+            down("Year");
+            TvSettings.fail.clock = true;
+            keyClick(Qt.Key_Right);
+            compare(shown("Year"), "2027");
+            wait(900);
+            compare(shown("Year"), "2026", "refused: back to the TV's year");
+            verify(toasted("Not changed: Not allowed now"));
+            TvSettings.silent.clock = true;
+            keyClick(Qt.Key_Left);
+            compare(shown("Year"), "2025");
+            wait(1700);
+            compare(shown("Year"), "2026", "no answer: back to the TV's year");
+            verify(reported("warning", "clock not saved: the TV did not answer"));
+            delete TvSettings.silent.clock;
+            compare(part.store.inflight.length, 0);
+
+            // Automatic: the TV sets its own clock, and the parts are not ours to step.
+            down("Automatic");
+            keyClick(Qt.Key_Return);
+            compare(called("/setPreferences").useNetworkTime, true);
+            compare(specNamed("Minute").disabled, true);
+            compare(specNamed("Minute").hint, "Turn off Automatic to set it");
+            keyClick(Qt.Key_Return);
+            compare(called("/setPreferences").useNetworkTime, false);
+            verify(!specNamed("Minute").disabled);
+
+            // The zone: the country's zones, and the TV is given the whole zone it listed.
+            down("Time zone");
+            keyClick(Qt.Key_Return);
+            compare(topId(), "pick:timeZone");
+            var zones = [];
+            for (i = 0; i < rows().rows.length; i++) zones.push(rows().rows[i].label);
+            compare(zones.length, 8, "the eight zones of the TV's country: " + zones.join());
+            compare(focused(), "Eastern Time \u00b7 New York", "on the one it is in");
+            down("Pacific Time \u00b7 Los Angeles");
+            keyClick(Qt.Key_Return);
+            var zone = called("/setPreferences").timeZone;
+            compare([zone.ZoneID, zone.City, zone.offsetFromUTC, zone.CountryCode].join(), "America/Los_Angeles,Los Angeles,-480,US");
+            compare(topId(), "TimeDate");
+            compare(specNamed("Time zone").value, "Pacific Time \u00b7 Los Angeles");
+            compare(part.menu.page.sub, "Sat, Jul 11, 2026 \u00b7 6:43 PM", "the same moment, on that zone's clocks");
+            compare(shown("Hour"), "6 PM");
+
+            // A 24-hour household reads it so.
+            TvSettings.preferences.timeFormat = "HH24";
+            TvSettings.notify("", "prefs", "timeFormat");
+            compare(part.menu.page.sub, "Sat, Jul 11, 2026 \u00b7 18:43");
+            compare(shown("Hour"), "18");
+            TvSettings.preferences.timeFormat = "HH12";
+            TvSettings.notify("", "prefs", "timeFormat");
+
+            // As it was, for the cases after this one.
+            for (i = 0; i < TvSettings.zones.length; i++) if (TvSettings.zones[i].ZoneID === "America/New_York") TvSettings.preferences.timeZone = TvSettings.zones[i];
+            TvSettings.clockUtc = Date.UTC(2026, 10, 12, 2, 41, 5) / 1000;
+            TvSettings.notify("", "prefs", "timeZone");
+            TvSettings.notify("", "clock");
+            compare(part.menu.page.sub, "Wed, Nov 11, 2026 \u00b7 9:41 PM");
+        }
+
         function test_8z_probe() {
             part.closeAll();
             compare(part.probe.menu.open, false);

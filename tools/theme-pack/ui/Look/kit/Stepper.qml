@@ -2,7 +2,8 @@ import QtQuick 2.4
 import ".."
 
 // An inline value picker: ‹ value › with a dot per option under it, as Quick Settings steps through modes with Left
-// and Right. Wraps at the ends. step(+1 / -1) moves; the value slides in from the side it came from.
+// and Right. Wraps at the ends. step(+1 / -1) moves; the value slides in from the side it came from, whoever moved
+// the index (a row list steps its rows' indexes itself).
 Item {
     id: stepper
     property var options: []
@@ -17,11 +18,19 @@ Item {
 
     function step(d) {
         if (disabled || count < 2) return;
-        dir = d;
         stepped((index + d + count) % count);
     }
     property int dir: 1
-    onIndexChanged: { slide.stop(); slide.start(); }
+    property int was: 0
+    onIndexChanged: {
+        // The shorter way round: from the last option on to the first is a step forward.
+        var d = index - was;
+        dir = (d > 0) === (count < 3 || Math.abs(d) <= count / 2) ? 1 : -1;
+        was = index;
+        slide.stop();
+        slide.start();
+    }
+    Component.onCompleted: was = index
 
     width: chevL.width + valueWidth + chevR.width
     height: Look.px("toggle-h") + 14

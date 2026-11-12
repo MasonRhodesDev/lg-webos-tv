@@ -95,11 +95,17 @@ FocusScope {
         else if (r.kind === "item") {
             if (r.variant === "toggle") store.set(r.ref, Pages.flipped(r));
             else if (r.variant === "value") open(Pages.drill(r, Pages.title(entry)));
+            else if (r.variant === "stepper") step(r, 1);
         } else if (r.kind === "network" || r.kind === "text") {
             var req = Pages.textRequest(r);
             if (req) edit(req);
         } else if (r.kind === "search") store.btSearch();
         else if (r.kind === "changePin") changePin();
+    }
+    // Left or Right on a stepper row (OK steps it on, as Right does).
+    function step(r, delta) {
+        var next = Pages.steppedTo(r, delta);
+        if (next !== undefined) store.set(r.ref, next);
     }
     // OK on a row once it is unlocked: ask first if it asks, else do it.
     function activate(r) {
@@ -150,7 +156,9 @@ FocusScope {
         }
         onAdjusted: {
             var r = spec(index);
-            if (!r || r.kind !== "item" || r.variant !== "slider") return;
+            if (!r || r.kind !== "item" || r.disabled) return;
+            if (r.variant === "stepper") { view.step(r, delta); return; }
+            if (r.variant !== "slider") return;
             var next = Pages.stepped(view.store, r.ref, delta);
             if (next !== undefined) view.store.set(r.ref, next);
         }

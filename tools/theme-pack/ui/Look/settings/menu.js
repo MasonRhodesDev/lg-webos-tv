@@ -8,7 +8,8 @@
 // A row is one of:
 //   { item: ref, label, icon }       a setting. Its catalog type picks the row: switch → toggle (or `as: "value"`: its
 //                                    value and a picker of its two values), enum → value (OK opens a picker page),
-//                                    range → slider (or `as: "value"`: OK opens an adjust page), info → info.
+//                                    range → slider (or `as: "value"`: OK opens an adjust page), info → info,
+//                                    step (ours: a part of the clock) → stepper, Left and Right step through it.
 //                                    `as: "toggle", on, off` shows an enum as a switch of two values. `sub` is the
 //                                    subtitle of the picker it opens.
 //   { page: id, label, icon, value } a link to another page; `value` (an item ref) shows that setting's value.
@@ -115,6 +116,19 @@ var pages = {
         { item: "signalRate", label: "Frame rate", icon: "motion" },
         { item: "signalScan", label: "Scan type", icon: "sliders" }
     ] },
+    // The TV's clock. Automatic takes it from the internet or the broadcast; with that off, each part of the date and
+    // time steps with Left and Right and the clock is set a moment after the last step (Store.setClock). The TV has
+    // no battery clock: unplugged, it forgets the time and starts again in 2019 until something sets it.
+    "TimeDate": { category: "general", title: "Time and date", sub: { from: "clock" }, rows: [
+        { item: "autoTime", label: "Automatic", hint: "From the internet or the TV signal", icon: "refresh" },
+        { item: "timeZone", label: "Time zone", icon: "globe" },
+        { section: "Set by hand" },
+        { item: "clockYear", label: "Year", icon: "calendar", activeWhen: { ref: "autoTime", is: ["off"] }, why: "Turn off Automatic to set it" },
+        { item: "clockMonth", label: "Month", icon: "calendar", activeWhen: { ref: "autoTime", is: ["off"] }, why: "Turn off Automatic to set it" },
+        { item: "clockDay", label: "Day", icon: "calendar", activeWhen: { ref: "autoTime", is: ["off"] }, why: "Turn off Automatic to set it" },
+        { item: "clockHour", label: "Hour", icon: "clock", activeWhen: { ref: "autoTime", is: ["off"] }, why: "Turn off Automatic to set it" },
+        { item: "clockMinute", label: "Minute", icon: "clock", activeWhen: { ref: "autoTime", is: ["off"] }, why: "Turn off Automatic to set it" }
+    ] },
     "Timers": { category: "general", title: "Timers", rows: [
         { item: "sleepTimer", label: "Sleep timer", icon: "moon" },
         { page: "TimerPowerOn", label: "Power on timer", icon: "power" },
@@ -167,8 +181,8 @@ var texts = {
     "zipcode": { min: 5, max: 5, layout: "symbols" }
 };
 
-// Settings that are not in LG's catalog: the volume, screen off, the input picker, our own Look, and what the TV
-// reports about itself. `from` makes an item a view of another one's value, with labels of its own.
+// Settings that are not in LG's catalog: the volume, screen off, the input picker, our own Look, the clock, and what
+// the TV reports about itself. `from` makes an item a view of another one's value, with labels of its own.
 var extra = {
     "volume": { id: "volume", tier: 1, type: "range", domain: { min: 0, max: 100, step: 1 },
                 api: { service: "com.webos.audio", read: "getVolume", subscribe: true, write: "setVolume", param: "volume" } },
@@ -202,6 +216,15 @@ var extra = {
     "agreements": { id: "agreements", tier: 3, type: "info", from: "eulaStatus" },
     "btSoundOut": { id: "btSoundOut", tier: 3, type: "info", from: "soundOutput" },
     "look.style": { id: "look.style", tier: 1, type: "enum", api: { look: "style" } },
+    // The TV's clock (systemservice time/getSystemTime, set with time/setSystemTime), and its parts: each a view of
+    // it that steps (type "step": Store.state lists what it can be, Store.set sets the clock).
+    "clock": { id: "clock", tier: 2, type: "info",
+               api: { service: "com.palm.systemservice/time", read: "getSystemTime", subscribe: true, write: "setSystemTime" } },
+    "clockYear": { id: "clockYear", tier: 2, type: "step", from: "clock", part: "year" },
+    "clockMonth": { id: "clockMonth", tier: 2, type: "step", from: "clock", part: "month" },
+    "clockDay": { id: "clockDay", tier: 2, type: "step", from: "clock", part: "day" },
+    "clockHour": { id: "clockHour", tier: 2, type: "step", from: "clock", part: "hour" },
+    "clockMinute": { id: "clockMinute", tier: 2, type: "step", from: "clock", part: "minute" },
     // Connection's Wi-Fi value: Off, or the network it is on (Store.state).
     "wifiSummary": { id: "wifiSummary", tier: 2, type: "info", api: { service: "com.webos.service.wifi", read: "getstatus" } },
     // How many Bluetooth audio devices are paired (the Connection board's "1 paired"; 0 greys Bluetooth surround).

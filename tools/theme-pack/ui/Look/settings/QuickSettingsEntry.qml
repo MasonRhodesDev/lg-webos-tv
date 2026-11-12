@@ -45,6 +45,10 @@ FocusScope {
             Look.report("error", "settings: Quick Settings entry loaded outside LG's system UI container");
             return;
         }
-        parent.lifeCycleStatusChanged.connect(entry.lifeCycle);
+        box = parent;
+        box.lifeCycleStatusChanged.connect(entry.lifeCycle);
     }
+    // LG's container, while it tells this file its life cycle.
+    property Item box: null
+    Component.onDestruction: { try { if (box) box.lifeCycleStatusChanged.disconnect(entry.lifeCycle); } catch (e) { } }
 }

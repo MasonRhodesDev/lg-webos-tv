@@ -38,7 +38,9 @@ function start(opts) {
       respond: (m) => answers.push(JSON.parse(JSON.stringify(m))) });
     return answers;
   }
-  return { call, saved: () => JSON.parse(fs.readFileSync(path.join(root, 'data', 'look.json'), 'utf8')) };
+  const kept = path.join(root, 'data', 'clock');
+  return { call, saved: () => JSON.parse(fs.readFileSync(path.join(root, 'data', 'look.json'), 'utf8')),
+    keptTime: () => (fs.existsSync(kept) ? fs.readFileSync(kept, 'utf8') : null) };
 }
 
 test('the service is ES5, for the TV\'s Node 0.12', () => {
@@ -265,7 +267,7 @@ test('a season lies under its holiday; of two holidays the shorter window wins',
   assert.deepStrictEqual([back.look.themes, back.look.skip], [['winter', 'hanukkah'], []]);
 });
 
-test('the calendar is read again each midnight, and subscribers hear only when something changed', (t) => {
+test('the calendar is read again when the day turns, and subscribers hear only when something changed', (t) => {
   clock(t, 2026, 11, 25);
   const { call, saved } = start({ themes: sample, look: { auto: true, themes: ['glow'] } });
   const sub = call('getLook', {}, true);
@@ -285,6 +287,45 @@ test('the calendar is read again each midnight, and subscribers hear only when s
   assert.deepStrictEqual(sub[sub.length - 1].look.themes, ['glow', 'winter', 'newyear'], '1 January, across New Year');
   for (let i = 0; i < 3; i++) t.mock.timers.tick(24 * HOUR);
   assert.deepStrictEqual(sub[sub.length - 1].look.themes, ['glow', 'winter'], '4 January');
+});
+
+test('the time is written down each minute for the next boot, but not a clock nobody has set', (t) => {
+  // The service's file is as old as this run, so 2019 is before it and 2031 after it.
+  clock(t, 2019, 1, 1);
+  const { keptTime } = start({ themes: sample });
+  t.mock.timers.tick(60000);
+  assert.strictEqual(keptTime(), null, 'the clock a boot starts with is not kept');
+
+  t.mock.timers.setTime(noon(2031, 3, 9));
+  t.mock.timers.tick(60000);
+  assert.strictEqual(keptTime(), String(Math.floor(Date.now() / 1000)), 'seconds since 1970');
+  const first = Number(keptTime());
+  t.mock.timers.tick(60000);
+  assert.strictEqual(Number(keptTime()), first + 60, 'and again a minute on');
+});
+
+test('a clock set after the service started is heard within a minute, and a clock set back is followed too', (t) => {
+  // The TV has no battery clock: it starts in 2019, and its date arrives later (from the network, or set by hand).
+  clock(t, 2019, 1, 1);
+  const { call, saved } = start({ themes: sample, look: { auto: true, themes: ['glow'] } });
+  const sub = call('getLook', {}, true);
+  assert.deepStrictEqual(sub[0].look.themes, ['glow', 'winter', 'newyear'], 'the day it believes at start');
+
+  t.mock.timers.setTime(noon(2026, 11, 11));
+  assert.strictEqual(sub.length, 1, 'nothing runs the moment the clock moves');
+  t.mock.timers.tick(60000);
+  assert.strictEqual(sub.length, 2);
+  assert.deepStrictEqual([sub[1].today, sub[1].look.themes], ['2026-11-11', ['glow', 'autumn']]);
+  assert.deepStrictEqual(saved().themes, ['glow', 'autumn']);
+
+  t.mock.timers.tick(10 * 60000);
+  assert.strictEqual(sub.length, 2, 'a day that has not turned says nothing');
+
+  // Set back (the mocked timers are due by the mocked date, so here it is a call that sees it).
+  t.mock.timers.setTime(noon(2025, 12, 24));
+  const got = call('getLook')[0];
+  assert.deepStrictEqual([got.today, got.look.themes], ['2025-12-24', ['glow', 'winter', 'christmas']]);
+  assert.deepStrictEqual(sub[2].look.themes, ['glow', 'winter', 'christmas'], 'and subscribers hear it');
 });
 
 test('with auto off the calendar changes no theme, and a day that turned unseen is caught up on the next call', (t) => {

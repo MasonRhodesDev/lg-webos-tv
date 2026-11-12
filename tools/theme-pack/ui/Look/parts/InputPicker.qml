@@ -82,9 +82,18 @@ Item {
     readonly property int lgCount: lg ? lg.inputPickerListModel.count : 0
     onLgCountChanged: rebuild()
     onLgChanged: {
-        if (lg) lg.inputPickerListModel.dataChanged.connect(rebuild);
+        watchModel(lg ? lg.inputPickerListModel : null);
         rebuild();
     }
+    // LG's model can outlive this part, and a connected function of a destroyed part is still called.
+    property var lgModel: null
+    function watchModel(model) {
+        if (lgModel === model) return;
+        try { if (lgModel) lgModel.dataChanged.disconnect(part.rebuild); } catch (e) { /* LG's model is already gone */ }
+        lgModel = model;
+        if (lgModel) lgModel.dataChanged.connect(part.rebuild);
+    }
+    Component.onDestruction: watchModel(null)
     onWatchingChanged: rebuild()
     onShownChanged: if (shown) rebuild()
 

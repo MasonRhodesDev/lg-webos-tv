@@ -100,6 +100,17 @@ Item {
             p.menu.pinEntered("1234");
         } } },
         State { name: "sound-none-paired"; StateChangeScript { script: { TvSettings.btDevices = []; p.settings("sound"); } } },
+        // Time and date: the clock set by hand a part at a time, greyed while Automatic holds it, and the zone picker.
+        State { name: "time-date"; StateChangeScript { script: { p.settings("TimeDate"); focusOn("Minute"); } } },
+        State { name: "time-date-automatic"; StateChangeScript { script: {
+            TvSettings.preferences.useNetworkTime = true;
+            p.settings("TimeDate");
+        } } },
+        State { name: "time-zone"; StateChangeScript { script: {
+            p.settings("TimeDate");
+            focusOn("Time zone");
+            p.menu.page.run(p.menu.page.focusedRow);
+        } } },
         State { name: "keyboard-input"; StateChangeScript { script: p.settings("keyboard-input") } },
         State { name: "tv-name"; StateChangeScript { script: {
             p.settings("keyboard-input");

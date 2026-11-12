@@ -22,6 +22,37 @@ STUB=$ROOT/settings-stub
 PKG=dev.themepack.look
 SVC=$PKG.service
 
+# 0. The clock. The TV keeps no time while it is off: every boot starts it at the same moment years back, and there it
+# stays unless the network or a broadcast sets it. So this boot starts it from the best time it can get: a time
+# server's, when install-boot.sh was given one (any web server the TV can reach: the Date line of its answer is the
+# time), or else the last time the Look service wrote down, which is late by however long the TV was off but on
+# about the right day. Done first, because the steps below wait on the clock.
+KEPT=/media/developer/apps/usr/palm/services/$SVC/data/clock
+SERVER=$ROOT/time-url
+# What the time server says, in seconds since 1970; nothing if it does not answer. -k: a certificate is not valid
+# yet by a clock that is years back.
+server_time() {
+  d=$(curl -skI -m 4 "$(cat $SERVER)" | tr -d '\r' | sed -n 's/^[Dd]ate: *//p' | head -1)
+  [ -n "$d" ] && date -u -D '%a, %d %b %Y %H:%M:%S' -d "$d" +%s 2>/dev/null
+}
+set_clock() {
+  luna-send -n 1 -w 5000 luna://com.palm.systemservice/time/setSystemTime "{\"utc\":$1}" | grep -q '"returnValue": *true'
+}
+asked=0
+now=$(date +%s)
+if [ -s $SERVER ] && t=$(server_time) && [ -n "$t" ]; then
+  asked=1
+  if [ $((t - now)) -gt 1 ] || [ $((now - t)) -gt 1 ]; then
+    set_clock "$t" && echo "clock set from the time server: $(date)" || echo "clock not set (the time server answered, the TV refused)"
+  else
+    echo "clock agrees with the time server"
+  fi
+elif [ -s $KEPT ] && t=$(cat $KEPT) && [ "$t" -gt "$now" ] 2>/dev/null; then
+  set_clock "$t" && echo "clock started from the last time kept: $(date)" || echo "clock not set (the TV refused the last time kept)"
+else
+  echo "clock left as it is"
+fi
+
 # 1. The bus resumes from the boot snapshot without the Look service's permissions.
 # Its methods are public, and our layer calls as com.webos.surfacemanager.wedge, which belongs to no group until it is
 # granted one; without that the service drops its calls unanswered. A client takes its groups when it connects, and
@@ -80,6 +111,21 @@ else
       echo "resident stock settings closed"
   fi
   mount --bind "$STUB" "$APP" && echo "settings stub mounted"
+fi
+
+# The network can come up after this hook has run: a time server that did not answer is asked for two minutes more.
+if [ -s $SERVER ] && [ $asked = 0 ]; then
+  (
+    i=0
+    while [ $i -lt 24 ]; do
+      sleep 5
+      if t=$(server_time) && [ -n "$t" ]; then
+        set_clock "$t" && echo "clock set from the time server, after the hook: $(date)"
+        break
+      fi
+      i=$((i + 1))
+    done
+  ) &
 fi
 
 state=$(luna-send -n 1 -w 5000 luna://com.webos.service.tvpower/power/getPowerState '{}' | sed -n 's/.*"state": *"\([^"]*\)".*/\1/p')

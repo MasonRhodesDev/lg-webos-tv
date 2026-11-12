@@ -14,6 +14,9 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const APP = JSON.parse(fs.readFileSync(path.join(here, '..', '..', 'tv', 'appinfo.json'), 'utf8'));
 const STYLES = [{ id: 'smoke', name: 'Smoke' }, { id: 'bubble', name: 'Bubble' }];
 const THEMES = [{ id: 'glow', name: 'Glow' }, { id: 'halloween', name: 'Halloween' }, { id: 'winter', name: 'Winter' }];
+// Time zones as the system service lists them (getPreferenceValues); the first is the one set.
+const zone = (ZoneID, City, Description, offsetFromUTC) => ({ ZoneID, City, Description, offsetFromUTC, Country: 'United States of America', CountryCode: 'US', supportsDST: 1 });
+const ZONES = [zone('America/New_York', 'New York', 'Eastern Time', -300), zone('America/Los_Angeles', 'Los Angeles', 'Pacific Time', -480)];
 const SHOW_MS = 3000;
 // The installed apps the back-refusing-app scenario may launch (launch points), standing in for a streaming app.
 const APPS = ['com.webos.app.browser', 'org.webosbrew.hbchannel'];
@@ -290,7 +293,7 @@ function key(s, k) {
 // ---- LG's side ----
 
 // own-layer.sh apply: a new layer goes in place of the loaded one. Returns whether it reported. One that does not
-// compile, or whose reports nobody takes, leaves the TV as it was.
+// compile leaves the TV as it was; one that is never heard from is not known to be loaded.
 function layerUp(s) {
   if (!s.installed || s.faults.layerFails) return false;
   const at = iso();
@@ -312,11 +315,14 @@ function applyLayer(s, how) {
   if (how === 'revert') { s.layer = false; s.ownLayerLog += 'stock\ndone\n'; return false; }
   const loaded = layerUp(s);
   if (loaded) s.layerInstance = (s.layerInstance || 1) + 1;
-  s.ownLayerLog += (loaded ? 'layer loaded after 1 rounds (no restart)' : 'no report from the new layer; the screen is left as it was') + '\ndone\n';
+  const said = s.reports.filter((r) => r.kind === 'error' && /^inject: /.test(r.text)).pop();
+  s.ownLayerLog += (loaded ? 'layer loaded after 1 rounds (no restart)'
+    : said && s.broken === 'layer' ? said.text.replace(/^inject: /, '') + '; the screen is left as it was'
+      : 'no report from the new layer in 30 rounds; it may be loaded all the same, so its files stay') + '\ndone\n';
   return loaded;
 }
 function hook(s) {
-  const log = ['=== ' + iso()];
+  const log = ['=== ' + iso(), 'clock left as it is'];
   if (s.installed) log.push('service permissions set', 'bus rescanned'); else log.push('Look service not installed; skipping permissions');
   let loaded = false;
   if (s.layerFiles) { loaded = applyLayer(s, 'apply'); log.push(loaded ? 'UI layer loaded (see /tmp/own-layer.log)' : 'UI layer did not load (see /tmp/own-layer.log)'); }
@@ -456,7 +462,16 @@ function luna(s, uri, p) {
     case 'com.webos.service.tv.display/getHDMIInfo': return ok({ width: 3840, height: 2160, frameRate: 120, scanType: true, HDMImode: true });
     case 'com.webos.service.tv.systemproperty/getSystemInfo': return ok({ modelName: 'OLED00X0', firmwareVersion: '00.00.00' });
     case 'com.palm.systemservice/osInfo/query': return ok({ core_os_release: '0.0.0' });
-    case 'com.palm.systemservice/getPreferences': return ok({ useNetworkTime: true });
+    // As on the TV: only the keys asked for; the zone is a whole object, one of getPreferenceValues' list.
+    case 'com.palm.systemservice/getPreferences': {
+      const all = { useNetworkTime: true, useNetworkTimeZone: true, timeFormat: 'HH12', timeZone: ZONES[0] }, out = {};
+      for (const k of p.keys || []) if (k in all) out[k] = all[k];
+      return ok(out);
+    }
+    case 'com.palm.systemservice/getPreferenceValues':
+      return p.key === 'timeZone' ? ok({ timeZone: ZONES }) : { returnValue: false, errorText: 'fake TV: no values for ' + p.key };
+    case 'com.palm.systemservice/time/getSystemTime':
+      return ok({ utc: Math.floor(Date.now() / 1000), offset: ZONES[0].offsetFromUTC, timezone: ZONES[0].ZoneID, systemTimeSource: 'manual', timeValid: true });
     case 'dev.themepack.look.service/getTelemetry': return ok({ kit: 'unknown' });
     case 'com.webos.service.wifi/getstatus': return ok({ status: 'serviceDisabled' });
     // As on the TV: btaudiosrc does not answer; bluetooth2 lists the devices (a speaker and the magic remote).
@@ -608,7 +623,7 @@ export function ssh(s, cmd, stdin) {
   if (/^chmod 755 \S+05-clean-poweroff \S+99-clear-failsafe \S+failsafe-recover\.sh && \S+99-clear-failsafe$/.test(cmd)) { s.poweroffHook = !!s.files['/var/lib/webosbrew/init.d/05-clean-poweroff']; return r(); }
   if (/activitymanager\/cancel .*themepack\.failsafe-recover/.test(cmd)) return r();
   if (/^rm -f \S+60-themepack( \S+05-clean-poweroff \S+99-clear-failsafe \S+failsafe-recover\.sh)?$/.test(cmd)) { s.hook = false; if (/05-clean-poweroff/.test(cmd)) s.poweroffHook = false; return r(); }
-  if (/^rm -rf \S+\/settings \S+\/settings-stub; echo removed$/.test(cmd)) { s.stub = false; return r('removed\n'); }
+  if (/^rm -rf \S+\/settings \S+\/settings-stub \S+\/time-url; echo removed$/.test(cmd)) { s.stub = false; return r('removed\n'); }
   if (/^s=\/media\/developer\/apps\/usr\/palm\/services\/\S+\/permissions\.sh; if/.test(cmd))
     return r(s.installed ? 'compositor groups: dev.themepack.look.service.group settings.read settings.write audio\n' : '');
   if (/appInstallService\/dev\/install/.test(cmd)) {

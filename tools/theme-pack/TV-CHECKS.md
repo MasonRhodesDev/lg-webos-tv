@@ -39,7 +39,9 @@ The Look app (Home's Look icon)
       Settings at its Look page, with nothing of the app on screen (no splash, no frame) and the picture underneath
       unchanged; the app has left `applicationManager/running` within 1 s.
 - [ ] The app's bus calls reach the Look service as `dev.themepack.look` (its own package), with no permission error
-      in `/var/log/messages` (it is `"trustLevel": "trusted"`, as the stub and LG's stock Settings are).
+      in `/var/log/messages`. Its appinfo names no `trustLevel`: the TV's app manager does not list an installed app
+      that calls itself trusted (`getAppInfo` answers "Invalid appId specified OR Unsupported Application Type"), so
+      Home would have no Look icon. The stub can, because it stands in LG's own Settings app.
 
 Every deep link lands on the right page
 - [ ] For every key of `settings/catalog.json` `lgTargets.map`:
@@ -148,6 +150,33 @@ Board content: the adapters behind the designed pages (UNVERIFIED reads, from LG
       "OLED55B9PUA" and "4.10.0"). Note whether `getSystemInfo` has an `sdkVersion` that reads "4.5".
 - [ ] `luna://com.palm.systemservice/getPreferences '{"keys":["useNetworkTime"],"subscribe":true}'` answers and
       `setPreferences {useNetworkTime}` from Time and date's switch sticks (Time and date then reads Automatic/Manual).
+- [ ] `luna://com.palm.systemservice/time/getSystemTime '{"subscribe":true}'` answers `utc` (seconds) and `offset`
+      (minutes ahead of UTC) for our bus identity, and answers again, without a `returnValue`, when the time is set.
+      Time and date's header then reads the TV's own date and time ("Wed, Nov 11, 2026 · 9:41 PM"), in the TV's zone
+      and its 12- or 24-hour format (`timeFormat`).
+- [ ] With Automatic off, stepping a part of the clock sets the TV (Left/Right or OK on Year, Month, Day, Hour,
+      Minute: one `time/setSystemTime {utc}` a moment after the last step), LG's own clock shows the new time, and a
+      month stepped across a daylight-saving change keeps the hour shown. With Automatic on the five rows are greyed
+      and say why. UNVERIFIED: whether our bus identity may call `time/setSystemTime` (`permissions.sh` asks for the
+      groups the TV lists the method in under the service's newer name); a refusal shows "Not changed" and the old
+      time.
+- [ ] `getPreferenceValues '{"key":"timeZone"}'` lists the zones; Time zone's picker shows those of the current
+      zone's country, and choosing one (`setPreferences {timeZone: <the whole zone object>}`) sticks and moves the
+      time shown.
+- [ ] The clock starts again at the first second of 2019 (UTC) on every boot with no time source (no network time,
+      no broadcast): the TV keeps no clock while unplugged. After it is set by hand, the Look service follows within a
+      minute (Look, Automatic seasonal: the season and holiday of the new date).
+- [x] `tv/set-clock.sh` sets the TV's clock to that of the machine running it. With Automatic off it answered
+      "TV clock set: ... (0 s from this machine's)": `time/setSystemTime` returned true for root, and the TV's
+      `date` then read the same second.
+- [ ] After a power-on with no time source, `/tmp/themepack.log` says "clock started from the last time kept" and
+      the TV's date is the day it was switched off, not 2019 (the Look service writes the time to its `data/clock`
+      each minute, and never a time before its own build); the layer and the stub then load as on any boot. Where
+      the clock is already right (network time), the log says "clock left as it is".
+- [ ] With a time server named (`TV_TIME_URL=<url> install-boot.sh install`), the hook's log says "clock set from the
+      time server" or "clock agrees with the time server", and after a power-on the clock is right to within two
+      seconds; when the network comes up only after the hook, "clock set from the time server, after the hook"
+      follows within two minutes. `TV_TIME_URL=` with nothing forgets the server.
 - [ ] `getSystemSettings '{"category":"","keys":["eulaStatus","localeInfo"]}'` answers for our appId (eulaStatus is
       not in settingsservice.allow), with all eight of telemetry-off's `EULA_KEYS` as booleans.
 - [ ] `luna-send -n 1 luna://dev.themepack.look.service/getTelemetry '{}'` says `"kit":"active"` after a cold boot

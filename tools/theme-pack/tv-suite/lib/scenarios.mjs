@@ -528,7 +528,7 @@ export const SCENARIOS = [
   {
     id: 'reads',
     title: "The reads our Settings' adapters make, answered as root (shapes only; nothing is set)",
-    tvChecks: ['hdmi-info', 'system-info', 'network-time', 'eula', 'telemetry', 'wifi-shape', 'bt-shape', 'pin-read', 'groups', 'groups-reads', 'wifi-groups'],
+    tvChecks: ['hdmi-info', 'system-info', 'network-time', 'clock-read', 'time-zone', 'eula', 'telemetry', 'wifi-shape', 'bt-shape', 'pin-read', 'groups', 'groups-reads', 'wifi-groups'],
     async run(ctx) {
       const get = async (uri, p) => { try { return await ctx.luna(uri, p); } catch (e) { return { returnValue: false, errorText: e.message }; } };
       const fg = await ctx.foreground();
@@ -542,6 +542,16 @@ export const SCENARIOS = [
       ctx.check('osInfo/query answers core_os_release', !!os.core_os_release, JSON.stringify(os).slice(0, 200));
       const nt = await get('luna://com.palm.systemservice/getPreferences', { keys: ['useNetworkTime'] });
       ctx.check('getPreferences answers useNetworkTime', nt.useNetworkTime !== undefined, JSON.stringify(nt).slice(0, 200));
+      // The clock and the zone, as Time and date reads them. Nothing is set: the suite never changes the TV's time.
+      const clk = await get('luna://com.palm.systemservice/time/getSystemTime', {});
+      ctx.check('time/getSystemTime answers utc (seconds) and offset (minutes)', typeof clk.utc === 'number' && typeof clk.offset === 'number', JSON.stringify(clk).slice(0, 300));
+      ctx.note('reads.clock', { utc: clk.utc, offset: clk.offset, source: clk.systemTimeSource, valid: clk.timeValid, apart: typeof clk.utc === 'number' ? Math.round(clk.utc - Date.now() / 1000) : null });
+      const tz = await get('luna://com.palm.systemservice/getPreferences', { keys: ['timeZone', 'timeFormat'] });
+      const zones = (await get('luna://com.palm.systemservice/getPreferenceValues', { key: 'timeZone' })).timeZone;
+      ctx.check('getPreferences answers timeZone as an object with ZoneID, and timeFormat', !!(tz.timeZone && tz.timeZone.ZoneID) && /^HH(12|24)$/.test(tz.timeFormat), JSON.stringify(tz).slice(0, 300));
+      ctx.check('getPreferenceValues lists the zones, the one set among them',
+        Array.isArray(zones) && zones.every((z) => z.ZoneID && z.CountryCode !== undefined && typeof z.offsetFromUTC === 'number') && zones.some((z) => tz.timeZone && z.ZoneID === tz.timeZone.ZoneID),
+        Array.isArray(zones) ? zones.length + ' zones' : 'no list');
       const eula = await get('luna://com.webos.settingsservice/getSystemSettings', { category: '', keys: ['eulaStatus'] });
       const keys = ['acrOnAllowed', 'acrAdAllowed', 'customAdAllowed', 'additionalDataAllowed', 'voiceAllowed', 'voice2Allowed', 'takeOnAllowed', 'chpAllowed'];
       const es = eula.settings && eula.settings.eulaStatus;

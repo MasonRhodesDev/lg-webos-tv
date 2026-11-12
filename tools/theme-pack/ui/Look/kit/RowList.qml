@@ -142,11 +142,11 @@ ListView {
             hoverEnabled: enabled
             onEntered: { list.pointing = true; list.currentIndex = slot.at; list.pointing = false; list.pointed(slot.at); }
             onClicked: { list.pointing = true; list.currentIndex = slot.at; list.pointing = false; list.activated(slot.at, slot.r); }
-            // The magic remote's wheel steps a slider row: one notch (120) is one step, away from you is up.
+            // The magic remote's wheel steps a slider or stepper row: one notch (120) is one step, away from you is up.
             property real wheelRest: 0
             onWheel: {
                 var r = slot.r;
-                if (!r || r.variant !== "slider") { wheel.accepted = false; return; }
+                if (!r || (r.variant !== "slider" && r.variant !== "stepper")) { wheel.accepted = false; return; }
                 wheelRest += wheel.angleDelta.y;
                 var steps = wheelRest > 0 ? Math.floor(wheelRest / 120) : Math.ceil(wheelRest / 120);
                 wheelRest -= steps * 120;

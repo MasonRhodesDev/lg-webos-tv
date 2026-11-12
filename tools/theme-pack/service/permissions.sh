@@ -16,6 +16,8 @@ CLIENT=$DEV/client-permissions.d/$SVC.compositor.json
 
 printf '{"public":["%s/*"]}' $SVC > $API
 # The methods ui/Look/settings/Store.qml, parts/Settings.qml and parts/Home.qml call.
+# The system service answers to two names. Our Settings calls the older one (com.palm.systemservice); the TV's
+# permission files put its methods in groups under the newer one, so both are listed and either finds the groups.
 METHODS='com.webos.settingsservice/getSystemSettings com.webos.settingsservice/getSystemSettingDesc
 com.webos.settingsservice/getSystemSettingValues com.webos.settingsservice/setSystemSettings
 com.webos.settingsservice/resetSystemSettings com.webos.settingsservice/batch
@@ -25,6 +27,11 @@ com.webos.audio/getVolume com.webos.audio/setVolume com.webos.service.tvpower/po
 com.webos.notification/createToast com.webos.applicationManager/launch
 com.webos.service.tv.display/getHDMIInfo com.webos.service.tv.systemproperty/getSystemInfo
 com.palm.systemservice/osInfo/query com.palm.systemservice/getPreferences com.palm.systemservice/setPreferences
+com.palm.systemservice/getPreferenceValues com.palm.systemservice/time/getSystemTime
+com.palm.systemservice/time/setSystemTime
+com.webos.service.systemservice/getPreferences com.webos.service.systemservice/setPreferences
+com.webos.service.systemservice/getPreferenceValues com.webos.service.systemservice/time/getSystemTime
+com.webos.service.systemservice/time/setSystemTime
 com.webos.service.tv.systemproperty/doUserDefault
 com.webos.service.wifi/getstatus com.webos.service.wifi/setstate com.webos.service.wifi/findnetworks
 com.webos.service.wifi/connect com.webos.service.wifi/deleteprofile

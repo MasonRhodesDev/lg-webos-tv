@@ -33,10 +33,11 @@ Item {
     function watchProbe(part, file) {
         if (part.probe === undefined) return;
         probed = probed.concat([{ "part": part, "file": file }]);
-        part.probeChanged.connect(function () { if (!Look.probing) return; layer.pending[file] = part; probeTimer.restart(); });
+        part.probeChanged.connect(function () { if (layer.retired || !Look.probing) return; layer.pending[file] = part; probeTimer.restart(); });
     }
     // Probing turned on: everything at once, then on change and on the heartbeat (connected in onCompleted).
     function probingChanged() {
+        if (retired) return;
         pending = {};
         if (Look.probing) for (var i = 0; i < probed.length; i++) publish(probed[i].file, probed[i].part);
     }
@@ -60,7 +61,7 @@ Item {
     Timer {
         interval: layer.menuOpen() ? 1000 : 5000
         repeat: true
-        running: Look.probing && layer.probed.length > 0
+        running: Look.probing && !layer.retired && layer.probed.length > 0
         onTriggered: { for (var i = 0; i < layer.probed.length; i++) layer.publish(layer.probed[i].file, layer.probed[i].part); }
     }
 
@@ -88,7 +89,11 @@ Item {
     // Every part this layer made, wherever it sits now: an open menu of ours lives in LG's popup plane (settings/Hold.qml),
     // not under the layer.
     property var made: []
+    property bool retired: false
     function retire() {
+        if (retired) return;
+        retired = true;
+        unlink();
         for (var i = 0; i < made.length; i++) {
             var part = made[i];
             if (!part) continue;
@@ -96,6 +101,23 @@ Item {
             try { if (typeof part.retire === "function") part.retire(); } catch (e) { Look.report("gap", "retire: " + e); }
         }
     }
+
+    // What this layer connected to that outlives it (LG's items, the Look singleton), as { source, to }. The
+    // compositor's Qt still calls a connected function of a destroyed layer, in a context that is gone, and crashes on
+    // the first singleton that function names. So each such connection is made here and undone before the layer goes.
+    property var links: []
+    function link(source, to) {
+        source.connect(to);
+        links.push({ "source": source, "to": to });
+    }
+    function unlink() {
+        var all = links;
+        links = [];
+        for (var i = 0; i < all.length; i++) {
+            try { all[i].source.disconnect(all[i].to); } catch (e) { /* LG's item is already gone */ }
+        }
+    }
+    Component.onDestruction: unlink()
 
     // LG just showed `root`: offer it, and what lies under it, to the on-demand parts that hold no item. LG's views
     // keep pointing at a destroyed container until they move on, so any read may throw.
@@ -120,23 +142,23 @@ Item {
             var view = kids[i];
             if (view.viewName === undefined || view.currentView === undefined) continue;
             (function (view) {
-                view.currentViewChanged.connect(function () { layer.offer(view.currentView, layer.lateDepth); });
+                layer.link(view.currentViewChanged, function () { layer.offer(view.currentView, layer.lateDepth); });
             })(view);
             offer(view.currentView, lateDepth);
         }
         // The notification view loads late; its toast view is its sibling, first under the loader, then under host.
         // Its parent may come only after the item does, so offer again when it moves.
         if (host.notificationViewChanged !== undefined)
-            host.notificationViewChanged.connect(function () {
+            link(host.notificationViewChanged, function () {
                 var nv = host.notificationView;
                 if (!nv) return;
-                nv.parentChanged.connect(function () { if (layer) layer.offer(nv.parent, 0); });
+                layer.link(nv.parentChanged, function () { layer.offer(nv.parent, 0); });
                 layer.offer(nv.parent, 0);
             });
     }
 
     Component.onCompleted: {
-        Look.probingChanged.connect(layer.probingChanged);
+        link(Look.probingChanged, layer.probingChanged);
         var late = [];
         for (var i = 0; i < parts.length; i++) {
             var c = Qt.createComponent(Qt.resolvedUrl(parts[i]));
