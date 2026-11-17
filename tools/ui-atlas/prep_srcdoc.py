@@ -1,11 +1,3 @@
-"""Produce the srcdoc HTML strings for the real-markup previews.
-python3 -I prep_srcdoc.py WORK_DIR OUT_JSON [HBC_DOM_HTML]
-Output: {"settings": html, "notificationcenter": html, "assistant": html, "homebrew": html}
-"homebrew" is present only when HBC_DOM_HTML (the Chromium DOM capture) is given.
-Rules: no <script> survives; fonts point at fonts/*.ttf (published next to the page);
-LG-proprietary fonts (LG Display, LG Display_Dingbat, Museo Sans) are NOT shipped: their
-families are re-pointed at Google's Nunito Sans, and dingbat glyphs are masked.
-"""
 import sys, os, re, json
 
 G, OUT = sys.argv[1], sys.argv[2]
@@ -36,7 +28,6 @@ def fontfix(css):
 
 
 def prune_css(css, markup):
-    """Keep only rules whose class selectors appear in the markup (crude, depth-aware)."""
     classes = set(re.findall(r'class="([^"]*)"', markup))
     present = set()
     for c in classes:
@@ -94,12 +85,10 @@ def enact_doc(app, markup, extra=""):
 
 
 out = {}
-# Settings: markup lives in a JS string assigned to #root.innerHTML in index.en.html
 s = open(os.path.join(A, "com.palm.app.settings/index.en.html"), encoding="utf-8").read()
 m = re.search(r"innerHTML='((?:[^'\\]|\\.)*)'", s)
 out["settings"] = enact_doc("com.palm.app.settings", strip_scripts(unjs(m.group(1))))
 
-# Notification center: markup is directly inside #root
 s = open(os.path.join(A, "com.webos.app.notificationcenter/index.en.html"), encoding="utf-8").read()
 i = s.index('<div id="root">') + len('<div id="root">')
 end = s.find("<script", i)
@@ -107,16 +96,13 @@ body = s[i:end if end > 0 else s.index("</body>")]
 body = body.rsplit("</div>", 1)[0]
 out["notificationcenter"] = enact_doc("com.webos.app.notificationcenter", strip_scripts(body))
 
-# Google Assistant: bundled sample response card (fixture), scripts stripped
 s = open(os.path.join(A, "com.webos.app.googleassistant/weather_screen_out.html"), encoding="utf-8").read()
 s = strip_scripts(s)
-# the fixture's logo is a remote image; the page loads nothing but Google Fonts
 s = re.sub(r"url\(\s*['\"]?https?://[^)]*\)", "none", s)
 s = s.replace("<head>", "<head><style>html,body{width:1920px;height:1080px;margin:0;overflow:hidden!important;background:" + VIDEO +
               "!important}#popout{opacity:1!important;position:fixed!important;bottom:0!important;transform:none!important}</style>", 1)
 out["assistant"] = s
 
-# Homebrew Channel: DOM captured from headless Chromium (no network), scripts stripped
 if HBC_DOM:
     d = open(HBC_DOM, encoding="utf-8").read()
     d = strip_scripts(d)

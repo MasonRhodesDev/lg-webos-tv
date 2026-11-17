@@ -1,15 +1,9 @@
-// The remote's buttons as LG's network input service names them, and the guard every key the suite presses goes
-// through. Provenance: "proven" were pressed on the TV through the socket; "table" are names in the service binary's
-// key table (network-input-service), not yet pressed; "unverified" were not found in that table.
 export const KEYS = {
   QMENU: { from: 'proven', what: 'the gear: Quick Settings (ours through Hook A)' },
   UP: { from: 'proven' }, DOWN: { from: 'proven' }, LEFT: { from: 'proven' }, RIGHT: { from: 'proven' },
   ENTER: { from: 'proven', what: 'OK' },
   BACK: { from: 'proven' },
   VOLUMEUP: { from: 'table' }, VOLUMEDOWN: { from: 'table' }, MUTE: { from: 'table' },
-  // Never pressed by the suite: they switch input (Input), change channel or turn the TV off. Home and Exit leave the
-  // app underneath; only the scenarios that check them press them (`unless`: allow.home, allow.exit), and put the
-  // foreground back.
   HOME: { from: 'proven', never: 'opens Home over the app underneath', unless: 'home' },
   EXIT: { from: 'proven', never: 'closes the app underneath', unless: 'exit' },
   INPUT_HUB: { from: 'table', never: 'a second Input press switches the input after 5 s' },
@@ -20,21 +14,13 @@ export const KEYS = {
 };
 
 const MOVES = new Set(['UP', 'DOWN', 'LEFT', 'RIGHT']);
-// Row variants Left/Right do not change (RowList steps only sliders and steppers).
 const STILL = new Set(['nav', 'value', 'choice', 'toggle', 'action', 'category', 'info']);
 
-// What OK on a row does, from its kind and variant (pages.js, PageView.run): only these open something without
-// changing anything. `allow` widens it for one press: text (open the keyboard), look (a Look page style or theme row,
-// restored by the run), pin (a digit on a locked page's PIN pad).
-// A write the scenario will undo (allow.write = { ref }): OK on that setting's toggle, or on a choice in its picker.
-// Actions (reset, screen off), networks, devices, the PIN and locked rows never pass, whatever is allowed.
 const sameRef = (a, b) => !!a && !!b && (a === b || a.split('/').pop() === b);
 function writeOk(f, allow) {
   return !!(allow.write && sameRef(f.ref, allow.write.ref) &&
     ((f.kind === 'item' && f.variant === 'toggle') || f.kind === 'choose'));
 }
-// The action rows that only open one of LG's apps (catalog: an applicationManager launch with appReturn), for the
-// scenario that leaves for them (allow.launch = { ref }).
 export const LAUNCHES = new Set(['deviceConnector', 'pictureTest', 'soundTest']);
 const launchOk = (f, allow) => !!(allow.launch && f.kind === 'action' && LAUNCHES.has(f.ref) && sameRef(f.ref, allow.launch.ref));
 
@@ -51,19 +37,10 @@ function enterSafe(f, allow) {
   return 'OK on a ' + (f.kind || '?') + '/' + (f.variant || '?') + ' row ("' + f.label + '") would change something';
 }
 
-// Whether `key` may be pressed now. `state` is { settings (the Settings part's probe), picker (the input picker's),
-// systemUi (the system UI app in front, or ''), front (the apps in front: SAM's and the compositor's, read when
-// allow.over is given) }. Returns null, or why not. The suite never presses a key the guard refuses; the scenario
-// fails there instead.
-// Narrower allowances, each for the scenarios that need it: picker (Left, Right and Back in the input picker, never
-// OK), lgQuick (Up, Down, OK and Back in LG's own Quick Settings, the fallback), over (Back while that LG app is in
-// front and nothing of ours is open), launch (above), home and exit (the keys themselves).
 export function guard(key, state, allow = {}) {
   const k = KEYS[key];
   if (!k) return 'unknown key ' + key;
   if (k.never && !(k.unless && allow[k.unless])) return key + ' is never pressed: ' + k.never;
-  // Nothing is pressed on a state that cannot be trusted: a stale probe (the layer may be gone, and the key would
-  // land on LG's UI or the app), or an LG overlay we do not know.
   if (state.fresh === false) return 'stale state, nothing is pressed: ' + state.stale;
   if (state.systemUi === 'unknown') return "an LG overlay we do not know is open, or systemUIManager's answer is unreadable: nothing is pressed";
   const s = state.settings || {};
@@ -73,10 +50,8 @@ export function guard(key, state, allow = {}) {
     return allow.lgQuick && ['UP', 'DOWN', 'ENTER', 'BACK'].includes(key) ? null : "LG's Quick Settings is open: no key (it closes with closeByAppId)";
   }
   if (picker) return allow.picker && ['LEFT', 'RIGHT', 'BACK'].includes(key) ? null : 'the input picker is open: ' + (allow.picker ? 'only Left, Right and Back' : 'no key');
-  // Volume and mute only once the state is known: fresh, probing on, no LG overlay (all checked above).
   if (['VOLUMEUP', 'VOLUMEDOWN', 'MUTE'].includes(key)) return allow.volume ? null : key + ' only in the volume scenarios';
   if (key === 'QMENU') return null;
-  // Home and Exit, allowed above for this press: over our Settings or the app, never over LG's own UI.
   if (k.never) return null;
   if (!own) {
     if (key === 'BACK' && allow.over && (state.front || []).includes(allow.over)) return null;

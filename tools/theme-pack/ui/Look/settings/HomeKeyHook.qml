@@ -1,27 +1,16 @@
 import QtQuick 2.4
 import ".."
 
-// Puts the Home key's filter (ui/home-key.js) into LG's key filter chain, in memory only. LG's key filter object
-// (`host.keyFilter`) holds the live chain as `keyFilters`, bound to configd's list on `host.systemSettings`; assigning
-// it reloads every filter in the list. The new list is LG's with our entry just ahead of LG's Home handling, so the
-// filters before it (screen saver, accessibility and the like) still see every key first.
-//
-// Nothing is written to configd: a compositor restart or a reboot gives LG's chain back. While installed, a change to
-// configd's list is followed (the list is made again from it). restore() puts LG's list back as a plain value: a
-// binding made here would stop when this layer goes, on Qt 5.6.
 QtObject {
     id: hook
     property Item host
     readonly property string handler: "themepackHandleHome"
-    // LG's own Home handling; ours goes just before it, or first if LG's is not found.
     readonly property string before: "handleSystemKeys"
-    // A filesystem path: LG's key filter loads files by plain path.
     readonly property string file: {
         var u = String(Qt.resolvedUrl("../../home-key.js"));
         return u.indexOf("file://") === 0 ? u.slice(7) : "";
     }
     property bool installed: false
-    // LG's list as it was when installed, should configd's value be missing at restore.
     property var saved: null
     property bool connected: false
 
@@ -31,7 +20,6 @@ QtObject {
     }
     function filter() { return host ? host.keyFilter : null; }
 
-    // Wanted and not yet installed: configd's list has not come yet; it is installed when it does.
     property bool wanted: false
     function install() {
         var kf = filter(), lg = lgList();
@@ -58,7 +46,6 @@ QtObject {
     }
     function reapply() { if (wanted) install(); }
 
-    // Idempotent; a hook never installed changes nothing.
     function restore() {
         if (connected) { try { host.systemSettings.keyFiltersChanged.disconnect(hook.reapply); } catch (e) { } }
         connected = false;

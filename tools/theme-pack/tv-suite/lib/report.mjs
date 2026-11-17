@@ -1,6 +1,3 @@
-// The contact sheet of a run: each TV capture beside its board (rendered from the saved canvas source with headless
-// Chromium) or, without one, the matching preview shot from preview/render.mjs; the assertions; and how every
-// TV-CHECKS.md item is covered. Written into the run's own directory, never the repo.
 import fs from 'node:fs';
 import path from 'node:path';
 import { render } from './boards.mjs';
@@ -8,7 +5,6 @@ import { coverage } from './coverage.mjs';
 
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
-// The preview shot for a scene in the look the capture was taken in (the theme's first entry, as render.mjs names it).
 function previewShot(dir, scene, look) {
   if (!dir || !scene || !fs.existsSync(dir)) return null;
   const style = look && look.style || 'smoke', theme = look && look.themes && look.themes[0] || 'none';
@@ -48,7 +44,6 @@ export async function writeReport(out, { boards, preview, say = () => {} } = {})
   for (const it of (man && man.items) || []) for (const id of it.covers || []) (status[id] = status[id] || []).push('manual ' + it.id + ' ' + it.verdict);
   if (boot) for (const id of ['stub-mounted', 'stub-resident', 'hook-order', 'telemetry']) (status[id] = status[id] || []).push('coldboot ' + (boot.ok ? 'pass' : 'fail'));
 
-  // The cold boot's redirect run and the manual pass's captures show like any run.
   const runs = results.runs.slice();
   if (boot && boot.redirect) runs.unshift(Object.assign({}, boot.redirect, { id: 'coldboot-redirect', title: 'redirect, first after the cold boot' }));
   for (const it of (man && man.items) || []) if (it.captures && it.captures.length) runs.push({ id: 'manual-' + it.id, title: 'manual pass: ' + it.id, status: it.verdict, reason: it.note, keys: it.keys || [], checks: it.checks, captures: it.captures });

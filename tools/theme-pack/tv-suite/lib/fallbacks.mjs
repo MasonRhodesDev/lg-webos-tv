@@ -1,6 +1,3 @@
-// The fallbacks, driven on purpose: our layer deployed broken (Layer.qml does not load) or without our Settings part,
-// then the good build put back and checked. A broken build is a copy of webos/ and ui/ in a temp dir with one change
-// carrying a marker comment, applied with that copy's own-layer-tv.sh, so the repo is never touched.
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -36,18 +33,15 @@ async function sh(ctx, file, args, cwdTheme = THEME) {
   return { status: r.status, out };
 }
 
-// Applies a broken build. `kind` is "layer" or "part".
 export async function breakLayer(ctx, kind) {
   const t = brokenCopy(kind);
   const t0 = await ctx.tv.now();
   const r = await sh(ctx, 'webos/own-layer-tv.sh', ['apply'], t);
   fs.rmSync(t, { recursive: true, force: true });
-  // Ask for the key socket again before the next key.
   ctx.tv.resetKeys();
   return { t0, out: r.out };
 }
 
-// Takes the stub off, so the hook decides again; runs the hook, returns its last lines.
 export async function rerunHook(ctx, { unmount = true } = {}) {
   if (unmount) await ctx.tv.sh('sh -s', { input: fs.readFileSync(path.join(THEME, 'webos', 'settings-unmount.sh')) });
   const r = await ctx.tv.sh(HOOK + '; tail -8 /tmp/themepack.log', { timeout: 300000 });
@@ -58,9 +52,6 @@ export async function rerunHook(ctx, { unmount = true } = {}) {
 
 export async function mounted(ctx) { return (await ctx.tv.sh('mount')).stdout.includes(' ' + SETTINGS_APP + ' '); }
 
-// The good build back: the layer from this checkout, then the hook (which mounts the stub once the host is ready).
-// Verified by a fresh read: "settings: host ready" since the restore began, the stub mounted, and our Settings' probe
-// up. Tried `tries` times; returns why it is still not good, or ''.
 export async function restoreLayer(ctx, tries = 3) {
   let why = '';
   for (let i = 1; i <= tries; i++) {
@@ -70,7 +61,6 @@ export async function restoreLayer(ctx, tries = 3) {
     ctx.tv.resetKeys();
     const ready = (await ctx.tv.reports(t0)).some((x) => x.text === 'settings: host ready');
     const m = await mounted(ctx);
-    // The new layer subscribes and learns probing is on; its first probe follows.
     let probe = false;
     for (let w = 0; w < 20 && !probe; w++) { probe = !!(await ctx.tv.probes().catch(() => ({}))).Settings; if (!probe) await ctx.sleep(500); }
     why = ready && m && probe ? '' : [a.status ? 'own-layer-tv.sh apply failed' : '', b.status ? 'install-boot.sh install failed' : '',

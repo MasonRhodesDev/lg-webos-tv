@@ -1,13 +1,10 @@
 import QtQuick 2.4
 import ".."
 
-// A count or alert dot pinned to a corner of a tile or icon ("2", "!"). Decoratable as `chip`.
-// tone: attention (default), critical, neutral.
 Item {
     id: chip
     property string text
     property string tone: "attention"
-    // As an attachment: the point of the origin it is centred on, [x%, y%] (Decor).
     property var anchor: [100, 0]
     readonly property string fillToken: tone === "critical" ? "critical" : tone === "neutral" ? "ink" : "attention"
     readonly property string inkToken: tone === "critical" ? "critical-ink" : tone === "neutral" ? "focus-ink" : "attention-ink"

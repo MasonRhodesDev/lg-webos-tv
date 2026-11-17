@@ -1,7 +1,4 @@
 (function () {
-  // First snow: snow falling behind everything, icicles along the top of the screen and a snowbank along the bottom,
-  // snow settling on the top edge of every surface, tile and tag, frost crystals and an icy glow at focus, a snowman
-  // on every slider and snowflakes on the switches.
   var FLAKE = 'M12 2v20M3.3 7l17.4 10M20.7 7L3.3 17M9.5 3.5L12 6l2.5-2.5M9.5 20.5L12 18l2.5 2.5';
   var ICE = '#9AD8FF';
   function flake(x, y, s, o) {
@@ -13,7 +10,6 @@
     [120, 520, 24, .4], [400, 560, 30, .5], [700, 530, 22, .35], [980, 500, 28, .5], [1300, 460, 20, .4], [1700, 520, 26, .45]]
     .map(function (f) { return flake(f[0], f[1], f[2], f[3]); }).join('');
 
-  // Icicles hang from the top edge of the screen, inside the overscan margin where no controls sit.
   var ICICLES = (function () {
     var d = '', x = 0, lengths = [18, 34, 12, 26, 40, 16, 30, 22, 14, 36, 20, 28];
     for (var i = 0; x < 1920; i++) {
@@ -25,12 +21,10 @@
       '<path d="' + d + '" fill="#D6EEFF" opacity="0.7"></path></svg>';
   })();
 
-  // A snowbank in the bottom overscan strip, under the input ribbon.
   var SNOWBANK = '<svg width="1920" height="54" viewBox="0 0 1920 54" aria-hidden="true">' +
     '<path d="M0 54V36C120 22 220 30 340 34S560 18 700 26S940 40 1060 30S1300 16 1440 28S1700 40 1820 26S1900 28 1920 30V54Z" fill="#B9D6EC" opacity="0.55"></path>' +
     '<path d="M0 54V42C160 32 300 40 460 40S760 30 900 38S1180 46 1340 38S1640 30 1780 40S1900 42 1920 40V54Z" fill="#F4FAFF" opacity="0.9"></path></svg>';
 
-  // Snow lying on a top edge, its base along the edge: a long drift for surfaces, a short one for tiles and tags.
   function cap(w, h) {
     return '<svg width="' + w + '" height="' + h + '" viewBox="0 0 140 30" preserveAspectRatio="none" aria-hidden="true">' +
       '<path d="M4 22C10 10 22 6 34 10C42 2 60 0 72 8C84 2 100 4 108 12C120 8 134 12 138 22C138 26 134 28 128 28H10C6 28 2 26 4 22Z" fill="#F4FAFF" stroke="#B9D6EC" stroke-width="1.2"></path>' +

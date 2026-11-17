@@ -3,17 +3,12 @@ import QtGraphicalEffects 1.0
 import "."
 import "place.js" as Place
 
-// One theme recipe drawn around a component: an image from the theme's asset pack, a soft fill (a glow), or a
-// crisp stroke (a ring).
-// The outset is [top, right, bottom, left] in px out from the component, one number for all four, or either per state. A recipe whose
-// style gives a size sits at an edge of that box instead of filling it (place.js).
 Item {
     id: ring
     property Item host
     property string theme
     property var recipe
 
-    // Per state, and animated between states: outsets cost no layout, so they move freely.
     readonly property var want: Place.outset(recipe.outset, host.focused, host.current, host.disabled)
     property real ot: want[0]
     property real or: want[1]
@@ -24,7 +19,6 @@ Item {
     Behavior on ob { NumberAnimation { duration: Look.px("motion-focus") } }
     Behavior on ol { NumberAnimation { duration: Look.px("motion-focus") } }
     readonly property var o: [ot, or, ob, ol]
-    // A radius in px, or a radius token grown by the outset so the ring stays concentric with the component.
     readonly property real radius: typeof recipe.radius === "string" ? Look.px(recipe.radius) + o[0] : (recipe.radius || 0)
     readonly property var box: Place.rect(Place.placement(recipe.style), host.width + o[1] + o[3], host.height + o[0] + o[2])
     x: -o[3] + box.x
@@ -32,11 +26,8 @@ Item {
     width: box.width
     height: box.height
     visible: { var w = recipe.when || "always"; return w === "always" || host[w] === true; }
-    // Decoration on a disabled component recedes with it.
     opacity: (recipe.opacity !== undefined ? recipe.opacity : 1) * (host.disabled ? 0.5 : 1)
 
-    // Only the piece the recipe draws is made, and only once the ring first shows: a row carries a ring per theme
-    // recipe, and making every glow up front cost the TV tens of milliseconds a row.
     property bool wanted: false
     onVisibleChanged: if (visible) wanted = true
     Component.onCompleted: wanted = visible
@@ -52,7 +43,6 @@ Item {
         }
     }
 
-    // RectangularGlow spreads its blur outside its own box, so the box is inset by the blur to stay inside the ring.
     Loader {
         active: ring.wanted && !!ring.recipe.fill
         anchors.fill: parent

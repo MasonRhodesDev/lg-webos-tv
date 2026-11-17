@@ -1,24 +1,4 @@
 #!/usr/bin/env python3
-"""Read a B9 hib partition image and print its structure.
-
-Fields are little-endian, offsets relative to partition start:
-
-  0x0F20  u32  magic              = 0x03160326
-  0x0F24  u32  compType            0 = raw (no verify), 2|3 = lz4/lz4hc
-  0x0F28  u32  payloadSize         bytes of body (0x1000 .. trailer_start)
-  0x0F2C  u32  compBlockCount      number of 16-byte records at metaOff
-  0x0F30  u32  metaOff             partition-relative offset of meta table
-  0x0F38  u32  entryPC             ELR_EL2 for ERET
-  0x0F78  u32  depCount            trivially zero if none
-
-  trailer at ALIGN(payloadSize, 16):
-    +0x0000 u32 magic              = 0xABF6178A
-    +0x0004 u32 block_size
-    +0x0008 u32 block_count
-    +0x0010 .. per-chunk records (0x100 each, SHA at +0)
-    +0x2010 bytes[0x20] single-chunk SHA-256
-    total trailer size: 0x2110 (sig_hdr_size)
-"""
 from __future__ import annotations
 import argparse
 import hashlib

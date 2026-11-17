@@ -2,9 +2,6 @@ import QtQuick 2.4
 import ".."
 import "keys.js" as KeyMap
 
-// A PIN keypad (the PIN prompt board): 1 to 9, Clear, 0 and Delete as Keys in three columns, `pad-w` wide, the `pad`
-// role. Driven by the D-pad, and the remote's digit keys type straight in. Data out: digit(d), cleared(), erased(),
-// back().
 FocusScope {
     id: pad
     property bool focusShown: true
@@ -26,7 +23,6 @@ FocusScope {
         else digit(k);
     }
     Keys.onPressed: {
-        // A USB keyboard's Backspace erases here; the remote's Back still closes.
         if (event.key === Qt.Key_Backspace) { erased(); event.accepted = true; return; }
         var k = KeyMap.nav(event, Qt), i = currentIndex;
         if (k === "up") { if (i >= 3) currentIndex = i - 3; }

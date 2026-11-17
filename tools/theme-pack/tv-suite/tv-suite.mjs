@@ -1,17 +1,4 @@
 #!/usr/bin/env node
-// The TV integration suite: put what is built on the TV, drive every built screen with remote keys, and show each
-// capture beside its board. See the README's "TV integration suite".
-//
-//   node tv-suite.mjs deploy [OUT_DIR] [--from STEP] [--only STEP] [--check]
-//   node tv-suite.mjs coldboot [OUT_DIR]          reboot, then the checks that count only after a boot
-//   node tv-suite.mjs manual [OUT_DIR] [--item ID]... [--no-later]     | manual --print
-//   node tv-suite.mjs run [OUT_DIR] [--scenario ID]...                 | run --list (the fallback-* run only when named)
-//   node tv-suite.mjs baseline                    read-only preflight: every baseline value readable, probes fresh, keys
-//   node tv-suite.mjs rollback                    put back what deploy's backup holds | rollback --print
-//   node tv-suite.mjs report OUT_DIR [--boards CANVAS_DIR] [--preview RENDER_DIR]
-// Without --live every command runs against the fake TV (fake/), whatever TV_HOST says. With --live it talks to
-// root@$TV_HOST. Every command that touches the TV first restores from a journal an interrupted command left, and
-// on SIGINT, SIGTERM or an error it restores from its own journal before it exits.
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -54,7 +41,6 @@ export function parse(argv) {
   return o;
 }
 
-// A dry run: the fake TV's ssh and scp first on PATH, its state in a file, and a host that resolves nowhere.
 async function fake(o) {
   const { initialState } = await import('./fake/tv.mjs');
   const f = o.fakeState || path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'tv-suite-fake-')), 'tv.json');
@@ -62,16 +48,13 @@ async function fake(o) {
   process.env.TV_SUITE_FAKE = f;
   process.env.PATH = path.join(here, 'fake') + path.delimiter + process.env.PATH;
   process.env.TV_HOST = 'tv.invalid';
-  // The journal pointer for the fake lives beside its state, never with a real TV's.
   process.env.TV_SUITE_STATE = path.dirname(f);
   console.log('dry run: fake TV state in ' + f);
   return f;
 }
 
-// The command in flight, for the signal handler: its context and how to make a fresh connection for the restore.
 const live = { ctx: null, fresh: null, restoring: null, code: 0, probing: false, keepalive: null };
 
-// Probing off at the end of every command (normal, error, signal).
 export async function probingOff(ctx) {
   if (live.keepalive) clearInterval(live.keepalive);
   live.keepalive = null;
@@ -80,7 +63,6 @@ export async function probingOff(ctx) {
   await ctx.tv.setProbing(false).catch((e) => console.error('note: probing could not be turned off (' + e.message + '); it expires by itself'));
 }
 
-// Stops the command and restores the TV from the journal (on a fresh connection; the command's own is cut off).
 export function interrupt(why, say = console.log) {
   if (live.restoring) return live.restoring;
   const ctx = live.ctx;
@@ -121,8 +103,6 @@ export async function main(argv, say = console.log) {
   if (o.live && o.dry) throw new Error('--live and --dry-run together');
   if (!o.live) { o.dry = true; if (process.env.TV_HOST && !o.fakeState) say('no --live: a dry run against the fake TV, not ' + process.env.TV_HOST); }
   if (o.dry) await fake(o);
-  // A dry run talks to the fake in this process, on its state file (the repo scripts reach the same file through the
-  // PATH shims), with its waits shortened.
   let exec, sleep;
   if (o.dry) {
     const f = await import('./fake/tv.mjs');
@@ -136,8 +116,6 @@ export async function main(argv, say = console.log) {
   const ctx = fresh();
   live.ctx = ctx;
   live.fresh = fresh;
-  // Probing on for this command (and kept alive), off again however it ends; then an interrupted command's journal:
-  // nothing new starts until the TV is verified back.
   live.probing = true;
   const probingWhy = await ctx.tv.setProbing(true).then(() => '', (e) => e.message);
   if (probingWhy) say(predatesProbing(probingWhy) ? 'note: ' + DEPLOY_FIRST : 'note: probing could not be turned on yet: ' + probingWhy);
@@ -146,8 +124,6 @@ export async function main(argv, say = console.log) {
   await settle(ctx);
 
   if (o.cmd === 'baseline') {
-    // A read-only preflight: every value the baseline needs, readable or not (the PIN only as readable), the probes'
-    // age and the key socket. Nothing is changed and no journal is opened.
     const b = await snapshot(ctx);
     let bad = 0;
     for (const [k, v] of Object.entries(b.values)) {
@@ -181,7 +157,6 @@ export async function main(argv, say = console.log) {
   if (o.cmd === 'run') {
     const unknown = o.scenarios.filter((id) => !SCENARIOS.some((s) => s.id === id));
     if (unknown.length) throw new Error('no scenario ' + unknown.join(', ') + ' (see --list)');
-    // The fallback scenarios restart the compositor twice each: they run only when named.
     const pick = o.scenarios.length ? SCENARIOS.filter((s) => o.scenarios.includes(s.id)) : SCENARIOS.filter((s) => !s.optIn);
     const started = new Date().toISOString();
     const r = await runScenarios(ctx, pick);
@@ -198,7 +173,6 @@ export async function main(argv, say = console.log) {
     say('\n' + (r.ok ? 'PASS' : 'FAIL') + ' coldboot: ' + JSON.stringify(r.timings) + '  (' + path.join(out, 'coldboot.json') + ')');
     return r.ok ? 0 : 1;
   }
-  // manual
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
   rl.on('SIGINT', () => process.emit('SIGINT', 'SIGINT'));
   const lines = [];
@@ -210,7 +184,6 @@ export async function main(argv, say = console.log) {
   try { await manual(ctx, { answer, only: o.items, includeLater: !o.noLater, results: r }); }
   finally {
     rl.close();
-    // Written however the pass ends (a STOP keeps the verdicts so far).
     fs.writeFileSync(path.join(out, 'manual.json'), JSON.stringify({ items: r, end: r.end, notes: ctx.notes }, null, 1));
   }
   say('\n' + r.map((x) => x.verdict.toUpperCase().padEnd(5) + x.id + (x.note ? ': ' + x.note : '')).join('\n'));
@@ -226,7 +199,6 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     async (e) => {
       if (live.restoring) process.exit(await live.restoring);
       console.error(e.message);
-      // An error with a journal open: the TV is restored before the exit (interrupt turns probing off).
       const code = live.ctx && journal.pending(live.ctx.tv.host) ? await interrupt('error') : (await probingOff(live.ctx), 2);
       process.exit(code === 130 ? 2 : code);
     });

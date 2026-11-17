@@ -1,13 +1,4 @@
 #!/usr/bin/env bash
-# Build the aarch64 payload and pack it into a hib image.
-#
-# Needs: aarch64-linux-gnu-binutils, aarch64-linux-gnu-gcc, python3, lz4
-# Install (Arch): A cross-toolchain for aarch64-linux-gnu (`binutils`, `gcc`), plus `python3` and `lz4`.
-#
-# Output:
-#   build/payload.elf  linked at the entry physical address
-#   build/payload.bin  raw bytes
-#   build/hib.img      157286400-byte hib image ready for installer/install.sh
 
 set -euo pipefail
 

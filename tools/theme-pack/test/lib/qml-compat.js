@@ -1,14 +1,10 @@
-// Checks QML and JS for what the TV's compositor (Qt 5.6.2, an ES5 engine) cannot run. The harness runs Qt 5.15,
-// where all of this works, and the TV fails on it silently.
 const fs = require('node:fs');
 const path = require('node:path');
 
 const inventory = require('../fixtures/tv-qml.json');
 
-// The Qt modules our layer may use (the house rule; the TV has more, such as Controls 1, but they don't belong here).
 const QT_ALLOWED = { 'QtQuick': true, 'QtQuick.Window': true, 'QtQml': true, 'QtGraphicalEffects': true };
 
-// Types and properties that arrived after Qt 5.6.
 const NEWER_TYPES = ['Shape', 'ShapePath', 'TableView', 'TreeView', 'PathAngleArc', 'PathPolyline', 'PathMultiline',
   'PathText', 'BoundaryRule', 'DragHandler', 'TapHandler', 'PointHandler', 'PinchHandler', 'WheelHandler',
   'HoverHandler', 'BorderImageMesh', 'DelegateChooser', 'DelegateChoice', 'ItemSelectionModel', 'FrameAnimation'];
@@ -26,8 +22,6 @@ const NEWER_CALLS = [
 ];
 const KEYWORDS = { 'let': 'let', 'const': 'const', 'class': 'class', 'async': 'async', 'await': 'await', 'yield': 'yield' };
 
-// Splits source into code, comment, string and regex tokens. Regex literals are told from division by what precedes
-// them, as a JS parser would. Code tokens keep their line number.
 function tokenize(src) {
   const out = [];
   let i = 0, line = 1, code = '', codeLine = 1, prev = '';
@@ -68,7 +62,6 @@ function tokenize(src) {
     code += c;
     if (c === '\n') line++;
     if (/[\w$)\]]/.test(c)) {
-      // A word that ends in a keyword that takes an expression (return x / y is rare; return /re/ is not).
       const w = /([\w$]+)$/.exec(code);
       prev = w && /^(return|typeof|case|do|else|in|of|new|delete|void|throw|instanceof)$/.test(w[1]) ? 'op' : 'value';
     } else if (!/\s/.test(c)) prev = c === '}' ? 'value' : 'op';
@@ -80,7 +73,6 @@ function tokenize(src) {
 
 function lineOf(tok, text, at) { return tok.line + (text.slice(0, at).match(/\n/g) || []).length; }
 
-// Problems in one file's source, as [{line, message}].
 function checkSource(src, file, resolveLocal) {
   const problems = [];
   const report = (line, message) => problems.push({ line, message });
@@ -110,7 +102,6 @@ function checkSource(src, file, resolveLocal) {
     scan(/^\s*pragma\s+(?!Singleton\b)\w+/gm, 'pragma other than Singleton (Qt 5.15+)');
   }
 
-  // Imports: QML `import`, and `.import` in a JS file.
   const importRe = /^\s*\.?import\s+(.*)$/gm;
   let m;
   while ((m = importRe.exec(src))) {
@@ -156,7 +147,6 @@ function walk(dir) {
   });
 }
 
-// Every problem under a ui/ tree. Our modules (any directory under ui/ with a qmldir) resolve from the repo.
 function checkTree(uiDir) {
   const out = [];
   for (const file of walk(uiDir)) {

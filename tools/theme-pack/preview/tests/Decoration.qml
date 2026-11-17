@@ -3,9 +3,6 @@ import QtQuick.Window 2.2
 import Preview 1.0
 import Look 1.0
 
-// What themes may and may not do to a component, read from the item tree: themes off leaves the ±1 layers in place
-// and empty, later themes wrap further out, attachments and controls are dressed as components of their own, and a
-// disabled component keeps its plate while its decoration recedes. Exits 1 on the first failure: qml Decoration.qml
 Window {
     id: win
     width: 1920; height: 1080

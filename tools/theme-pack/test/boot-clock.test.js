@@ -5,9 +5,6 @@ const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 
-// The boot hook's clock step (webos/60-themepack, step 0) run by itself under busybox, the TV's shell and `date`,
-// with stand-ins for `curl` (the time server's answer) and `luna-send` (which writes down what it was sent).
-// Skipped where there is no busybox: the step reads a date in busybox's own way.
 const busybox = spawnSync('sh', ['-c', 'command -v busybox'], { encoding: 'utf8' }).stdout.trim();
 const hook = fs.readFileSync(path.join(__dirname, '..', 'webos', '60-themepack'), 'utf8');
 const step = hook.slice(hook.indexOf('# 0. The clock'), hook.indexOf('# 1. The bus'));
@@ -55,7 +52,6 @@ test('the boot hook takes a time server\'s Date line over the time kept, and fal
   assert.match(r.out, /^clock set from the time server: .*\nasked=1\n$/);
   assert.match(r.asked, /http:\/\/time\.example\/$/);
 
-  // HTTP/2 writes the header's name in lower case. A server that agrees with the clock sets nothing.
   const same = boot({ server: 'https://time.example/', answer: answer('date: ' + new Date().toUTCString()) });
   assert.strictEqual(same.set, null);
   assert.match(same.out, /^clock agrees with the time server\nasked=1\n$/);

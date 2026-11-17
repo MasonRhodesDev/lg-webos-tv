@@ -1,7 +1,4 @@
 (function () {
-  // Light, in the style's own colours: a bloom and a crisp halo ring around focus, soft light pooling behind
-  // surfaces, attachments shining in their attention colour, chosen controls lit in the current colour. No art, so it
-  // suits any style and any season. Nothing over the picture's edges, and nothing lights what is disabled.
   function glow(token, outset, radius, blur, opacity) {
     return { outset: outset, cost: 'glow', fill: token, radius: radius, blur: blur, opacity: opacity };
   }
@@ -12,7 +9,6 @@
     if (place) r.style = place;
     return r;
   }
-  // A crisp halo around focus, 14 px out, concentric with the component's own corners.
   function ring(target, radius) {
     return { target: target, slot: 'front', when: 'focused', outset: 14, cost: 'static', stroke: 'focus', strokeWidth: 4, radius: radius };
   }
@@ -21,13 +17,11 @@
     description: 'A soft bloom behind focus and an accent ring around it, light behind panels, toasts and dialogs, and glowing chips and chosen controls. Uses the style\'s own colours.',
     group: 'custom',
     recipes: [
-      // Light pools in two corners of the screen, behind everything.
       recipe('screen', 'back', 'always', glow('focus', 0, 320, 160, 0.16), 'left:auto;bottom:auto;width:820px;height:520px'),
       recipe('screen', 'back', 'always', glow('focus', 0, 320, 160, 0.12), 'right:auto;top:auto;width:820px;height:520px'),
       recipe('panel', 'back', 'always', glow('focus', 22, 56, 26, 0.22)),
       recipe('toast', 'back', 'always', glow('focus', 18, 48, 20, 0.22)),
       recipe('dialog', 'back', 'always', glow('focus', 28, 72, 34, 0.25)),
-      // A floor of light under the ribbon's tiles and key hints.
       recipe('ribbon', 'back', 'always', glow('focus', [0, 0, 40, 0], 60, 40, 0.18), 'top:auto;height:160px'),
       recipe('*', 'back', 'focused', glow('focus', 30, 60, 14, 0.45)),
       ring('row', 'r-row'),

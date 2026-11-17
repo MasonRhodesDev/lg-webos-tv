@@ -1,17 +1,6 @@
-// Builds tv-qml.json, the QML modules and directories the TV's compositor can import, for test/qml-compat.test.js.
-//
-//   ssh root@$TV_HOST 'find /usr/lib/qt5/qml' > files.txt
-//   ssh root@$TV_HOST 'for f in $(find /usr/lib/qt5/qml -name qmldir); do echo "=== $f"; cat "$f"; done' > qmldirs.txt
-//   node tv-qml-inventory.mjs files.txt qmldirs.txt > tv-qml.json
-//
-// files.txt may also be a listing of an extracted firmware image: everything before /usr/lib/qt5/qml is dropped.
-// qmldirs.txt may cover only some modules. A module's versions come from the type lines of its qmldir; a plugin
-// module's qmldir has none (they live in its plugins.qmltypes), so Qt's own modules take the versions Qt 5.6 ships,
-// and any other module whose versions are unknown gets `versions: null` (the name is checked, the version is not).
 import fs from 'node:fs';
 
 const ROOT = '/usr/lib/qt5/qml';
-// Qt 5.6's module versions: the highest minor of each major.
 const QT56 = {
   'QtQuick': { 2: 6 }, 'QtQuick.Window': { 2: 2 }, 'QtQml': { 2: 2 }, 'QtQml.Models': { 2: 2 },
   'QtQml.StateMachine': { 1: 0 }, 'QtGraphicalEffects': { 1: 0 }, 'QtQuick.Particles': { 2: 0 },
@@ -21,7 +10,6 @@ const QT56 = {
   'Qt.labs.folderlistmodel': { 2: 1 }, 'Qt.labs.settings': { 1: 0 }
 };
 
-// Registered from C++ by the compositor binary, so no qmldir; LG's own QML imports it at this version.
 const COMPOSITOR = { 'WebOSCoreCompositor': { 1: 0 } };
 
 const [filesTxt, qmldirsTxt] = process.argv.slice(2);
@@ -48,7 +36,6 @@ const modules = {};
 for (const f of files.filter((p) => /\/qmldir$/.test(p)).sort()) {
   const dir = f.replace(/\/qmldir$/, '');
   if (dir === ROOT) continue;
-  // An import resolves by path: QtQuick.2/ answers `import QtQuick 2.x`, QtQuick/Window.2/ `import QtQuick.Window 2.x`.
   const name = dir.slice(ROOT.length + 1).split('/').map((p) => p.replace(/\.\d+$/, '')).join('.');
   let versions = null, source = 'unknown';
   const lines = qmldirs[dir];

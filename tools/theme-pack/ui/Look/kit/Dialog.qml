@@ -2,9 +2,6 @@ import QtQuick 2.4
 import ".."
 import "keys.js" as KeyMap
 
-// A dialog (SmokeAlert board): its own dim scrim (when `modal`) and a centred glass panel (decoratable as `dialog`) with an icon well,
-// the title, the body and a row of buttons at the right. Fill the screen with it. Our own dialogs give it focus
-// and it moves between buttons with Left/Right; OK is activated(), Back is back().
 Item {
     id: dialog
     property string title

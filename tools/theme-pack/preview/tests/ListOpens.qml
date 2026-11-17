@@ -3,10 +3,6 @@ import QtQuick.Window 2.2
 import Preview 1.0
 import Look 1.0
 
-// Where a list opens: a RowList with focus deep in it, inside a Panel under a Header (the Kit's Look panel), must
-// open at its top when the focused row fits, whatever sizes the panel passes through while it is laid out, and must
-// scroll just enough when it does not. Takes the Look service's payload (a style) after `--`. Exits 1 on the first
-// failure: qml ListOpens.qml -- PAYLOAD_JSON
 Window {
     id: win
     width: 1920; height: 1080

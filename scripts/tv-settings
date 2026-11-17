@@ -1,22 +1,10 @@
 #!/usr/bin/env bash
-# tv-settings — read/write TV luna settings and push custom overlay from a JSON config.
-#
-# Usage:
-#   tv-settings read                    Read current TV settings → tv-config.json
-#   tv-settings write                   Write tv-config.json settings → TV
-#   tv-settings diff                    Show what would change (read vs config)
-#   tv-settings push                    Push custom section (files, service kills, etc.)
-#   tv-settings dump [category...]      Dump raw luna settings for given categories
-#
-# Reads TV_HOST and TV_USER from .env (defaults: TV_USER=root).
-# Config file: tv-config.json (copy tv-config.example.json to start).
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-# --- Load .env ---
 ENV_FILE="$REPO_DIR/.env"
 if [[ -f "$ENV_FILE" ]]; then
     # shellcheck disable=SC1090
@@ -28,8 +16,6 @@ TV_USER="${TV_USER:-root}"
 CONFIG="${TV_CONFIG:-$REPO_DIR/tv-config.json}"
 
 SSH_OPTS=(-o ConnectTimeout=6 -o BatchMode=yes -o LogLevel=ERROR)
-
-# --- Helpers ---
 
 ssh_cmd() {
     ssh "${SSH_OPTS[@]}" "${TV_USER}@${TV_HOST}" "$@"
@@ -65,13 +51,9 @@ require_config() {
     [[ -f "$CONFIG" ]] || die "config not found: $CONFIG (copy tv-config.example.json)"
 }
 
-# Node.js one-liner runner for JSON manipulation on this computer.
-# The TV has Node 0.12 but we run JSON processing locally.
 node_parse() {
     node -e "$1"
 }
-
-# --- Commands ---
 
 cmd_dump() {
     local categories=("$@")
@@ -87,7 +69,6 @@ cmd_read() {
 
     echo "Reading current TV settings..."
 
-    # Read the categories listed in the config's "settings" section
     local categories
     categories=$(node_parse "
         var cfg = JSON.parse(require('fs').readFileSync('$CONFIG', 'utf8'));
@@ -103,7 +84,6 @@ cmd_read() {
         luna_get "$cat" > "$tmp_dir/$cat.json" || true
     done
 
-    # Merge TV values into the config, keeping only the keys the config cares about
     node_parse "
         var fs = require('fs');
         var cfg = JSON.parse(fs.readFileSync('$CONFIG', 'utf8'));
@@ -244,7 +224,6 @@ cmd_push() {
 
     echo "Pushing custom config to TV..."
 
-    # --- Files ---
     local files_json
     files_json=$(node_parse "
         var cfg = JSON.parse(require('fs').readFileSync('$CONFIG', 'utf8'));
@@ -274,7 +253,6 @@ cmd_push() {
         done
     fi
 
-    # --- Hosts append ---
     local hosts
     hosts=$(node_parse "
         var cfg = JSON.parse(require('fs').readFileSync('$CONFIG', 'utf8'));
@@ -297,8 +275,6 @@ cmd_push() {
     echo "the init.d script (pushed as a file above), not by this tool directly."
     echo "Reboot the TV for the init.d script to take effect."
 }
-
-# --- Main ---
 
 case "${1:-}" in
     read)   cmd_read ;;

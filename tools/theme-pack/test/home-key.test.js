@@ -4,10 +4,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 
-// ui/home-key.js in a stand-in for LG's key filter scope: the key and policy constants, a bus caller that records,
-// the application manager wrapper and the access flags LG's own Home handling consults.
 const src = fs.readFileSync(path.join(__dirname, '..', 'ui', 'home-key.js'), 'utf8');
-const HOME = 0x01000053; // Qt.Key_Super_L
+const HOME = 0x01000053;
 const OTHER = { Menu: 0x01000055, Back: 0x01200001, Up: 0x01000013, Return: 0x01000004 };
 
 function scope(over) {
@@ -31,7 +29,6 @@ function scope(over) {
     JSON
   };
   Object.assign(s, over || {});
-  // The handler reads the clock through Date; the scope's Date is driven by the test.
   s.Date = function () { return { getTime: () => s.now }; };
   vm.createContext(s);
   vm.runInContext(src, s);
@@ -68,7 +65,6 @@ test('a short press of Home is taken and asks the system UI manager for our dock
   assert.strictEqual(s.sent[0].method, '/launch');
   assert.deepStrictEqual(s.sent[0].payload, { appId: 'dev.themepack.home' });
   assert.strictEqual(s.launched.length, 0);
-  // The manager says yes: nothing more happens.
   s.sent[0].cb(JSON.stringify({ returnValue: true }));
   assert.strictEqual(s.launched.length, 0);
 });
@@ -106,7 +102,6 @@ test('whenever LG would not open Home, Home goes on to LG untouched', () => {
     assert.strictEqual(s.key(HOME, true, true), 'next', what + ': repeats too');
     assert.strictEqual(s.sent.length + s.launched.length, 0, what);
   }
-  // Power-only mode during first use: LG opens Home, so we do too.
   const s = scope({ bootManager: { bootFirstUse: true }, systemPropertyService: { powerOnlyMode: true } });
   assert.deepStrictEqual(s.press(100), ['accepted', 'accepted']);
 });
@@ -117,7 +112,6 @@ test('the decision is made on the press: a release follows it even if the flags 
   s.modalAlert.visible = true;
   assert.strictEqual(s.key(HOME, false), 'accepted');
   assert.strictEqual(s.sent.length, 1);
-  // And a press passed on has its release passed on.
   s.sent.length = 0;
   assert.strictEqual(s.key(HOME, true), 'next');
   s.modalAlert.visible = false;
@@ -135,16 +129,13 @@ test('a failed or unreadable reply from the system UI manager opens LG\'s Home',
 });
 
 test('a throw never costs a key: a press goes on to LG, a release of ours opens LG\'s Home', () => {
-  // The flags throw on the press.
   const s = scope({ modalAlert: null });
   assert.strictEqual(s.key(HOME, true), 'next');
   assert.strictEqual(s.key(HOME, false), 'next', 'its release goes on with it');
-  // The bus caller throws on the release.
   const t = scope();
   t.lunaCall.send = () => { throw new Error('bus down'); };
   assert.deepStrictEqual(t.press(100), ['accepted', 'accepted']);
   assert.deepStrictEqual(t.launched.map((l) => l.id), ['com.webos.app.home']);
-  // Everything throws: still a policy, never an exception.
   const u = scope({ modalAlert: null, applicationManager: null, global: null });
   assert.strictEqual(u.key(HOME, true), 'next');
   u.themepackPressedAt = 5;

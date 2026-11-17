@@ -1,9 +1,6 @@
 import QtQuick 2.4
 import ".."
 
-// A toast (SmokeOverlays board): a glass panel (decoratable as `toast`) with an icon well, an optional title, the
-// message, and a trailing chevron when the toast leads somewhere. `compact` is the one-line kind, as wide as its text.
-// Placed `toast` by default (the bottom-right corner); toasts never take focus.
 Panel {
     id: toast
     property string title

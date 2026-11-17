@@ -1,7 +1,5 @@
 import QtQuick 2.4
 
-// LG's volume item as the part sees it, shown, in each of the audio service's cases (Volume.qml reads volume,
-// volumeMax, muted, disabled, scenario and cause).
 Item {
     property string part: "VolumeBar.qml"
     property rect frame: Qt.rect(1280, 0, 640, 360)

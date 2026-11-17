@@ -2,18 +2,6 @@ import QtQuick 2.4
 import ".."
 import "keys.js" as KeyMap
 
-// A focusable vertical list of rows and section headers. `model` is a list of row specs: { section: "Title" } for a
-// header, or a ListRow's properties ({ variant, label, hint, value, icon, hue, on, checked, fraction, valueText,
-// options, index, chip, chipTone, current, disabled }). Data in, events out: the list never changes its model.
-//
-// An LG-mirrored surface sets currentIndex from LG. Our own menus give the list focus and it handles the keys:
-// Up/Down move over focusable rows, OK is activated(), Left/Right step a slider or stepper row (adjusted()), and
-// Back is back(). Focus scrolls into view; rows not wholly inside the list fade out, so the list needs no clip and
-// focus decoration is never cut.
-//
-// Live data: set `rows` (the specs) and `model: rows.length` instead. A new `rows` of the same length then updates
-// the rows in place (a toggle slides, focus stays) rather than making them again.
-// `pointer: true` (our own menus) lets the magic remote's pointer focus a row by hovering and activate it by a click.
 ListView {
     id: list
     property bool focusShown: true
@@ -22,7 +10,6 @@ ListView {
     signal activated(int index, var row)
     signal adjusted(int index, int delta)
     signal back()
-    // The pointer came onto a row and focused it; `pointing` is true while that moves currentIndex.
     signal pointed(int index)
     property bool pointing: false
 
@@ -43,7 +30,6 @@ ListView {
     interactive: false
     highlightFollowsCurrentItem: false
 
-    // Rows not wholly inside the list are hidden, so the list stops with a row (or header) at its top edge.
     function snap(to, down) {
         var kids = contentItem.children, best = down ? Infinity : -Infinity;
         for (var i = 0; i < kids.length; i++) {
@@ -54,9 +40,6 @@ ListView {
         }
         return isFinite(best) ? best : to;
     }
-    // Scroll only as far as keeps the focused row, and a row's worth beyond it, inside the list, starting from `from`.
-    // Moving focus starts from where the list is (the default). A change of size starts from the top: where the list
-    // opens then depends only on the focused row and the final size, not on the sizes it passed through while laid out.
     function reveal(animated, from) {
         if (from === undefined) from = contentY;
         var item = currentItem;
@@ -88,7 +71,6 @@ ListView {
         event.accepted = true;
     }
 
-    // More rows below than fit: a quiet chevron at the foot says so. Parented to the list itself, so it stays put.
     Icon {
         parent: list
         name: "M6 9l6 6 6-6"
@@ -142,7 +124,6 @@ ListView {
             hoverEnabled: enabled
             onEntered: { list.pointing = true; list.currentIndex = slot.at; list.pointing = false; list.pointed(slot.at); }
             onClicked: { list.pointing = true; list.currentIndex = slot.at; list.pointing = false; list.activated(slot.at, slot.r); }
-            // The magic remote's wheel steps a slider or stepper row: one notch (120) is one step, away from you is up.
             property real wheelRest: 0
             onWheel: {
                 var r = slot.r;

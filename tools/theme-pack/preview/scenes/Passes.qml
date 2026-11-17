@@ -1,10 +1,6 @@
 import QtQuick 2.4
 import Look 1.0
 
-// The layer model's render order, set up as boards 3 and 5 of the design canvas's layers page: three sibling tiles,
-// tile 1 with a chip, focus on the middle one (option C: tiles 1 and 3 in passes, tile 2's whole stack last) or on
-// tile 3 (tile 1's chip over the resting tile 2's decoration); and a panel of rows, one with a chip, whose
-// decoration reaches into the panel's margin.
 Item {
     id: scene
     width: 1920

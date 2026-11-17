@@ -1,13 +1,3 @@
-// Renders every preview scene in every style, with no theme and with each theme alone, in each state the scene
-// declares, and writes the PNGs, a contact sheet (index.html) and the list of shots (index.json) into an output
-// directory. `--look smoke+winter` (repeatable) renders only those looks: a style and any themes, inner to outer.
-//
-//   node preview/render.mjs [OUT_DIR] [--scene NAME]... [--look STYLE[+THEME...]]... [--jobs N]
-//
-// OUT_DIR defaults to a new directory under the OS temp dir. Needs Qt 5's `qml` with QtQuick and QtGraphicalEffects
-// (QML_BIN, default `qml-qt5` or `qml` on PATH), Xvfb, and Mesa's software OpenGL: Qt's software backend draws no
-// ShaderEffect, so theme glows only show under OpenGL. Each worker runs its own Xvfb. Exits non-zero if any shot
-// fails, with its QML errors.
 import { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
 import fs from 'node:fs';
@@ -36,12 +26,11 @@ for (let i = 0; i < argv.length; i++) {
 outDir = outDir || fs.mkdtempSync(path.join(os.tmpdir(), 'theme-pack-preview-'));
 fs.mkdirSync(outDir, { recursive: true });
 
-// Looked up on PATH rather than run: `qml --help` with no display aborts and leaves a core file.
 function onPath(name) {
   if (name.includes('/')) return fs.existsSync(name) ? name : null;
   for (const d of (process.env.PATH || '').split(path.delimiter)) {
     const p = path.join(d, name);
-    try { fs.accessSync(p, fs.constants.X_OK); return p; } catch (e) { /* next */ }
+    try { fs.accessSync(p, fs.constants.X_OK); return p; } catch (e) { }
   }
   return null;
 }
@@ -54,7 +43,6 @@ const packs = (kind) => fs.readdirSync(path.join(packsDir, kind)).filter((f) => 
   .map((f) => require(path.join(packsDir, kind, f)));
 const styles = packs('styles'), themes = packs('themes');
 
-// The Look service's answer, as service/service.js's payload() builds it.
 function payload(style, active) {
   return {
     returnValue: true,
@@ -67,9 +55,6 @@ function payload(style, active) {
     themes: active,
     available: {
       styles: styles.map((s) => ({ id: s.id, name: s.name })),
-      // The service also sorts the seasonal themes by the calendar and gives each its `dates` for today. Those are
-      // left out here, so a shot is the same whatever day it is rendered on; the Settings scene's look-seasonal and
-      // look-automatic states load a listing with dates of their own.
       themes: themes.map((t) => ({ id: t.id, name: t.name, description: t.description || '',
         group: t.group === 'seasonal' ? 'seasonal' : 'custom', ...(t.group === 'seasonal' ? { season: t.season } : {}) }))
     }
@@ -81,7 +66,6 @@ const env = { ...process.env, QT_FORCE_STDERR_LOGGING: '1', LIBGL_ALWAYS_SOFTWAR
 delete env.QT_QPA_PLATFORM;
 delete env.QT_QUICK_BACKEND;
 
-// A virtual display of our own; Xvfb picks a free number and writes it to -displayfd, so parallel workers can't race.
 const servers = [];
 const deadDisplays = [];
 const running = new Set();
@@ -109,7 +93,6 @@ function run(args, display) {
     const p = spawn(qml, [path.join(here, 'Shot.qml'), '--', ...args], { env: { ...env, DISPLAY: display }, stdio: ['ignore', 'pipe', 'pipe'] });
     running.add(p);
     let log = '', timedOut = false;
-    // Shot.qml gives up on its own well before this; this is for a qml that stops answering at all.
     const timer = setTimeout(() => { timedOut = true; p.kill('SIGKILL'); }, hangLimitMs);
     p.stdout.on('data', (d) => { log += d; });
     p.stderr.on('data', (d) => { log += d; });
@@ -123,8 +106,6 @@ function run(args, display) {
   });
 }
 
-// What counts as a QML error in a run's log: QML warnings carry a file:line, Shot's own failures say "shot:", and the
-// layer's reports of kind "error".
 function errorsIn(log) {
   return log.split('\n').filter((l) => /\.(qml|js):\d+/.test(l) || /\bshot: /.test(l) ||
     /(TypeError|ReferenceError|SyntaxError|RangeError)/.test(l) || /"kind":"error"/.test(l));
@@ -138,8 +119,6 @@ if (!scenes.length) { console.error('no scenes' + (only.length ? ' named ' + onl
 const failures = [];
 const info = {};
 const plain = JSON.stringify(payload(styles[0], []));
-// A display that can't start is the one external nondeterminism here (Xvfb needs a free display number, a lock file and
-// a socket); say so plainly and stop, rather than let the rejection surface as a Node trace.
 function die(e) { console.error('render failed: ' + (e && e.message || e)); process.exit(1); }
 const firstDisplay = await startDisplay().catch(die);
 for (const s of scenes) {
@@ -148,7 +127,6 @@ for (const s of scenes) {
   if (r.code !== 0 || !m) { failures.push({ shot: s, errors: errorsIn(r.log).length ? errorsIn(r.log) : [r.log.trim() || 'exit ' + r.code] }); continue; }
   info[s] = JSON.parse(m[1]);
 }
-// A scene may be written before its part: it is listed as waiting, not rendered, and not a failure.
 const waiting = {};
 for (const s of Object.keys(info)) {
   const missing = info[s].parts.filter((p) => !fs.existsSync(path.join(root, 'ui/Look/parts', p)));
@@ -198,7 +176,6 @@ for (const x of servers) { x.removeAllListeners('exit'); x.kill(); }
 if (process.stderr.isTTY) process.stderr.write('\n');
 
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
-// A scene's `frame` (x, y, width, height in the 1920x1080 shot) is what the contact sheet shows of it.
 function thumb(shot) {
   const f = info[shot.scene].frame || { x: 0, y: 0, width: 1920, height: 1080 };
   const w = 240, scale = w / f.width, h = Math.round(f.height * scale);

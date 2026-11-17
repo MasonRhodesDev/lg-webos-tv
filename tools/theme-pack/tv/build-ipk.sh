@@ -1,7 +1,4 @@
 #!/bin/sh
-# Package the Look service, its packs, and the Look app (.ipk) for sideloading.
-# Usage: build-ipk.sh [OUT_DIR]
-# Needs: sh, tar, gzip, node.
 set -eu
 here=$(cd "$(dirname "$0")/.." && pwd)
 out=${1:-$here/dist}
@@ -13,13 +10,10 @@ trap 'rm -rf "$work"' EXIT
 app="$work/data/usr/palm/applications/$id"
 mkdir -p "$app" "$work/control" "$out"
 
-# The Look app, the Home screen's Look icon: the Settings stub's page with no LG targets, so every launch opens our
-# Settings at its Look page and closes (webos/settings-stub/stub.js). It draws nothing.
 cp "$here/tv/appinfo.json" "$here/tv/icon.png" "$here/tv/largeIcon.png" "$here/webos/settings-stub/index.html" \
    "$here/webos/settings-stub/stub.js" "$app/"
 printf '// The Look app: every launch opens our Settings at its Look page.\nvar SETTINGS_TARGETS = {};\nvar SETTINGS_PAGE = "Look";\n' > "$app/targets.js"
 
-# The Look service and the package manifest that ties it to the app.
 svc="$work/data/usr/palm/services/$id.service"
 mkdir -p "$svc" "$work/data/usr/palm/packages/$id"
 cp "$here/service/service.js" "$here/service/services.json" "$here/service/package.json" "$here/service/permissions.sh" "$svc/"
@@ -47,7 +41,6 @@ printf '2.0\n' > "$work/debian-binary"
 (cd "$work/data" && tar --owner=0 --group=0 -czf "$work/data.tar.gz" .)
 ipk="$out/${id}_${version}_all.ipk"
 rm -f "$ipk"
-# webOS rejects GNU ar's "name/" member names, so write a plain ar archive.
 node -e '
 const fs = require("fs"), path = require("path");
 const [out, dir, ...names] = process.argv.slice(1);

@@ -1,32 +1,18 @@
 import QtQuick 2.4
 import "."
 
-// Our UI layer over LG's. Each part (parts/*.qml) draws one component and says which LG item it replaces with
-// claims(item). LG's item stays in the tree with its logic running and is made invisible; the part reads it through
-// its `lg` property. A part whose LG item is not found is not shown, LG's stays drawing, and the gap is reported.
 Item {
     id: layer
-    objectName: "themepackLayer" // Inject.qml finds a loaded layer by it, to replace it
+    objectName: "themepackLayer"
     property Item host
     anchors.fill: parent
-    z: 10008 // LG's volume layer; the screen saver (10010) stays above
+    z: 10008
 
-    // Each file is one part. A part is an Item with `property Item lg` and `function claims(item)`; it may set
-    // `searchDepth` (how deep under the root its LG item sits, default 2). A part of our own with no LG counterpart
-    // leaves out `claims`: nothing is searched for or hidden.
-    // A part with `onDemand: true` replaces an item LG creates later and destroys again (system UI overlays, the
-    // toast view). It waits instead of being a gap, is claimed whenever LG shows its item, and is visible only while
-    // it holds one.
     property var parts: ["parts/VolumeBar.qml", "parts/VolumeMute.qml", "parts/Toast.qml", "parts/Alert.qml", "parts/InputPicker.qml", "parts/Settings.qml", "parts/Home.qml"]
 
-    // How deep under a system UI view's current item (its StarfishSystemUIContainer) an on-demand item may sit.
     readonly property int lateDepth: 3
     property var waiting: []
 
-    // A part may say what it shows in `probe` (a plain object); it goes to the Look service on each change, batched,
-    // for the TV suite to read (getProbe). Every probe is also sent again on a heartbeat, faster while one of our menus
-    // is open, so a probe that stops being refreshed means this layer is gone, and the suite presses nothing. All of it
-    // only while the suite has probing on (Look.probing, from the Look subscription); off, not one call is made.
     property var pending: ({})
     property var probed: []
     readonly property string instance: String(new Date().getTime())
@@ -35,7 +21,6 @@ Item {
         probed = probed.concat([{ "part": part, "file": file }]);
         part.probeChanged.connect(function () { if (layer.retired || !Look.probing) return; layer.pending[file] = part; probeTimer.restart(); });
     }
-    // Probing turned on: everything at once, then on change and on the heartbeat (connected in onCompleted).
     function probingChanged() {
         if (retired) return;
         pending = {};
@@ -74,7 +59,6 @@ Item {
         return null;
     }
 
-    // `entry` is { part, file, claimed }: it reports the first claim only, so LG reopening an overlay stays quiet.
     function claim(entry, lg) {
         lg.opacity = 0;
         entry.part.lg = lg;
@@ -83,11 +67,6 @@ Item {
         Look.report("ok", entry.file + ": drawn by own layer");
     }
 
-    // Hands every claimed LG item back, drawing again, and lets each part undo what it changed in LG's tree.
-    // Inject.qml calls it before it creates the layer that replaces this one: destruction comes later, after the new
-    // layer is up, and whatever a part undid then would undo the new layer's work.
-    // Every part this layer made, wherever it sits now: an open menu of ours lives in LG's popup plane (settings/Hold.qml),
-    // not under the layer.
     property var made: []
     property bool retired: false
     function retire() {
@@ -97,14 +76,11 @@ Item {
         for (var i = 0; i < made.length; i++) {
             var part = made[i];
             if (!part) continue;
-            try { if (part.lg) part.lg.opacity = 1; } catch (e) { /* LG's item is already gone */ }
+            try { if (part.lg) part.lg.opacity = 1; } catch (e) { }
             try { if (typeof part.retire === "function") part.retire(); } catch (e) { Look.report("gap", "retire: " + e); }
         }
     }
 
-    // What this layer connected to that outlives it (LG's items, the Look singleton), as { source, to }. The
-    // compositor's Qt still calls a connected function of a destroyed layer, in a context that is gone, and crashes on
-    // the first singleton that function names. So each such connection is made here and undone before the layer goes.
     property var links: []
     function link(source, to) {
         source.connect(to);
@@ -114,13 +90,11 @@ Item {
         var all = links;
         links = [];
         for (var i = 0; i < all.length; i++) {
-            try { all[i].source.disconnect(all[i].to); } catch (e) { /* LG's item is already gone */ }
+            try { all[i].source.disconnect(all[i].to); } catch (e) { }
         }
     }
     Component.onDestruction: unlink()
 
-    // LG just showed `root`: offer it, and what lies under it, to the on-demand parts that hold no item. LG's views
-    // keep pointing at a destroyed container until they move on, so any read may throw.
     function offer(root, depth) {
         for (var i = 0; i < waiting.length; i++) {
             var part = waiting[i].part;
@@ -135,7 +109,6 @@ Item {
         }
     }
 
-    // LG's system UI views (overlay, home, nudge, screen remote) set currentView once a created item is ready.
     function watchViews() {
         var kids = host.children;
         for (var i = 0; i < kids.length; i++) {
@@ -146,8 +119,6 @@ Item {
             })(view);
             offer(view.currentView, lateDepth);
         }
-        // The notification view loads late; its toast view is its sibling, first under the loader, then under host.
-        // Its parent may come only after the item does, so offer again when it moves.
         if (host.notificationViewChanged !== undefined)
             link(host.notificationViewChanged, function () {
                 var nv = host.notificationView;

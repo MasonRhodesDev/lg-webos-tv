@@ -1,6 +1,4 @@
 .pragma library
-// How an input looks wherever our layer draws one (the input picker, the Home dock): its icon and its hue. `e` is an
-// input as LG names it: { id, appId, inputType }. Each HDMI input keeps its own hue across every surface.
 
 function iconFor(e) {
     if (e.id === "titleItem") return "home";

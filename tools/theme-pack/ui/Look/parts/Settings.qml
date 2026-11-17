@@ -4,40 +4,23 @@ import ".."
 import "../settings"
 import "../settings/menu.js" as Menu
 
-// Our own Settings and the gear button's quick sheet (SETTINGS-PLAN.md, the owner's Settings boards). A part of our
-// own: it replaces no LG item. It opens on
-//   - Look.settingsRequested(target): the Settings stub over LG's Settings app, deep links, luna-send openSettings;
-//   - SettingsBus.quickSettingsRequested(params): LG's Quick Settings launches, through Hook A (SystemUiHook.qml);
-//   - the quick sheet's "All settings".
-// While either is open it holds focus in LG's focus chain (FocusLink.qml) at layer 7, above LG's overlays (5) and
-// popups (6). Back pops a page; when LG takes Back itself (the app underneath refuses it, SETTINGS-PLAN.md 3.4) the
-// key filter emits backReleased and LG goes Home, so we close.
-// Once live it reports `ready` "settings: host ready"; the boot hook mounts the Settings stub only after that.
 FocusScope {
     id: part
-    // LG's root, from the layer that made this part, read once: while open the part sits in LG's popup plane (Hold.qml),
-    // whose parent chain does not lead back to the layer.
     property Item host: null
     function findHost() { if (!host && parent && parent.host !== undefined) host = parent.host; }
     readonly property int layerNumber: 7
     readonly property bool shown: quick.open || menu.open
-    // LG's key filter knows when the magic remote's pointer is showing.
-    // Our menus always take the pointer while open. LG's cursorVisible flag drops back to false within a second or two
-    // even while the magic remote is in use, so gating on it let clicks fall through to the app underneath.
     readonly property bool pointer: true
     property alias quick: quick
     property alias menu: menu
     property alias store: store
     anchors.fill: parent
 
-    // Where the sheet and Settings stand, for the TV suite (Layer.qml publishes it): which pages are open, where focus
-    // is and what kind of row holds it, and any dialog, keyboard or PIN prompt up.
     function probeRow(r, i) {
         if (!r) return null;
         return { "index": i, "label": r.label || "", "kind": r.kind || "", "variant": r.variant || "", "ref": r.ref || "",
                  "choice": r.choice === undefined ? "" : String(r.choice), "category": r.category || "", "locked": !!r.locked };
     }
-    // The keyboard: the text (never a secret one), the focused key and the grid, so the suite can walk to a key.
     function probeKeyboard() {
         var kb = menu.entry.keyboard, grid = [];
         for (var r = 0; r < kb.rows.length; r++) {
@@ -63,7 +46,6 @@ FocusScope {
 
     SettingsStore { id: store }
     property var toast: Service { appId: store.appId }
-    // LG's focus chain; tests give a stand-in with the same two functions.
     property url focusChain: Qt.resolvedUrl("../settings/LgFocus.qml")
     FocusLink { id: focusLink; chain: part.focusChain }
     readonly property var focusHandler: focusLink.handler
@@ -75,19 +57,15 @@ FocusScope {
         else if (!shown && holding) { holding = false; focusLink.release(part); plane.give(); }
     }
 
-    // LG's popup plane, shared with the Home dock (Hold.qml says why ours live in it). The dock asking for it closes ours.
     Hold { id: plane; host: part.host; item: part; onYielded: part.closeAll() }
 
-    // A gear press while the sheet is still arriving is the remote repeating a held key, not a second press.
     property real openedAt: 0
     function quickSettings(params) {
         var now = new Date().getTime();
         var hot = params && params.activateType ? Menu.activateTypes[params.activateType] : "";
-        // A hotkey for a page rather than a quick sheet row (aspect ratio) opens Settings there.
         if (hot && !store.item(hot)) { settings(hot); return; }
         if (hot) { menu.close(); quick.openWith(params); openedAt = now; return; }
         if (shown) {
-            // (A time before it opened is a clock set back since, not a repeat.)
             if (now >= openedAt && now - openedAt < Look.px("motion-enter")) return;
             quick.close();
             menu.close();
@@ -96,7 +74,6 @@ FocusScope {
         quick.openWith(params);
         openedAt = now;
     }
-    // The Settings stub may ask twice for one launch; the same target while open is no change.
     property string target: ""
     function settings(t) {
         t = t || "";
@@ -114,8 +91,6 @@ FocusScope {
     }
     function closeAll() { quick.close(); menu.close(); }
 
-    // Behind our menus while one is open: a click outside them closes ours instead of reaching the app underneath
-    // (the HDMI app's banner took such clicks), and the pointer never falls through.
     MouseArea {
         anchors.fill: parent
         enabled: part.shown
@@ -146,13 +121,11 @@ FocusScope {
         if (m) m.launch(appId, { "appId": appId, "params": {} });
         else Look.report("gap", "settings: cannot open " + appId + " (no system UI manager)");
     }
-    // A write was rolled back; say so with LG's toast, which our toast part draws.
     function writeFailed(ref, text) {
         toast.call("luna://com.webos.notification", "/createToast",
                    JSON.stringify({ "sourceId": "dev.themepack.look", "message": "Not changed: " + text }));
         Look.report("warning", "settings: " + ref + " not saved: " + text);
     }
-    // A network or pairing action: what happened, in a whole sentence, with LG's toast.
     function say(text) {
         toast.call("luna://com.webos.notification", "/createToast", JSON.stringify({ "sourceId": "dev.themepack.look", "message": text }));
     }
@@ -177,15 +150,10 @@ FocusScope {
             if (c.status === Component.Ready) hook = c.createObject(part, { "host": host });
             else Look.report("error", "settings: " + c.errorString());
         }
-        // Ready means the host and Hook A are both live; the boot hook mounts the Settings stub only then.
-        // While configd has not answered, Hook A waits; ready follows as soon as it applies.
         if (hook) hook.appliedChanged.connect(part.reportReady);
         if (hook && hook.applied) reportReady();
         else if (!hook || !hook.waiting) Look.report("gap", "settings: host up, but Hook A is not applied; not reporting ready");
     }
-    // Gives back what this part took: LG's system UI table, the focus chain and popup plane, the bus. Layer.retire()
-    // calls it when another layer is about to take over; by the time this one is destroyed the new one's host is live,
-    // so nothing is undone a second time there.
     property bool retired: false
     function retire() {
         if (retired) return;

@@ -1,7 +1,3 @@
-// Renders the owner's canvas boards (saved .dc.html sources) to PNGs for the contact sheet: the board's template is
-// expanded with its own logic (renderVals), imported boards are inlined with their attributes as props, the stand-in
-// picture is replaced with black (a TV capture shows the video as black) and the fonts come from packs/fonts, so
-// headless Chromium needs no network.
 import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -31,7 +27,6 @@ function parts(html) {
   return { tpl: body.replace(/<helmet>[\s\S]*?<\/helmet>/, ''), helmet, script };
 }
 
-// One board's HTML body, expanded. `dir` holds the boards it imports.
 export function expand(html, props = {}, dir = '.', depth = 0) {
   const { tpl, script } = parts(html);
   class DCLogic { constructor(p) { this.props = p; this.state = {}; } setState() {} }
@@ -82,7 +77,6 @@ export function chromium() {
   return null;
 }
 
-// Renders `name` from `dir` into `outDir/name.png`; returns the path, or null with the reason.
 export function render(dir, name, outDir) {
   const src = path.join(dir, name + '.dc.html');
   if (!fs.existsSync(src)) return { file: null, why: 'no board ' + name + ' in ' + dir };

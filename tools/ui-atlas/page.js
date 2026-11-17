@@ -45,7 +45,6 @@
   if (window.ResizeObserver) new ResizeObserver(fit).observe(document.querySelector('main'));
   window.addEventListener('resize', fit);
 
-  // Screen saver: canvas version of the QML particle system (3 groups, centred emitters).
   var cv = document.querySelector('.ss-canvas'), ctx = cv && cv.getContext('2d'), parts = [], raf = 0, last = 0;
   var reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
   var COLS = [[40, 90, 255], [30, 210, 220], [235, 40, 60]];

@@ -2,33 +2,22 @@ import QtQuick 2.4
 import ".."
 import "pages.js" as Pages
 
-// Our Settings (the owner's Settings board): one full panel with the categories down the left and the open page on
-// the right. Focus is in one of the two. In the categories, Up/Down show each category's page and OK or Right goes
-// into it; in a page, OK opens links and pickers, Left or Back goes back a page and, from a category's first page,
-// back to the categories; Back there closes.
-//
-// The navigation stack holds page entries (pages.js): [category page, sub-page, ..., picker].
 FocusScope {
     id: menu
     property var store
     property bool open: false
-    // The magic remote's pointer is showing: rows follow it and take clicks.
     property bool pointer: false
     property var stack: []
     property string area: "categories"
     readonly property var topEntry: stack.length ? stack[stack.length - 1] : null
     readonly property string category: topEntry ? Pages.categoryFor(stack[0].id) : "picture"
     signal closed()
-    // The open category's page. Each category's page is made the first time it shows and kept while Settings lives,
-    // so moving between categories shows a page instead of making its rows again (a row costs the TV tens of ms).
     property Item page: null
     property alias categories: cats
     property alias dialog: dialog
     property alias footer: foot
     anchors.fill: parent
 
-    // Opens at a target (pages.js target(): a category, a page id or an LG deep-link name); "" is the first page with
-    // focus in the categories. Opening again while open goes to the new target.
     function openAt(target) {
         var ids = Pages.target(target), s = [];
         for (var i = 0; i < ids.length; i++) s.push({ "id": ids[i] });
@@ -48,7 +37,6 @@ FocusScope {
         confirming = null;
         editing = null;
         pinning = null;
-        // The PIN is asked again on the next visit, and read afresh then.
         store.unlocked = false;
         store.forgetPin();
         store.changed();
@@ -66,11 +54,7 @@ FocusScope {
         area = "categories";
         focusArea();
     }
-    // Whether the stack is in this category: read from the stack itself, so a page's bindings never see the stack
-    // of one category with the category of another.
     function owns(cat) { return stack.length > 0 && Pages.categoryFor(stack[0].id) === cat; }
-    // The other categories' pages are made a little at a time once Settings is up, so a first visit to them is as
-    // quick as a return.
     Timer {
         id: prefetching
         interval: Look.px("motion-enter") * 2
@@ -78,7 +62,6 @@ FocusScope {
     }
     onStackChanged: { for (var i = 0; i < pages.count; i++) { var p = pages.itemAt(i); if (p && p.item) p.item.follow(); } }
     onCategoryChanged: showPage()
-    // The open category's page is made now if it is not made yet, or finished now if it is still being made.
     function showPage() {
         var slot = pages.itemAt(indexOfCategory(category));
         if (!slot) return;
@@ -91,7 +74,6 @@ FocusScope {
         for (var i = 0; i < c.length; i++) if (c[i].category === id) return i;
         return 0;
     }
-    // A prompt that is up keeps the keys, whatever moved underneath it.
     function focusArea() {
         if (pinning !== null) pin.forceActiveFocus();
         else if (editing !== null) entry.forceActiveFocus();
@@ -101,20 +83,16 @@ FocusScope {
 
     property var confirming: null
     readonly property var choice: Pages.choices(confirming, store)
-    // The keyboard's request (Pages.textRequest), and the PIN prompt's step: { mode: check|new|again, row, first }.
     property var editing: null
     property var pinning: null
     property alias entry: entry
     property alias pin: pin
 
-    // Everything the prompt opens with is set before it shows: it resets its keys from them as it opens.
     function startEdit(req) {
         entry.text = req.text;
         entry.layout = req.layout;
         editing = req;
     }
-    // A page behind the PIN (Pages.lockedPage), however it was reached (a link, a target, the back stack), asks for
-    // the PIN before it shows anything; Back from that prompt leaves it.
     onTopEntryChanged: guard()
     function guard() {
         if (open && topEntry && Pages.lockedPage(topEntry.id, store) && pinning === null) pinning = { "mode": "page", "entry": topEntry };
@@ -159,14 +137,12 @@ FocusScope {
         else if (event.key === Qt.Key_Right && area === "categories") { area = "page"; focusArea(); event.accepted = true; }
     }
 
-    // What the footer says: online or not, and LG's data agreements (pages.js footer()).
     property var footerWatch: Pages.footerRefs
     onOpenChanged: { if (open) store.watch(footerWatch); else store.unwatch(footerWatch); }
 
     Panel {
         id: panel
         placement: "full"
-        // The keyboard and the PIN prompt take the screen, as their boards draw them: over the picture alone.
         shown: menu.open && menu.editing === null && menu.pinning === null
         padding: Look.px("space-xl")
 
@@ -191,12 +167,10 @@ FocusScope {
                 model: rows.length
                 function show(c) {
                     if (!c || c.category === menu.category) return;
-                    // The category's first page as its kept page holds it, so the page shows without changing.
                     var top = Pages.topOf(c.category), kept = pages.itemAt(menu.indexOfCategory(c.category));
                     kept = kept && kept.item ? kept.item.entry : null;
                     menu.stack = [kept && kept.id === top ? kept : { "id": top }];
                 }
-                // Keys walk the categories and show each page; the pointer only points at one, and a click opens it.
                 onCurrentIndexChanged: if (menu.open && menu.area === "categories" && !pointing) show(spec(currentIndex))
                 onPointed: if (menu.area !== "categories") { menu.area = "categories"; menu.focusArea(); }
                 onActivated: { show(row); menu.area = "page"; menu.focusArea(); }
@@ -229,8 +203,6 @@ FocusScope {
                 asynchronous: true
                 visible: menu.category === cat
                 sourceComponent: PageView {
-                    // Follows the stack while it is in this category; out of it, keeps its last page as it was.
-                    // Made ahead of a visit, it holds its category's first page.
                     function follow() {
                         var s = menu.stack;
                         if (menu.owns(slot.cat)) entry = s[s.length - 1];
@@ -258,7 +230,6 @@ FocusScope {
                     onUnlock: menu.pinning = { "mode": "check", "row": row }
                     onChangePin: { menu.pinning = { "mode": "new" }; pin.reset(); }
                 }
-                // Made after it was asked for: it takes over as the page, focus included.
                 onLoaded: if (menu.category === cat && menu.page !== item) { menu.page = item; if (menu.open) menu.focusArea(); }
             }
         }
@@ -302,7 +273,6 @@ FocusScope {
         onShownChanged: if (shown) forceActiveFocus(); else menu.focusArea()
         onEntered: menu.pinEntered(pin)
         onCancelled: {
-            // Back out of a locked page's PIN: off the page, however it was reached.
             if (menu.pinning && menu.pinning.mode === "page") menu.leaveLocked();
             menu.pinning = null;
         }

@@ -1,5 +1,3 @@
-// Look service: holds the active style and themes and tells subscribers when they change.
-// Runs on the TV's Node 0.12, so this file is ES5 only.
 var Service = require('webos-service');
 var fs = require('fs');
 var path = require('path');
@@ -7,17 +5,11 @@ var path = require('path');
 var ID = 'dev.themepack.look.service';
 var service = new Service(ID);
 var packsDir = path.join(__dirname, 'packs');
-// The service runs sandboxed as a non-root user; data/ is the one directory the package makes writable for it.
 var lookFile = path.join(__dirname, 'data', 'look.json');
 var subscribers = {};
-// What the TV's renderers reported (loaded, errors), newest last. They cannot write files, so this is their log.
 var reports = [];
-// Whether our Settings is open, and at which page (a page id from settings/catalog.json, or '' for the top). `at`
-// changes with every request, so the layer acts on requests rather than on state: a compositor restart must not
-// reopen Settings nobody asked for.
 var settings = { open: false, target: '', at: 0 };
 
-// Stay running after the first call: a cold start drops the call that woke the service.
 service.activityManager.create('keepAlive', function () {});
 
 function readJson(file, fallback) {
@@ -33,23 +25,13 @@ function packs(kind) {
 var styles = packs('styles'), themes = packs('themes');
 var defaultStyle = styles.smoke ? 'smoke' : Object.keys(styles)[0];
 
-// The calendar. A theme pack with group: 'seasonal' gives `season`, a list of windows; any other theme is 'custom'.
-// A window is fixed, { from: 'MM-DD', to: 'MM-DD' } (both days included; it may cross New Year), or follows a day
-// that moves:
-//   { rule: 'easter' }                                    Western Easter Sunday
-//   { rule: 'hanukkah' }                                  the eight days from 25 Kislev
-//   { rule: 'weekday', month: 11, weekday: 4, nth: 4 }    the nth weekday of a month (0 is Sunday; nth -1 is the last)
-// widened by `before` and `after` whole days (optional). A day here is a count of whole days since 1970 on the TV's
-// local calendar, so a window is the same days in every time zone.
 var DAY = 86400000;
 function dayOf(y, m, d) { return Date.UTC(y, m - 1, d) / DAY; }
 function today() { var n = new Date(); return dayOf(n.getFullYear(), n.getMonth() + 1, n.getDate()); }
 function iso(day) { return new Date(day * DAY).toISOString().slice(0, 10); }
 function yearOf(day) { return new Date(day * DAY).getUTCFullYear(); }
-// 1970-01-01 was a Thursday.
 function weekdayOf(day) { return ((day + 4) % 7 + 7) % 7; }
 
-// Easter Sunday in the Gregorian calendar (the anonymous Gregorian computus).
 function easter(y) {
   var a = y % 19, b = Math.floor(y / 100), c = y % 100, d = Math.floor(b / 4), e = b % 4;
   var f = Math.floor((b + 8) / 25), g = Math.floor((b - f + 1) / 3), h = (19 * a + b - d - g + 15) % 30;
@@ -57,8 +39,6 @@ function easter(y) {
   var n = h + l - 7 * m + 114;
   return dayOf(y, Math.floor(n / 31), n % 31 + 1);
 }
-// The Hebrew calendar by arithmetic: the days from its epoch to the new moon of a year's first month, moved by the
-// calendar's postponement rules. HEBREW_EPOCH is that epoch as a day since 1970.
 var HEBREW_EPOCH = -2092590;
 function hebrewElapsed(y) {
   var months = Math.floor((235 * y - 234) / 19), parts = 12084 + 13753 * months;
@@ -69,8 +49,6 @@ function hebrewNewYear(y) {
   var a = hebrewElapsed(y - 1), b = hebrewElapsed(y), c = hebrewElapsed(y + 1);
   return HEBREW_EPOCH + b + (c - b === 356 ? 2 : b - a === 382 ? 1 : 0);
 }
-// 25 Kislev, the first day of Hanukkah, in the Hebrew year that begins in the autumn of Gregorian year y. Kislev
-// follows Tishrei (30 days) and Cheshvan (30 days in a year of 355 or 385 days, otherwise 29).
 function hanukkah(y) {
   var start = hebrewNewYear(y + 3761), length = hebrewNewYear(y + 3762) - start;
   return start + 30 + (length % 10 === 5 ? 30 : 29) + 24;
@@ -88,8 +66,6 @@ function monthDay(s) {
   return month >= 1 && month <= 12 && d >= 1 && d <= days[month - 1] ? [month, d] : null;
 }
 function whole(n, min, max) { return typeof n === 'number' && n === Math.floor(n) && n >= min && n <= max; }
-// A season entry as a function of the year: that year's window as [first day, last day]. null for an entry this
-// service cannot read.
 function windowOf(w) {
   if (!w || typeof w !== 'object') return null;
   if (w.rule === undefined) {
@@ -108,15 +84,12 @@ function windowOf(w) {
   if (!anchor) return null;
   return function (y) { var s = anchor(y); return [s[0] - before, s[1] + after]; };
 }
-// The window that holds a day, or the next one to come.
 function occurrence(windowFn, day) {
   var y = yearOf(day);
   for (var i = y - 1; i <= y + 1; i++) { var s = windowFn(i); if (s[1] >= day) return s; }
   return windowFn(y + 2);
 }
 
-// The seasonal themes: id -> its windows. A pack that says 'seasonal' with no window this service can read is listed
-// as a custom theme, so it can still be turned on by hand.
 var seasons = {};
 Object.keys(themes).forEach(function (id) {
   if (themes[id].group !== 'seasonal') return;
@@ -130,9 +103,6 @@ Object.keys(themes).forEach(function (id) {
   }
 });
 
-// What can be chosen as themes, for a day: the custom themes, then the seasonal ones in calendar order (by the
-// window that holds or first follows 1 January). A seasonal theme carries its pack's `season`, and what that means
-// around this day: `dates`, each window's current or next run as { from, to } ('YYYY-MM-DD'), and `inSeason`.
 function listing(day) {
   var newYear = dayOf(yearOf(day), 1, 1), custom = [], seasonal = [];
   Object.keys(themes).forEach(function (id) {
@@ -148,9 +118,6 @@ function listing(day) {
   return custom.concat(seasonal.map(function (s) { return s.item; }));
 }
 
-// The seasonal themes the calendar turns on for a day: at most one season with one holiday over it. A window longer
-// than SEASON_DAYS is a season, a shorter one a holiday. Of the seasons whose window holds the day the longest wins;
-// of the holidays, the shortest (the more particular day). `skip` lists themes the household has left out.
 var SEASON_DAYS = 45;
 function calendar(day, skip) {
   var season = null, holiday = null;
@@ -166,8 +133,6 @@ function calendar(day, skip) {
   return (season ? [season.id] : []).concat(holiday && (!season || holiday.id !== season.id) ? [holiday.id] : []);
 }
 
-// The look as kept in data/look.json: the style, the active themes (inner first), `auto` (the calendar chooses the
-// seasonal themes) and `skip` (seasonal themes the calendar leaves out).
 function current() {
   var look = readJson(lookFile, {});
   var style = styles[look.style] ? look.style : defaultStyle;
@@ -175,12 +140,10 @@ function current() {
   var skip = (look.skip instanceof Array ? look.skip : []).filter(function (t) { return !!seasons[t]; });
   return { style: style, themes: active, auto: look.auto === true, skip: skip };
 }
-// With `auto` on the calendar owns the seasonal themes; the others stay as chosen, in their order, under them.
 function follow(look, day) {
   if (look.auto) look.themes = look.themes.filter(function (t) { return !seasons[t]; }).concat(calendar(day, look.skip));
   return look;
 }
-// The day the look was last set against. newDay() moves it on: true when the look or the theme listing changed with it.
 var day = today();
 function newDay() {
   var now = today();
@@ -199,13 +162,10 @@ function payload() {
     subscribers: Object.keys(subscribers).length,
     settings: settings,
     probing: probing.on,
-    // Theme assets are files next to the packs; renderers resolve a recipe's `asset` against this.
     assets: 'file://' + path.join(packsDir, 'assets') + '/',
-    // The styles' font files; a style's font.files are relative to this.
     fonts: 'file://' + path.join(packsDir, 'fonts') + '/',
     style: styles[look.style],
     themes: look.themes.map(function (t) { return themes[t]; }),
-    // The day the calendar was last read for, on the service's clock.
     today: iso(day),
     available: {
       styles: Object.keys(styles).map(function (k) { return { id: k, name: styles[k].name }; }),
@@ -215,7 +175,6 @@ function payload() {
 }
 
 service.register('getLook', function (message) {
-  // A day that turned in the last minute, or while the TV slept, is caught up with here.
   if (newDay()) notify();
   if (message.isSubscription) subscribers[message.uniqueToken] = message;
   message.respond(payload());
@@ -254,10 +213,6 @@ function setLook(message) {
   message.respond(notify());
 }
 
-// The calendar is read when the service starts, and the day is looked at again every minute: one timer, set again
-// each time it fires. Not once at midnight: the TV keeps no time while it is unplugged, so its date is set some while
-// after it starts (from the network, or by hand in Settings) and can jump by years, forward or back. The timer must
-// not hold the process open by itself (the service stays up by its own activity).
 (function () {
   var look = current(), was = look.themes.join(' ');
   if (follow(look, day).themes.join(' ') === was) return;
@@ -265,10 +220,6 @@ function setLook(message) {
     reports.push({ at: new Date().toISOString(), from: 'service', kind: 'error', text: 'look not saved: ' + String(e && e.message || e) });
   }
 })();
-// The time is also written down every minute (seconds since 1970), because the next boot's clock starts years back:
-// the boot hook starts it from this instead, late by however long the TV was off but on about the right day, until
-// a time source or the owner sets it. A clock that reads earlier than this file's own date is one nobody has set
-// yet, so that time is not kept.
 var clockFile = path.join(__dirname, 'data', 'clock');
 var built = Math.floor(fs.statSync(__filename).mtime.getTime() / 1000);
 function keepTime() {
@@ -294,8 +245,6 @@ function notify() {
   return out;
 }
 
-// The Settings stub (mounted over LG's Settings app) calls openSettings with the page LG's caller asked for; the
-// layer calls closeSettings when our Settings closes.
 service.register('openSettings', function (message) {
   var target = (message.payload || {}).target;
   if (target !== undefined && typeof target !== 'string') {
@@ -309,11 +258,6 @@ service.register('closeSettings', function (message) {
   message.respond(notify());
 });
 
-// Whether tools/telemetry-off is in force this boot. Its boot hook (80-telemetry-off) bind-mounts a generated hosts
-// file carrying MARKER over /etc/hosts, so the marker is there only while this boot's blackhole is live; the kit's
-// off switch and an unfinished run say it is not. "active" needs the kit's directory visible too: a jail's /etc/hosts
-// is a copy made once, so a marker alone may be stale. "active", "inactive" (the kit is there but not in force) or
-// "unknown" (no kit visible, or nothing readable). The paths are the kit's (telemetry-off.sh); env vars move them.
 var KIT_DIR = process.env.TELEMETRY_OFF_DIR || '/var/lib/telemetry-off';
 var HOSTS = process.env.TELEMETRY_OFF_HOSTS || '/etc/hosts';
 var MARKER = '# telemetry-off: LG telemetry blackhole';
@@ -340,10 +284,6 @@ service.register('getReports', function (message) {
   message.respond({ returnValue: true, reports: reports });
 });
 
-// What each part of the layer shows right now (its `probe`, Layer.qml), latest only, by part file. The TV suite
-// reads it to wait for a state and to check where focus is before it presses OK. Test instrumentation only: the layer
-// sends probes only while `probing` is on, which the suite turns on for a run (setProbing). It is off at every start
-// (never written to disk) and turns itself off when nobody has read the probes or refreshed it for a while.
 var probes = {};
 var probing = { on: false, ms: 0, timer: null };
 var PROBING_MS = 10 * 60 * 1000, PROBING_MAX_MS = 60 * 60 * 1000;
@@ -355,7 +295,6 @@ function setProbing(on, ms) {
   if (probing.on) {
     probing.ms = Math.max(1, Math.min(PROBING_MAX_MS, ms || PROBING_MS));
     probing.timer = setTimeout(function () { setProbing(false); }, probing.ms);
-    // The service stays up by its own activity; this timer must not hold a process open by itself.
     if (probing.timer.unref) probing.timer.unref();
   } else {
     probes = {};
@@ -376,8 +315,6 @@ service.register('setProbe', function (message) {
                                    state: p.state === undefined ? null : p.state };
   message.respond({ returnValue: true });
 });
-// `now` is the service's clock, so a reader can tell how old each probe is without trusting its own. A read keeps
-// probing on for another while.
 service.register('getProbe', function (message) {
   if (probing.on) setProbing(true, probing.ms);
   message.respond({ returnValue: true, now: new Date().toISOString(), probing: probing.on, probes: probes });

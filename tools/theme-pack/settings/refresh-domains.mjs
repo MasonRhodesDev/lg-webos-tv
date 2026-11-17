@@ -1,7 +1,3 @@
-// Refreshes the value domains in the settings catalog from your own TV's settings description, for another firmware or
-// country. Only single-key settingsservice items change; meanings, tiers and rules are ours and stay as written.
-//   ssh root@"$TV_HOST" cat /etc/palm/description.json > /tmp/description.json
-//   node tools/theme-pack/settings/refresh-domains.mjs --desc /tmp/description.json [--country USA] [--resolution UHD]
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';

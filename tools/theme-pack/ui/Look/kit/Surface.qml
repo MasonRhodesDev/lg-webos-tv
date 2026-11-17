@@ -2,8 +2,6 @@ import QtQuick 2.4
 import QtGraphicalEffects 1.0
 import ".."
 
-// The one material every panel, dialog, toast and key cap is made of: the style's surface with its edge, and the
-// panel elevation under it. `strong` is the denser surface for things that sit over arbitrary content.
 Item {
     id: surface
     property bool strong: false

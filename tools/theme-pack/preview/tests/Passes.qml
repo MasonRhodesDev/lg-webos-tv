@@ -3,16 +3,11 @@ import QtQuick.Window 2.2
 import Preview 1.0
 import Look 1.0
 
-// The layer model's paint order (the design canvas's layers page, boards 3 and 5), read from the item tree: which plane
-// each layer lives in, and the order the scene graph paints them in (children by z, then by index). Exits 1 on the
-// first failure: qml Passes.qml
 Window {
     id: win
     width: 1920; height: 1080
     visible: true
 
-    // A theme like board 3's: every tile's back decoration bleeds into its neighbours, focus adds a wider glow and a
-    // ring, and chips have their own back decoration.
     readonly property var theme: ({ "id": "board", "recipes": [
         { "target": "tile", "slot": "back", "when": "always", "outset": 40, "fill": "#DCE6FA" },
         { "target": "*", "slot": "back", "when": "focused", "outset": { "rest": 24, "focused": 70 }, "fill": "#A9C1F2" },
@@ -71,7 +66,6 @@ Window {
         }
         return null;
     }
-    // Every item in the order the scene graph paints it: an item, then its children by z (stable by index).
     function paintOrder(item, out) {
         out.push(item);
         var kids = [];
@@ -80,8 +74,6 @@ Window {
         for (var j = 0; j < kids.length; j++) paintOrder(kids[j].item, out);
         return out;
     }
-    // Asserts these passes paint in this order: each is [label, item or [items]]; items within one pass may paint in
-    // any order among themselves, and every one of them paints after every item of the pass before.
     function inOrder(list, what) {
         var order = paintOrder(sceneRoot, []), prev = -1, prevLabel = "";
         for (var i = 0; i < list.length; i++) {
@@ -98,7 +90,6 @@ Window {
         }
         check(true, what);
     }
-    // The rings drawn in one of a component's layers (the Repeater's items, beside the Repeater itself).
     function rings(layer) {
         var out = [], kids = layer.children[0].children;
         for (var i = 0; i < kids.length; i++) if (kids[i].recipe !== undefined) out.push(kids[i]);
@@ -142,7 +133,6 @@ Window {
             check(glow && near(glow.ol, 70) && near(glow.x, -70), "focused tile: the per-state outset reads its focused value (70)");
         },
         function () {
-            // Geometry follows the origin: the focused tile is scaled (focus-scale 1.04) and the row moves.
             var d2 = decorOf(t2, "tile"), s = screenA.surfaces, at = d2.mapToItem(s.contentItem, 0, 0);
             check(near(d2.layers.origin.x, at.x) && near(d2.layers.origin.y, at.y), "lifted origin sits where its layout slot is");
             check(near(t2.scale, 1.04) && near(d2.place.scale, 1.04), "lifted layers carry the tile's focus scale");
@@ -164,7 +154,6 @@ Window {
                      ["tile 1 chip", chip], ["tile 3 lifted", d3.layers.lift]], "no resting decoration paints over tile 1's chip");
         },
         function () {
-            // Board 5: a row with a chip inside a panel. The rows join the panel's passes, which live in the panel's origin.
             var pd = decorOf(panel, "panel"), r0 = rowAt(0), r1 = rowAt(1), r2 = rowAt(2), pp = panel.body.passes;
             check(pd.scope === screenB.surfaces, "the panel joins the screen's passes");
             check(r0.scope === pp && r1.scope === pp && r0.scope !== screenB.surfaces, "rows join the panel's passes, not the screen's");

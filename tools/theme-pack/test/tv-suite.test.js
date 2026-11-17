@@ -5,9 +5,6 @@ const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 
-// The TV suite (tv-suite/), offline: the key guard, the TV-CHECKS coverage map, the board renderer's expansion, and
-// the suite's dry run against the fake TV: deploy through the real scripts (fake ssh and scp first on PATH), every
-// scenario in process, and the faults the suite must catch.
 const dir = path.join(__dirname, '..', 'tv-suite');
 const imp = (f) => import(path.join(dir, f));
 const tmp = (p) => fs.mkdtempSync(path.join(os.tmpdir(), 'tv-suite-test-' + p + '-'));
@@ -19,7 +16,6 @@ async function dryRun(over = {}, ids) {
   const { SCENARIOS } = await imp('lib/scenarios.mjs');
   const state = fake.deployedState(over);
   const out = tmp('run');
-  // Each dry run keeps its journal pointer to itself (a failed restore leaves a journal open, on purpose).
   process.env.TV_SUITE_STATE = tmp('state');
   const lines = [];
   const tv = makeTv({ host: 'tv.invalid', exec: fake.inProcess(state) });
@@ -47,7 +43,6 @@ test('the guard lets through only keys that change nothing', async () => {
   assert.match(guard('ENTER', menu(row('style', 'choice'))), /would change/);
   assert.strictEqual(guard('ENTER', menu(row('theme', 'toggle')), { look: true }), null);
   assert.match(guard('LEFT', menu(row('item', 'slider'))), /step/);
-  // A part of the clock: OK, Left and Right each step it, so the suite presses none of them there.
   for (const k of ['LEFT', 'RIGHT']) assert.match(guard(k, menu(row('item', 'stepper'))), /step/, k);
   assert.match(guard('ENTER', menu(row('item', 'stepper'))), /would change/);
   assert.match(guard('RIGHT', menu(row('item', 'value'))), /slider/);
@@ -68,12 +63,10 @@ test('the guard lets through only keys that change nothing', async () => {
     assert.match(guard(k, Object.assign({}, none, { picker: { shown: true } })), /input picker is open: no key/, 'picker ' + k);
     assert.match(guard(k, Object.assign({}, none, { systemUi: 'com.webos.app.quicksettings' })), /LG's Quick Settings is open: no key/, 'LG QS ' + k);
   }
-  // A stale probe (the layer may be gone): nothing, not even BACK to our menu.
   const stale = Object.assign({}, menu(row('item', 'value')), { fresh: false, stale: "our Settings' probe is 30.0 s old" });
   for (const k of ['BACK', 'QMENU', 'DOWN']) assert.match(guard(k, stale), /stale state, nothing is pressed/, 'stale ' + k);
   for (const k of ['HOME', 'EXIT', 'INPUT_HUB', 'POWER', 'CHANNELUP', '0']) assert.match(guard(k, none), /never pressed/, k);
   assert.match(guard('VOLUMEUP', none), /volume scenarios/);
-  // Reversible writes: only the named setting, only its toggle or picker choice; actions never.
   const toggle = Object.assign(row('item', 'toggle', 'Quick Start+'), { ref: 'quickStartMode' });
   assert.strictEqual(guard('ENTER', menu(toggle), { write: { ref: 'quickStartMode' } }), null);
   assert.match(guard('ENTER', menu(toggle), { write: { ref: 'autoVolume' } }), /would change/);
@@ -92,7 +85,6 @@ test('the guard lets through only keys that change nothing', async () => {
   const odd = Object.assign({}, menu(row('item', 'value')), { systemUi: 'unknown' });
   for (const k of ['QMENU', 'UP', 'ENTER', 'LEFT', 'BACK']) assert.match(guard(k, odd), /LG overlay we do not know/, k + ' with systemUIManager unreadable');
   assert.ok(Object.keys(KEYS).every((k) => ['proven', 'table', 'unverified'].includes(KEYS[k].from)));
-  // Home and Exit only with their own allowance, never through another; nothing else that is never pressed has one.
   const deep = menu(row('page', 'nav', 'Legal notice'));
   assert.strictEqual(guard('EXIT', deep, { exit: true }), null);
   assert.strictEqual(guard('HOME', deep, { home: true }), null);
@@ -103,21 +95,18 @@ test('the guard lets through only keys that change nothing', async () => {
   for (const k of ['INPUT_HUB', 'POWER', 'CHANNELUP', 'CHANNELDOWN', '0']) {
     assert.match(guard(k, deep, { home: true, exit: true, picker: true, lgQuick: true, over: 'x', launch: { ref: 'deviceConnector' } }), /never pressed/, k);
   }
-  // OK on an action row that only opens LG's app, named; never on another action, whatever is named.
   const leave = (ref) => menu(Object.assign(row('action', 'nav', ref), { ref }));
   assert.strictEqual(guard('ENTER', leave('deviceConnector'), { launch: { ref: 'deviceConnector' } }), null);
   assert.match(guard('ENTER', leave('deviceConnector'), { launch: { ref: 'pictureTest' } }), /would change/);
   assert.match(guard('ENTER', leave('deviceConnector')), /would change/);
   assert.match(guard('ENTER', leave('resetToInitial'), { launch: { ref: 'resetToInitial' } }), /would change/);
   assert.match(guard('ENTER', leave('screenOff'), { launch: { ref: 'screenOff' } }), /would change/);
-  // The input picker: Left, Right and Back when allowed, never OK; LG's Quick Settings: moves, OK and Back.
   const pk = Object.assign({}, none, { picker: { shown: true } });
   for (const k of ['LEFT', 'RIGHT', 'BACK']) assert.strictEqual(guard(k, pk, { picker: true }), null, 'picker ' + k);
   for (const k of ['ENTER', 'UP', 'QMENU']) assert.match(guard(k, pk, { picker: true }), /only Left, Right and Back/, 'picker ' + k);
   const lgqs = Object.assign({}, none, { systemUi: 'com.webos.app.quicksettings' });
   for (const k of ['UP', 'DOWN', 'ENTER', 'BACK']) assert.strictEqual(guard(k, lgqs, { lgQuick: true }), null, 'LG QS ' + k);
   for (const k of ['LEFT', 'RIGHT', 'QMENU']) assert.match(guard(k, lgqs, { lgQuick: true }), /LG's Quick Settings is open/, 'LG QS ' + k);
-  // Back over LG's app only while that app is in front and nothing of ours is open.
   assert.strictEqual(guard('BACK', Object.assign({}, none, { front: ['com.webos.app.hdmi2', 'com.webos.app.home'] }), { over: 'com.webos.app.home' }), null);
   assert.match(guard('BACK', Object.assign({}, none, { front: ['com.webos.app.hdmi2'] }), { over: 'com.webos.app.home' }), /nothing of ours/);
   assert.match(guard('ENTER', Object.assign({}, none, { front: ['com.webos.app.home'] }), { over: 'com.webos.app.home' }), /nothing of ours/);
@@ -205,8 +194,6 @@ test('dry run: deploy runs the real scripts against the fake TV, step by step, a
   assert.match(noLayer.out, /FAIL boot: the boot hook: settings left stock \(the stub needs our layer and the Look service\)/);
 });
 
-// Our layer's open defects, as the fake models them from the TV: Exit and Home leave our Settings open, and so does
-// leaving for LG's apps. Their scenarios fail on exactly these checks until the layer closes itself.
 const DEFECTS = { 'exit-home': [/^EXIT closes our Settings/, /^HOME closes our Settings/], 'leave-for-lg': [/: our Settings gives way to LG's app$/] };
 
 test('dry run: every scenario passes against the fake TV and leaves it as it was', async () => {
@@ -258,7 +245,6 @@ test('dry run: the suite catches BACK arriving as Backspace, a lingering stub, a
   assert.strictEqual(pick.run('picture-mode').status, 'fail');
   assert.match(pick.run('picture-mode').reason, /left changed, then restored: pictureMode/);
   assert.strictEqual(pick.state.settings.pictureMode, 'expert1', 'and the suite put it back, read back');
-  // A restore that does not stick is caught by the second read, not reported as done.
   const sticky = await dryRun({ faults: { backChooses: true, restoreIgnored: true } }, ['picture-mode']);
   assert.ok(sticky.run('picture-mode').checks.some((c) => !c.ok && /read back after the restore/.test(c.name) && /pictureMode: was "expert1", now/.test(c.detail)));
 
@@ -353,7 +339,6 @@ test('dry run: the manual pass prints only the steps that need a person, records
   assert.deepStrictEqual(m.items.map((x) => x.id), ['picture-blink', 'gear-held', 'pointer']);
   const by = (id) => m.items.find((x) => x.id === id);
   assert.strictEqual(by('picture-blink').verdict, 'pass');
-  // Nobody held the gear on the fake: the person's pass is not what the suite saw.
   assert.strictEqual(by('gear-held').verdict, 'fail');
   assert.ok(by('gear-held').checks.some((c) => !c.ok && /what the suite saw agrees/.test(c.name)));
   assert.strictEqual(by('gear-held').note, 'looks fine');
@@ -426,7 +411,6 @@ test('dry run: the Look app opens the Look page, and a bus refusal in the log fa
   assert.ok(bad.run('look-app').checks.some((c) => !c.ok && /no permission error/.test(c.name) && /Permission denied/.test(c.detail)));
 });
 
-// The safety verifier's blockers, reproduced and shown fixed.
 const CLI = path.join(dir, 'tv-suite.mjs');
 function fakeFile(over) {
   const f = path.join(tmp('blk'), 'tv.json');
@@ -436,7 +420,6 @@ function fakeFile(over) {
   return { f, run, state: () => JSON.parse(fs.readFileSync(f, 'utf8')) };
 }
 const readFake = (f) => { try { return JSON.parse(fs.readFileSync(f, 'utf8')); } catch (e) { return null; } };
-// Starts a dry-run command, waits until `when(state)` holds in the fake TV, then sends `signal`.
 function interrupted(f, args, when, signal) {
   const { spawn } = require('node:child_process');
   return new Promise((resolve) => {
@@ -496,9 +479,7 @@ test('blocker: SIGINT in a fallback scenario puts the good layer back', async ()
 
 test('blocker: a stale probe presses nothing, closeAll included', async () => {
   const fake = await imp('fake/tv.mjs');
-  // A run does not even start on a stale probe.
   await assert.rejects(dryRun({ faults: { staleProbe: true } }, ['quick-sheet']), /our Settings' probe is 60 s old: the layer is not refreshing it/);
-  // Our menu open, then the layer dies (its probe goes stale): closeAll's BACK is refused too.
   const { makeTv } = await imp('lib/tv.mjs');
   const { makeCtx, closeAll } = await imp('lib/run.mjs');
   const st = fake.deployedState({ netinput: true });
@@ -534,7 +515,6 @@ test('blocker: deploy backs up the old setup once, and rollback puts exactly it 
   const fake = require('node:path');
   const run = (...a) => spawnSync(process.execPath, [CLI, ...a, '--dry-run', '--fake-state', f], { encoding: 'utf8', timeout: 180000 });
   const old = { faults: {}, oldHook: true, rootSettings: true, mounted: 'patched' };
-  // The TV as found: the old boot hook, its patched Settings mounted, no Look package.
   fs.writeFileSync(f, JSON.stringify(Object.assign(JSON.parse(spawnSync(process.execPath, ['-e', 'import(process.argv[1]).then(m=>console.log(JSON.stringify(m.initialState())))', path.join(dir, 'fake/tv.mjs')], { encoding: 'utf8' }).stdout), old)));
   const d = run('deploy', tmp('d'));
   assert.strictEqual(d.status, 0, d.stdout + d.stderr);
@@ -626,8 +606,6 @@ test('settings keep their type: compared normalised, written back as read, and a
   assert.strictEqual(ok.run('write-contrast').status, 'pass', ok.run('write-contrast').reason);
   assert.ok(ok.run('write-contrast').checks.some((c) => c.ok && /Contrast keeps the TV's type \(string\)/.test(c.name) && /"85" -> "86"/.test(c.detail)));
   assert.strictEqual(ok.state.settings.contrast, '85');
-  // A store that writes a number where the TV keeps a string: the scenario fails on the type, and the restore puts the
-  // string back (written as it was read).
   const bug = await dryRun({ faults: { typeBug: true } }, ['write-contrast']);
   assert.strictEqual(bug.run('write-contrast').status, 'fail');
   assert.ok(bug.run('write-contrast').checks.some((c) => !c.ok && /Contrast keeps the TV's type \(string\)/.test(c.name) && /"85" -> 86/.test(c.detail)));
@@ -656,7 +634,6 @@ test('re-verify 1: deploy keeps the owner\'s look, skips a package that matches 
   assert.match(same.stdout, /the installed Look package matches this build \([0-9a-f]{32}\): not reinstalled/);
   assert.match(same.stdout, /the backup on the TV was made \d{4}-\d\d-\d\dT/);
   assert.strictEqual(state().installs, 1, 'no reinstall');
-  // A package that differs (an older build on the TV): reinstalled, and the look the reinstall lost is set back.
   s = state(); s.packageHash = 'an-older-build'; fs.writeFileSync(f, JSON.stringify(s));
   const re = run('deploy', tmp('re'));
   assert.strictEqual(re.status, 0, re.stdout + re.stderr);
@@ -665,7 +642,6 @@ test('re-verify 1: deploy keeps the owner\'s look, skips a package that matches 
   assert.match(re.stdout, /the look is back, read back: \{"style":"bubble","themes":\["winter"\]\}/);
   assert.strictEqual(state().installs, 2);
   assert.deepStrictEqual(state().look, { style: 'bubble', themes: ['winter'] });
-  // Rollback puts the backed-up service data (the look) back, and says when the backup was made.
   s = state(); s.look = { style: 'smoke', themes: [] }; s.faults = {}; fs.writeFileSync(f, JSON.stringify(s));
   const rb = run('rollback', tmp('rb2'));
   assert.strictEqual(rb.status, 0, rb.stdout + rb.stderr);
@@ -742,14 +718,12 @@ test('an older Look service on the TV (setProbing unknown): baseline and run say
 test('luna answers are parsed whole: one line or pretty-printed over several, as the TV sends them', async () => {
   const { parseAnswer, makeTv } = await imp('lib/tv.mjs');
   const { systemUiFront } = await imp('lib/run.mjs');
-  // systemUIManager's answer exactly as the live TV printed it over ssh -tt (CRLF line ends).
   const live = '{\r\n    "foregroundAppInfo": [\r\n    ],\r\n    "returnValue": true\r\n}\r\n';
   assert.deepStrictEqual(parseAnswer('luna://x', live), { foregroundAppInfo: [], returnValue: true });
   assert.deepStrictEqual(parseAnswer('luna://x', '{"returnValue":true,"appId":"com.webos.app.hdmi1"}\r\n'), { returnValue: true, appId: 'com.webos.app.hdmi1' });
   assert.deepStrictEqual(parseAnswer('luna://x', '{\n  "returnValue": true,\n  "apps": [\n    { "id": "a", "processid": "1" }\n  ]\n}\n'), { returnValue: true, apps: [{ id: 'a', processid: '1' }] });
   assert.throws(() => parseAnswer('luna://x', '', 'Connection refused'), /luna:\/\/x: no answer \(Connection refused\)/);
   assert.throws(() => parseAnswer('luna://x', '{\n  "returnValue": tru\n}'), /luna:\/\/x: unreadable answer \(.*\): \{ "returnValue": tru \}/);
-  // Through the transport: the pretty-printed empty list reads as nothing in front, not unknown.
   const exec = async () => ({ status: 0, stdout: live, stderr: '' });
   const tv = makeTv({ host: 'tv.invalid', exec });
   assert.deepStrictEqual(await tv.luna('luna://com.webos.service.systemUIManager/getForegroundAppInfo', {}), { foregroundAppInfo: [], returnValue: true });

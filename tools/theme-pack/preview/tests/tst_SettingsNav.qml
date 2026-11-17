@@ -3,15 +3,11 @@ import QtTest 1.0
 import Preview 1.0
 import Look 1.0
 
-// Our Settings and quick sheet driven by remote keys, against the settings mock (TvSettings) and a fake LG root: the
-// navigation stack (open at a target, move, enter, choose, adjust, back out to close), Hook A's table and entry
-// window, the focus chain and LG's Back. Run by qmltestrunner (test/settings.test.js).
 Item {
     id: root
     width: 1920
     height: 1080
 
-    // LG's compositor root as our part sees it: the system UI manager, configd's settings and the key filter.
     Item {
         id: lgRoot
         property var systemSettings: QtObject { property var systemUIManager: ({}) }
@@ -19,13 +15,11 @@ Item {
         Item {
             id: manager
             objectName: "systemUIManager"
-            // As in YSM: bound to configd's value, which is {} until configd answers.
             property var config: lgRoot.systemSettings.systemUIManager
             property var launched: []
             function launch(appId, payload) { launched.push(appId); }
         }
     }
-    // Our layer, holding the host as Layer.qml does.
     Item { id: layer; anchors.fill: parent; property Item host: lgRoot }
 
     property var part: null
@@ -75,7 +69,6 @@ Item {
             for (var i = 0; i < 30 && focused() !== label; i++) keyClick(Qt.Key_Down);
             for (i = 0; i < 30 && focused() !== label; i++) keyClick(Qt.Key_Up);
         }
-        // Our keyboard, driven by the D-pad only: arrows to the key, then OK.
         function goKey(label) {
             var kb = part.menu.entry.keyboard, at = kb.locate(label);
             for (var i = 0; i < 6 && kb.row !== at.row; i++) keyClick(kb.row < at.row ? Qt.Key_Down : Qt.Key_Up);
@@ -103,7 +96,6 @@ Item {
             verify(c.status === Component.Ready, c.errorString());
             part = c.createObject(layer, { "focusChain": Qt.resolvedUrl("parts/FakeFocus.qml") });
             verify(part !== null);
-            // Look's subscription's first answer only records where requests stand.
             Fixture.load(JSON.stringify({ "returnValue": true, "look": { "style": "smoke", "themes": [] }, "style": { "id": "smoke", "tokens": {} },
                                           "themes": [], "settings": { "open": false, "at": 1 } }));
         }
@@ -113,7 +105,6 @@ Item {
             verify(reported("waiting", "system UI table empty"), "Hook A waits for configd, not an error");
             verify(!reported("error", "system UI table"), "and reports no error");
             verify(!reported("ready", "settings: host ready"), "no ready before the hook applies");
-            // configd answers.
             lgRoot.systemSettings.systemUIManager = { "appinfo": [
                 { "id": "com.webos.app.quicksettings", "defaultWindowType": "overlay", "main": String(Qt.resolvedUrl("parts/FakeLgQuickSettings.qml")) },
                 { "id": "com.webos.app.quickinputpicker", "defaultWindowType": "overlay", "main": "file:///usr/lib/qt5/qml/InputPicker/InputPicker.qml" }
@@ -122,7 +113,6 @@ Item {
             compare(qs.id, "com.webos.app.quicksettings");
             verify(/settings\/QuickSettingsEntry\.qml$/.test(qs.main), "the Quick Settings entry loads ours: " + qs.main);
             verify(/InputPicker\.qml$/.test(manager.config.appinfo[1].main), "other entries untouched");
-            // configd answers again: the copy is made again from its value.
             lgRoot.systemSettings.systemUIManager = { "appinfo": [{ "id": "com.webos.app.quicksettings", "defaultWindowType": "overlay",
                                                                    "main": String(Qt.resolvedUrl("parts/FakeLgQuickSettings.qml")) }] };
             verify(/QuickSettingsEntry\.qml$/.test(manager.config.appinfo[0].main), "re-applied after configd's change");
@@ -143,7 +133,6 @@ Item {
             return rows().rows[i];
         }
 
-        // The boards' content: subtitles, picker hints, the footer and the rows the store's adapters fill in.
         function test_1b_board_content() {
             openSettings("picture", 100);
             compare(topId(), "Picture");
@@ -154,12 +143,10 @@ Item {
             compare(part.menu.footer.text, "Offline \u00b7 telemetry on", "and follows the agreements live");
             TvSettings.values[""].eulaStatus.voiceAllowed = false;
             TvSettings.notify("", "eulaStatus");
-            // Without the telemetry-off kit in force, the agreements claim only themselves.
             TvSettings.telemetryKit = "inactive";
             part.menu.close();
             openSettings("picture", 99);
             compare(part.menu.footer.text, "Offline \u00b7 agreements withdrawn", "no kit: the agreements, not telemetry");
-            // A reply without an answer is unknown, not the last one.
             TvSettings.telemetryKit = "active";
             part.menu.close();
             openSettings("picture", 98);
@@ -275,7 +262,6 @@ Item {
             verify(!part.quick.open);
         }
 
-        // settingsservice answers ranges as strings: a step writes the next value as a string, never the minimum.
         function test_1c_range_values_as_strings() {
             openSettings("picture", 98);
             compare(topId(), "Picture");
@@ -290,7 +276,6 @@ Item {
             keyClick(Qt.Key_Left);
             wait(250);
             compare(TvSettings.values.picture.contrast, "84", "Left writes \"84\"");
-            // An unreadable value: the slider refuses to move, and nothing is written.
             TvSettings.values.picture.backlight = "n/a";
             TvSettings.notify("picture", "backlight");
             focusRow("Brightness");
@@ -358,8 +343,6 @@ Item {
             compare(part.focusHandler.log[part.focusHandler.log.length - 1], "release 7", "focus handed back");
         }
 
-        // The Look app's launch: openSettings {target: "Look"} lands on our Look page, which lists every installed style
-        // and theme and marks the chosen ones.
         function test_3b_look_page() {
             Fixture.load(JSON.stringify({ "returnValue": true, "look": { "style": "bubble", "themes": ["winter"] }, "style": { "id": "bubble", "tokens": {} },
                 "themes": [], "settings": { "open": true, "target": "Look", "at": 6 },
@@ -377,7 +360,6 @@ Item {
                                           "themes": [], "settings": { "open": false, "at": 7 } }));
         }
 
-        // The Look page's seasonal themes: picked by hand, one at a time, or left to the service's calendar.
         function test_3c_look_seasonal() {
             function look(chosen, at) {
                 Fixture.load(JSON.stringify({ "returnValue": true, "look": chosen, "style": { "id": "smoke", "tokens": {} }, "themes": [],
@@ -411,7 +393,6 @@ Item {
             keyClick(Qt.Key_Return);
             compare(sent().params, { "auto": true });
 
-            // The service's answer: the calendar has the themes now, and each row is that theme's place in it.
             look({ "style": "smoke", "themes": ["glow", "autumn"], "auto": true, "skip": ["christmas"] }, 60);
             compare(focused(), "Automatic", "focus stays on the switch");
             compare(labels(), ["Style", "Smoke", "Seasonal themes", "Automatic", "In the calendar", "New Year", "Autumn", "Christmas", "Themes", "Glow"]);
@@ -449,7 +430,6 @@ Item {
             keyClick(Qt.Key_Down);
             compare(focused(), "Volume");
             keyClick(Qt.Key_Right);
-            // The write goes out on the store's flush (writes are paced), so wait for it rather than racing it.
             tryCompare(TvSettings, "volume", 22, 2000, "Right steps the volume, once the store flushes its paced write");
             compare(Object.keys(part.store.queued).length, 0, "nothing left queued after the flush");
             keyClick(Qt.Key_Down);
@@ -467,7 +447,6 @@ Item {
             keyClick(Qt.Key_Return);
             compare(TvSettings.sleepMinutes, 10, "choosing sets the sleep timer");
             compare(rows().rows[rows().currentIndex].value, "10 min", "read back after the write");
-            // A repeat of the gear while the sheet arrives is ignored; a later press closes it.
             part.openedAt = new Date().getTime();
             container.lifeCycleStatusChanged({ "event": "launch" });
             verify(part.quick.open, "a repeat during the open animation is ignored");
@@ -509,7 +488,6 @@ Item {
             verify(part.menu.confirming !== null, "an action with a confirmation asks first");
             compare(part.menu.dialog.currentIndex, 0, "the safe button has focus");
             var n = TvSettings.calls.length;
-            // Keys reach the dialog's buttons once its panel has started to show (Qt forwards keys to visible items only).
             wait(50);
             keyClick(Qt.Key_Return);
             verify(part.menu.confirming === null);
@@ -541,11 +519,9 @@ Item {
         }
 
         function test_8a_wifi_password_and_join() {
-            // The boards' TV: Wi-Fi off, one device paired; Bluetooth surround greys only with none paired.
             openSettings("connection", 9);
             compare(specNamed("Wi-Fi").value, "Off", "Connection's Wi-Fi row reads Wi-Fi's own state");
             compare(specNamed("Bluetooth devices").value, "1 paired", "and Bluetooth devices the paired count");
-            // These steps need Wi-Fi on, with the home network joined.
             TvSettings.wifiState = "serviceEnabled";
             openSettings("wifi", 10);
             compare(topId(), "Wifi", "the wifi page id opens our Wi-Fi page");
@@ -590,7 +566,6 @@ Item {
             compare(specNamed("Home").value, "Saved", "the old network is saved, not connected");
             verify(toasted("Joined Garage"));
             wait(50);
-            // Back out of the keyboard: nothing is sent.
             down("Neighbour 5G");
             keyClick(Qt.Key_Return);
             wait(50);
@@ -634,7 +609,6 @@ Item {
             keyClick(Qt.Key_Return);
             verify(called("/deleteprofile") !== null, "Forget deletes its profile");
             compare(specNamed("Garage").value, "", "and it moves to Nearby");
-            // Wi-Fi off asks first.
             down("Wi-Fi");
             keyClick(Qt.Key_Return);
             compare(part.menu.dialog.title, "Wi-Fi", "turning Wi-Fi off asks first");
@@ -655,7 +629,6 @@ Item {
             compare(specNamed("LGE MR19"), null, "the magic remote is never listed");
             compare(called("/getPairedDevices"), null, "btaudiosrc's paired list (unanswered on the TV) is not read");
             verify(called("/device/getStatus") !== null, "bluetooth2's device status is");
-            // The hard rule: whatever asks, the remote is never forgotten or disconnected.
             var remote = { "address": "00:00:5E:00:53:0A", "name": "LGE MR19", "type": "ble", "classOfDevice": 7936, "paired": true, "status": "connected" };
             var n = TvSettings.calls.length;
             part.store.btForget(remote);
@@ -781,9 +754,7 @@ Item {
         }
 
         function test_8f_pin_gate_layouts_backspace_and_none_paired() {
-            // The PIN is not kept once Settings closes (8d closed it).
             compare(part.store.values["lock.systemPin"], undefined, "the PIN is gone after close");
-            // A page under Safety reached straight by its id asks for the PIN before it shows anything.
             openSettings("RatingLocks", 20);
             compare(topId(), "RatingLocks");
             verify(part.menu.pinning !== null && part.menu.pinning.mode === "page", "a direct target to a lock page asks for the PIN");
@@ -805,7 +776,6 @@ Item {
             verify(rows().rows.length > 0, "with its rows");
             keyClick(Qt.Key_Escape);
             compare(topId(), "Safety");
-            // A ZIP code opens the keyboard on its digits.
             openSettings("Location", 22);
             var at = specOf("zipcode");
             verify(at >= 0, "the ZIP code row");
@@ -826,8 +796,6 @@ Item {
             wait(50);
             compare(part.menu.entry.keyboard.layout, "letters", "a name opens on the letters");
             keyClick(Qt.Key_Escape);
-            // Nothing paired: Bluetooth surround waits for a speaker, Connection says so.
-            // Only the magic remote stays paired: it does not count as a speaker.
             TvSettings.btDevices = [TvSettings.device("00:00:5E:00:53:0A")];
             openSettings("sound", 24);
             verify(specNamed("Bluetooth surround").disabled, "Bluetooth surround is greyed with nothing paired");
@@ -838,8 +806,6 @@ Item {
             compare(part.store.values["lock.systemPin"], undefined, "and the PIN is gone again");
         }
 
-        // The probe the TV suite reads (Layer.qml publishes it): open pages, focus and the kind of row it is on, prompts.
-        // The TV keeps no time while it is unplugged, so with network time out of reach the household sets it here.
         function setsOfClock() {
             var n = 0;
             for (var i = 0; i < TvSettings.calls.length; i++) if (TvSettings.calls[i].method === "/time/setSystemTime") n++;
@@ -856,7 +822,6 @@ Item {
             compare([shown("Year"), shown("Month"), shown("Day"), shown("Hour"), shown("Minute")].join(), "2026,November,11,9 PM,41");
             compare(specNamed("Year").variant, "stepper");
 
-            // Left and Right step a part; the TV is told once, a moment after the last step.
             down("Minute");
             var sets = setsOfClock();
             keyClick(Qt.Key_Right);
@@ -878,7 +843,6 @@ Item {
             compare(setsOfClock(), sets + 2);
             compare(part.menu.page.sub, "Wed, Nov 11, 2026 \u00b7 9:43 PM");
 
-            // Into summer time: the TV's zone is an hour on there, and the time asked for is the time shown.
             down("Month");
             for (var i = 0; i < 4; i++) keyClick(Qt.Key_Left);
             compare(shown("Month"), "July");
@@ -887,7 +851,6 @@ Item {
             compare(setsOfClock(), sets + 4, "set, then set right once the TV said which offset July has");
             verify(Math.abs(TvSettings.clockUtc - Date.UTC(2026, 6, 12, 1, 43, 0) / 1000) < 30);
 
-            // The TV refuses, or does not answer: the rows show its clock again, and the household is told.
             down("Year");
             TvSettings.fail.clock = true;
             keyClick(Qt.Key_Right);
@@ -904,7 +867,6 @@ Item {
             delete TvSettings.silent.clock;
             compare(part.store.inflight.length, 0);
 
-            // Automatic: the TV sets its own clock, and the parts are not ours to step.
             down("Automatic");
             keyClick(Qt.Key_Return);
             compare(called("/setPreferences").useNetworkTime, true);
@@ -914,7 +876,6 @@ Item {
             compare(called("/setPreferences").useNetworkTime, false);
             verify(!specNamed("Minute").disabled);
 
-            // The zone: the country's zones, and the TV is given the whole zone it listed.
             down("Time zone");
             keyClick(Qt.Key_Return);
             compare(topId(), "pick:timeZone");
@@ -931,7 +892,6 @@ Item {
             compare(part.menu.page.sub, "Sat, Jul 11, 2026 \u00b7 6:43 PM", "the same moment, on that zone's clocks");
             compare(shown("Hour"), "6 PM");
 
-            // A 24-hour household reads it so.
             TvSettings.preferences.timeFormat = "HH24";
             TvSettings.notify("", "prefs", "timeFormat");
             compare(part.menu.page.sub, "Sat, Jul 11, 2026 \u00b7 18:43");
@@ -939,7 +899,6 @@ Item {
             TvSettings.preferences.timeFormat = "HH12";
             TvSettings.notify("", "prefs", "timeFormat");
 
-            // As it was, for the cases after this one.
             for (i = 0; i < TvSettings.zones.length; i++) if (TvSettings.zones[i].ZoneID === "America/New_York") TvSettings.preferences.timeZone = TvSettings.zones[i];
             TvSettings.clockUtc = Date.UTC(2026, 10, 12, 2, 41, 5) / 1000;
             TvSettings.notify("", "prefs", "timeZone");

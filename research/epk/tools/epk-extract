@@ -1,30 +1,4 @@
 #!/usr/bin/env python3
-"""Extract every PAK body out of a fully-decrypted EPK3 body.
-
-Format (from openlgtv/epk2extract src/epk3.c and include/epk3.h, cross-
-checked against B9 stock firmware):
-
-  0x000 .. 0x100     outer signature
-  0x100 .. 0x6D4     EPK_V3_NEW_HEADER_T + platformVersion + sdkVersion
-  0x6D4 .. 0x7D4     packageInfo signature
-  0x7D4 .. 0x7E0     PAK list header (list_size, count, pakInfoMagic)
-  0x7E0 .. body_start   count x 324-byte PAK records
-  body_start ..      concatenated segments, one per record. Each segment:
-       [0x100 bytes per-segment signature]
-       [4 bytes decrypted segment-index prefix (uint32 LE = global idx)]
-       [segmentSize - 4 bytes of real partition data]
-       [4 bytes undocumented inter-segment gap (upstream "extraSegmentSize")]
-
-The decrypted region at each segment is exactly `segmentSize` bytes
-starting at `seg_sig_start + 256`. The first 4 are the segment index
-(`i` in the upstream extractEPK3 loop, i.e. the running counter across
-all PAKs). The partition data is the remaining `segmentSize - 4` bytes.
-
-Upstream writes `segmentSize` bytes starting at `dataPtr + 4`, which
-includes 4 undecrypted bytes past the end of the AES window. Our
-extractor writes `segmentSize - 4` bytes, i.e. only the real partition
-data, since that matches on-device MTD contents.
-"""
 from __future__ import annotations
 import argparse
 import struct
@@ -35,8 +9,8 @@ SIG_SIZE = 0x100
 EPK_HEADER_OFFSET = 0x100
 EPK_HEADER_LEN = 1460
 PLATFORM_SDK_LEN = 32
-PKGINFO_SIG_OFFSET = EPK_HEADER_OFFSET + EPK_HEADER_LEN + PLATFORM_SDK_LEN  # 0x6D4
-PKGINFO_OFFSET = PKGINFO_SIG_OFFSET + SIG_SIZE  # 0x7D4
+PKGINFO_SIG_OFFSET = EPK_HEADER_OFFSET + EPK_HEADER_LEN + PLATFORM_SDK_LEN
+PKGINFO_OFFSET = PKGINFO_SIG_OFFSET + SIG_SIZE
 PAK_LIST_HDR_SIZE = 12
 PAK_RECORD_SIZE = 324
 EXTRA_SEGMENT_SIZE = 4
@@ -81,12 +55,11 @@ def extract(epk_path: Path, out_dir: Path, raw_prefix: bool) -> None:
             break
         seg_sig_start = cursor
         decrypted_start = cursor + SIG_SIZE
-        # First 4 bytes of the decrypted region are the global segment index.
         prefix = struct.unpack_from("<I", data, decrypted_start)[0]
         if prefix != global_i:
             print(f"  [{r['index']:>3}] WARNING prefix={prefix} != expected global index {global_i}")
         body_start_off = decrypted_start if raw_prefix else decrypted_start + EXTRA_SEGMENT_SIZE
-        body_end_off = decrypted_start + segsz  # end of decrypted window
+        body_end_off = decrypted_start + segsz
         if body_end_off > len(data):
             print(f"  [{r['index']:>3}] {r['name']:<24} OUT OF RANGE "
                   f"({body_start_off:#x}..{body_end_off:#x} > {len(data):#x})")

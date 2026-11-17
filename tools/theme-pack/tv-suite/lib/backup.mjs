@@ -1,7 +1,3 @@
-// What deploy replaces, kept on the TV before the first deploy changes anything: the boot hook, the old patched
-// Settings ($root/settings), our layer and stub dirs, whether something was mounted over LG's Settings, and whether
-// the Look package was installed. One backup, made once: a later deploy keeps the first (the TV as it was before the
-// suite). `rollback` puts exactly that back.
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -15,7 +11,6 @@ export const HOOK = '/var/lib/webosbrew/init.d/60-themepack';
 const APP = JSON.parse(fs.readFileSync(path.join(THEME, 'tv', 'appinfo.json'), 'utf8'));
 const SETTINGS_APP = '/usr/palm/applications/com.palm.app.settings';
 
-// Runs on the TV. Prints the manifest; makes the backup only if there is none.
 export const BACKUP_SCRIPT = `# tv-suite: backup
 B=${BACKUP}
 if [ -f $B/manifest.json ]; then echo "backup kept from before"; cat $B/manifest.json; exit 0; fi
@@ -36,12 +31,11 @@ export async function backup(ctx) {
   const r = await ctx.tv.sh(BACKUP_SCRIPT, { timeout: 300000 });
   const line = r.stdout.split('\n').find((l) => l.trim().startsWith('{'));
   let m = null;
-  try { m = JSON.parse(line); } catch (e) { /* no manifest */ }
+  try { m = JSON.parse(line); } catch (e) { }
   for (const l of r.stdout.trim().split('\n')) ctx.say('  | ' + l);
   return r.status === 0 && m ? { manifest: m, made: /backup made/.test(r.stdout) } : { error: (r.stderr || r.stdout).trim() || 'exit ' + r.status };
 }
 
-// The rollback, as steps: [title, command for a person, run(ctx) -> why it failed or '']. `--print` shows the commands.
 export function rollbackSteps() {
   const ssh = (c) => 'ssh root@$TV_HOST ' + JSON.stringify(c);
   const remote = (ctx, c, opts) => ctx.tv.sh(c, opts);

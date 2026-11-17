@@ -31,7 +31,6 @@ test('every style ships its font files as TrueType, with the font\'s licence bes
   });
 });
 
-// The QML Ring places a ring with ui/Look/place.js, read from the recipe's `style`; load it as the QML engine does.
 const place = (() => {
   const ctx = {};
   vm.runInNewContext(fs.readFileSync(path.join(dir, 'ui/Look/place.js'), 'utf8'), ctx);
@@ -68,21 +67,14 @@ test('a sized ring\'s style agrees with the size of the svg it holds', () => {
 
 test('the QML Ring puts corner decorations where the art is drawn for', () => {
   const find = (theme, target, s) => recipes.find((r) => r.theme === theme && r.target === target && (r.style || '').indexOf(s) >= 0);
-  // A 300×210 tile: the cobweb straddles its top-right corner, 20 px out.
   assert.deepStrictEqual(outsetBox(find('halloween', 'tile', 'width:44px'), 300, 210), { x: 276, y: -20, width: 44, height: 44 });
-  // A 600×800 panel: the spider hangs from the top, 8 px out past the right edge.
   assert.deepStrictEqual(outsetBox(find('halloween', 'panel', 'height:170px'), 600, 800), { x: 608, y: 0, width: 44, height: 170 });
-  // The graveyard and the snowbank fill the bottom overscan strip under a 1728-wide ribbon, edge to edge.
   assert.deepStrictEqual(outsetBox(find('halloween', 'ribbon', 'height:54px'), 1728, 400), { x: -96, y: 400, width: 1920, height: 54 });
   assert.deepStrictEqual(outsetBox(find('winter', 'ribbon', 'height:54px'), 1728, 400), { x: -96, y: 400, width: 1920, height: 54 });
-  // Winter's focus flake: top-left, 20 px out.
   assert.deepStrictEqual(outsetBox(find('winter', '*', 'width:36px'), 300, 210), { x: -20, y: -20, width: 36, height: 36 });
-  // Icicles: the screen's top 44 px, full width.
   assert.deepStrictEqual(outsetBox(find('winter', 'screen', 'height:44px'), 1920, 1080), { x: 0, y: 0, width: 1920, height: 44 });
-  // Halloween's screen cobwebs: one per top corner.
   assert.deepStrictEqual(outsetBox(find('halloween', 'screen', 'left:auto'), 1920, 1080), { x: 1770, y: 0, width: 150, height: 150 });
   assert.deepStrictEqual(outsetBox(find('halloween', 'screen', 'right:auto'), 1920, 1080), { x: 0, y: 0, width: 150, height: 150 });
-  // No size in the style: the ring fills its outset box, as before.
   assert.deepStrictEqual(outsetBox(find('halloween', 'thumb', ''), 40, 40), { x: -10, y: -10, width: 60, height: 60 });
 });
 
@@ -118,7 +110,6 @@ test('recipes write only to the decoration targets', () => {
   recipes.forEach((r) => assert.ok(r.target === '*' || TP.TARGETS[r.target], r.theme + ': unknown target ' + r.target));
 });
 
-// The direct properties of each `Decor { ... }` block in a kit file (not those of the items inside it).
 function decorBlocks(src) {
   const out = [];
   const re = /(^|\n)\s*Decor \{/g;
@@ -148,7 +139,6 @@ test('the kit decorates exactly the contract\'s targets, passing only the states
   const named = new Set();
   files.forEach((f) => {
     const src = fs.readFileSync(path.join(kit, f), 'utf8');
-    // Literal targets: a Decor's own, or a Panel's (ToastCard, Dialog, PinPrompt, and Panel's bare/plain default).
     [...src.matchAll(/\btarget:\s*(?:[^"\n]*\?\s*)?"([a-z]+)"(?:\s*:\s*"([a-z]+)")?/g)].forEach((t) => { named.add(t[1]); if (t[2]) named.add(t[2]); });
     decorBlocks(src).forEach((d) => {
       const lit = /^"([a-z]+)"$/.exec(d.target || '');
@@ -184,7 +174,6 @@ test('assets are rendered at their svg\'s aspect, at 2× its CSS size (screen-wi
     const svgs = r.html.match(/<svg\b[^>]*>/g);
     let want;
     if (svgs.length > 1) {
-      // A field of placed svgs: the ring's box, the screen for a screen target.
       want = [1920, 1080];
     } else {
       const w = /\swidth="(\d+)"/.exec(svgs[0]), h = /\sheight="(\d+)"/.exec(svgs[0]);
@@ -192,7 +181,6 @@ test('assets are rendered at their svg\'s aspect, at 2× its CSS size (screen-wi
         const k = Number(w[1]) >= 1920 ? 1 : 2;
         want = [Number(w[1]) * k, Number(h[1]) * k];
       } else {
-        // width="100%": the viewBox's aspect, 128 px on the longer side.
         const vb = /viewBox="([^"]*)"/.exec(svgs[0])[1].split(/\s+/).map(Number), k = 128 / Math.max(vb[2], vb[3]);
         want = [Math.round(vb[2] * k), Math.round(vb[3] * k)];
       }

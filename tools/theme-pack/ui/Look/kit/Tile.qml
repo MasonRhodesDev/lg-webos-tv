@@ -1,10 +1,6 @@
 import QtQuick 2.4
 import ".."
 
-// The one tile anatomy: icon (or picture) at the top left, an optional badge at the top right, the
-// name and a sub line at the bottom; an optional chip centred on the top-right corner. Badge and chip are
-// attachments. Tiles float on the picture, so their plate is the surface. Decoratable as `tile`; focus is the one
-// focus treatment (Plate).
 Item {
     id: tile
     property string label
@@ -70,8 +66,6 @@ Item {
             Label { visible: !!tile.sub; role: "caption"; text: tile.sub; color: plate.ink; opacity: tile.disabled ? 1 : 0.85; width: parent.width }
         }
 
-        // Attachments paint after every +1 in the passes, so no theme covers them. The chip is centred on the
-        // top-right corner (board 4, Attention).
         attachments: [
             Badge {
                 visible: !!tile.badge

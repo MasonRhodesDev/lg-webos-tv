@@ -1,9 +1,6 @@
 import QtQuick 2.4
 import ".."
 
-// A rule between two parts of a surface: `divider`, the surface edge's width rounded up to a
-// whole pixel. Horizontal fills its width; `vertical` fills its height (the Settings frame between categories and
-// the page).
 Rectangle {
     property bool vertical: false
     readonly property real thickness: Math.max(1, Math.ceil(Look.px("edge-w")))

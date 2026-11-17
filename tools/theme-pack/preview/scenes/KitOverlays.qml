@@ -1,8 +1,6 @@
 import QtQuick 2.4
 import Look 1.0
 
-// The kit's contact sheet, board 2 of 2: overlays. A tile ribbon in every tile state, toasts, a dialog, the volume
-// bar and the scrims; and the chips, badges and icon set.
 Item {
     width: 1920
     height: 1080
@@ -36,7 +34,6 @@ Item {
             }
         }
 
-        // Toasts take the bottom-right corner; here they sit by the volume bar, clear of the ribbon.
         ToastCard {
             id: toastA
             placement: "none"
@@ -58,7 +55,6 @@ Item {
             message: "Sound out: TV speakers"
         }
 
-        // Chips and badges.
         Column {
             x: 96
             y: 54
@@ -75,7 +71,6 @@ Item {
             }
         }
 
-        // The icon set.
         Column {
             x: 1100
             y: 566
@@ -93,7 +88,6 @@ Item {
             }
         }
 
-        // Centred in the space above the ribbon, for the board; a real dialog fills the screen.
         Item {
             y: 170
             width: 1240
@@ -109,7 +103,6 @@ Item {
             }
         }
 
-        // The volume bar.
         Panel {
             id: volume
             placement: "bar"

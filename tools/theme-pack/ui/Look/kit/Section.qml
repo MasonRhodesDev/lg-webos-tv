@@ -1,7 +1,6 @@
 import QtQuick 2.4
 import ".."
 
-// A section header inside a list: the heading role, sitting on the section's first row. Not focusable.
 Item {
     property string text
     width: parent ? parent.width : 0

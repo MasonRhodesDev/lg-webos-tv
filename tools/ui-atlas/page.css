@@ -1,4 +1,3 @@
-/* Layout: single reading column (max 1180px), sticky tab strip, each tab = TV frame(s) on top, fact blocks in a 2-col grid below. */
 :root{
   --bg:#eef2f3; --surface:#fbfcfc; --ink:#14212b; --muted:#56656f; --rule:#cfd9de; --code:#e3eaed;
   --accent:#0d6b73; --accent-soft:#d3ebec; --tvframe:#0a0e11;
@@ -103,7 +102,6 @@ table.ov td:nth-child(3){min-width:170px}
 .foot p{margin:0;max-width:90ch}
 @media (max-width:560px){.legend{grid-template-columns:1fr}.block{padding:14px}}
 
-/* ---------- TV-UI previews: these keep the TV's own literal colours ---------- */
 .stage{font-family:"Nunito Sans","Source Sans 3",sans-serif;color:#fff}
 .vid{position:absolute;inset:0;background:radial-gradient(ellipse at 30% 40%,#3c4d5e 0,#1d2732 45%,#0b0f14 100%)}
 .vid span{position:absolute;left:50%;top:44%;transform:translate(-50%,-50%);font:500 34px/1 "JetBrains Mono",monospace;color:rgba(255,255,255,.22);letter-spacing:.1em;text-transform:uppercase}

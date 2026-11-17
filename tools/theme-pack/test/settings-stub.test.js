@@ -16,7 +16,6 @@ function build() {
 }
 const built = build();
 
-// Loads the built stub's scripts as its page would, in a window with a fake bus, clock and WAM. Returns what it did.
 function launch(launchParams, opts) {
   opts = opts || {};
   const calls = [], timers = [], listeners = {};
@@ -113,7 +112,6 @@ test('a relaunch while the stub runs forwards the new target', () => {
   assert.deepStrictEqual(did.calls[1].params, { target: 'Language' });
 });
 
-// The package tv/build-ipk.sh writes, unpacked: its ar members, then data.tar.gz.
 function buildPackage() {
   const out = fs.mkdtempSync(path.join(os.tmpdir(), 'look-ipk-'));
   const ipk = execFileSync('sh', [path.join(dir, 'tv', 'build-ipk.sh'), out], { encoding: 'utf8' }).trim().split('\n').pop();

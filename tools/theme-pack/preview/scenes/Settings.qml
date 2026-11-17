@@ -1,8 +1,6 @@
 import QtQuick 2.4
 import Preview 1.0
 
-// Our Settings (the owner's Settings boards), drawn by the real part against the settings mock (TvSettings). Each
-// state opens it somewhere through the part's own API and sets focus with the kit lists' own currentIndex.
 Item {
     id: scene
     property rect frame: Qt.rect(0, 0, 1920, 1080)
@@ -14,8 +12,6 @@ Item {
         return 0;
     }
 
-    // The Look page with seasonal themes, as the service lists them on a 25 November: a fixed listing, so the shot is
-    // the same whatever packs there are and whatever day it is. `auto` is the service's calendar mode.
     function seasons(auto, focus) {
         var m = JSON.parse(JSON.stringify(Fixture.payload));
         var list = [{ "id": "glow", "name": "Glow", "description": "A soft light around what has focus", "group": "custom" }];
@@ -37,7 +33,6 @@ Item {
         p.menu.page.list.currentIndex = rowOf(p.menu.page.list, focus);
     }
 
-    // Base: the categories, as the Home screen's Settings tile opens it.
     Component.onCompleted: p.settings("")
     states: [
         State { name: "picture"; StateChangeScript { script: p.settings("picture") } },
@@ -64,7 +59,6 @@ Item {
             p.menu.confirming = l.rows[l.currentIndex];
         } } },
         State { name: "stub-page"; StateChangeScript { script: p.settings("Channels") } },
-        // Lists, forms and the PIN.
         State { name: "wifi"; StateChangeScript { script: { TvSettings.wifiState = "serviceEnabled"; p.settings("wifi"); focusOn("Cafe Corner"); } } },
         State { name: "wifi-password"; StateChangeScript { script: {
             TvSettings.wifiState = "serviceEnabled"; p.settings("wifi");
@@ -100,7 +94,6 @@ Item {
             p.menu.pinEntered("1234");
         } } },
         State { name: "sound-none-paired"; StateChangeScript { script: { TvSettings.btDevices = []; p.settings("sound"); } } },
-        // Time and date: the clock set by hand a part at a time, greyed while Automatic holds it, and the zone picker.
         State { name: "time-date"; StateChangeScript { script: { p.settings("TimeDate"); focusOn("Minute"); } } },
         State { name: "time-date-automatic"; StateChangeScript { script: {
             TvSettings.preferences.useNetworkTime = true;

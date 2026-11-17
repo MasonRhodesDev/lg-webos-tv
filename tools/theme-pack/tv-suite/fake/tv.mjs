@@ -1,8 +1,3 @@
-// A fake TV for dry runs: answers the ssh and scp commands the suite and the deploy scripts send, from a JSON state
-// file ($TV_SUITE_FAKE). Our layer is modelled from the code the layer runs (menu.js and pages.js through
-// lib/expect.mjs), so its probes have the real shape, rows and kinds; LG's side is a small stand-in. It records
-// everything a real TV would have been made to do that the suite must never cause (`events`), and every command it
-// did not recognise (`unknown`), so tests can assert on both. `faults` in the state make it misbehave on purpose.
 import fs from 'node:fs';
 import path from 'node:path';
 import zlib from 'node:zlib';
@@ -14,11 +9,9 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const APP = JSON.parse(fs.readFileSync(path.join(here, '..', '..', 'tv', 'appinfo.json'), 'utf8'));
 const STYLES = [{ id: 'smoke', name: 'Smoke' }, { id: 'bubble', name: 'Bubble' }];
 const THEMES = [{ id: 'glow', name: 'Glow' }, { id: 'halloween', name: 'Halloween' }, { id: 'winter', name: 'Winter' }];
-// Time zones as the system service lists them (getPreferenceValues); the first is the one set.
 const zone = (ZoneID, City, Description, offsetFromUTC) => ({ ZoneID, City, Description, offsetFromUTC, Country: 'United States of America', CountryCode: 'US', supportsDST: 1 });
 const ZONES = [zone('America/New_York', 'New York', 'Eastern Time', -300), zone('America/Los_Angeles', 'Los Angeles', 'Pacific Time', -480)];
 const SHOW_MS = 3000;
-// The installed apps the back-refusing-app scenario may launch (launch points), standing in for a streaming app.
 const APPS = ['com.webos.app.browser', 'org.webosbrew.hbchannel'];
 
 export function initialState(over = {}) {
@@ -28,7 +21,6 @@ export function initialState(over = {}) {
     look: { style: 'smoke', themes: ['halloween'] },
     settings: { pictureMode: 'expert1', energySaving: 'auto', soundOutput: 'tv_speaker', soundMode: 'standard',
                 deviceName: 'Living room', parentalControl: false, systemPin: '0000', quickStartMode: 'on',
-                // As the TV answers range values: strings.
                 contrast: '85', backlight: '80' },
     fg: 'com.webos.app.hdmi2', picker: { shown: false, focus: 1 }, toast: { message: '', until: 0 },
     quick: { open: false, stack: [], index: 0, dialog: false },
@@ -39,7 +31,6 @@ export function initialState(over = {}) {
   }, over);
 }
 
-// A TV after a good deploy: the package, the layer (and its reports), the hook and the stub mounted.
 export function deployedState(over = {}) {
   const s = initialState({ installed: true, layerFiles: true, stub: true, hook: true });
   applyLayer(s, 'apply');
@@ -50,8 +41,6 @@ export function deployedState(over = {}) {
 const load = (f) => JSON.parse(fs.readFileSync(f, 'utf8'));
 const save = (f, s) => fs.writeFileSync(f, JSON.stringify(s, null, 1));
 const iso = () => new Date().toISOString();
-
-// ---- our layer, as the probes see it ----
 
 function store(s) {
   return {
@@ -92,7 +81,6 @@ function probes(s) {
             pin: m.pin ? { mode: m.pin.mode, length: m.pin.pin.length, error: m.pin.error, pad: m.pin.pad } : null }
   };
   if (s.faults.noProbe) return {};
-  // A healthy layer refreshes every probe; under the staleProbe fault they stopped a minute ago (a dead layer).
   const at = s.faults.staleProbe ? new Date(Date.now() - 60000).toISOString() : iso();
   return {
     'parts/Settings.qml': { at, state: settings },
@@ -110,7 +98,6 @@ function landOn(s, v) {
 function event(s, what) { s.events.push(what); }
 const KEYBOARD = [['q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p'], ['a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l'],
   ['Shift', 'z', 'x', 'c', 'v', 'b', 'n', 'm', 'Delete'], ['123', 'Space', 'Done']];
-// A write through our UI: refused (and reported, as the store does) under the writeRefused fault.
 function write(s, ref, apply) {
   if (s.faults.writeRefused) {
     s.reports.push({ at: iso(), from: 'ui', kind: 'warning', text: 'settings: ' + ref + ' not saved: Permission denied' });
@@ -170,14 +157,10 @@ function move(s, v, list, d) {
   for (let i = v.index + d; i >= 0 && i < list.length; i += d) if (focusable(list[i])) { v.index = i; return; }
 }
 
-// LG's apps our action rows open, with the appReturn LG's app launches when Back leaves it (catalog). As on the TV,
-// our Settings stays open over them.
 const LEAVES = { deviceConnector: ['com.webos.app.connectionwizard', 'network'], pictureTest: ['com.webos.app.customersupport', 'picture'],
                  soundTest: ['com.webos.app.customersupport', 'sound'] };
 function leave(s, [app, ret]) { s.launched.push(app); s.lgApp = { app, ret, was: s.fg }; s.fg = app; }
 
-// The quick sheet as LG's Quick Settings launch opens it (QuickSheet.openWith): a hotkey's activateType opens that
-// row's picker.
 function quickWith(s, params) {
   const q = s.quick, ref = params && params.activateType ? M.activateTypes[params.activateType] : '';
   closeMenu(s);
@@ -195,8 +178,6 @@ function key(s, k) {
     if (!s.faults.volumeStuck) s.volume.volume = Math.max(0, Math.min(100, s.volume.volume + (k === 'VOLUMEUP' ? 1 : -1)));
     s.volume.muted = false; s.volume.barUntil = now + SHOW_MS; return;
   }
-  // As on the TV: LG's key filter takes Home and Exit. Home shows over everything and our menus stay open; Exit
-  // over our menus does nothing.
   if (k === 'HOME') { s.home = true; return; }
   if (k === 'EXIT') { if (!q.open && !m.open) event(s, 'the app underneath got EXIT'); return; }
   if (k === 'MUTE') { s.volume.muted = !s.volume.muted; s.volume.muteUntil = s.volume.muted ? now + 60000 : 0; s.volume.barUntil = now + SHOW_MS; return; }
@@ -205,7 +186,6 @@ function key(s, k) {
     if (q.open || m.open) { q.open = false; closeMenu(s); return; }
     q.open = true; q.stack = [{ id: 'quick' }]; landOn(s, q); return;
   }
-  // LG's own Quick Settings (the fallback): it moves and opens its picker, and nothing in it is chosen here.
   if (s.lgQs) {
     if (k === 'ENTER') s.lgQsPicker = true;
     else if (k === 'BACK') { if (s.lgQsPicker) s.lgQsPicker = false; else s.lgQs = false; }
@@ -221,7 +201,6 @@ function key(s, k) {
       return;
     }
     if (k === 'BACK' && s.home) { s.home = false; return; }
-    // Back in LG's app: it launches its appReturn, the Settings stub, and the input that was in front comes back.
     if (k === 'BACK' && s.lgApp && s.fg === s.lgApp.app) { const a = s.lgApp; s.lgApp = null; s.fg = a.was; launchSettings(s, { target: a.ret }); return; }
     event(s, 'the app underneath got ' + k);
     return;
@@ -274,7 +253,6 @@ function key(s, k) {
     return;
   }
   const list = rows(s, topOf(own)), r = list[own.index];
-  // A UI bug on purpose: Back out of a picker chooses its focused row.
   if (k === 'BACK' && s.faults.backChooses && r && r.kind === 'choose') { run(s, own, r); return; }
   if (k === 'UP' || k === 'DOWN') move(s, own, list, k === 'DOWN' ? 1 : -1);
   else if (k === 'ENTER') run(s, own, r);
@@ -282,7 +260,6 @@ function key(s, k) {
   else if (k === 'LEFT' || k === 'RIGHT') {
     if (r && r.variant === 'slider' && r.ref === 'volume') write(s, 'volume', () => { s.volume.volume = Math.max(0, Math.min(100, s.volume.volume + (k === 'RIGHT' ? 1 : -1))); });
     else if (r && r.variant === 'slider' && s.settings[idOf(r.ref)] !== undefined) {
-      // Written back in the TV's type, as the store does (3efdb97); the typeBug fault writes a number instead.
       const id = idOf(r.ref), cur = s.settings[id], n = Number(cur) + (k === 'RIGHT' ? 1 : -1);
       write(s, r.ref, () => { s.settings[id] = typeof cur === 'string' && !s.faults.typeBug ? String(n) : n; });
     } else if (r && (r.variant === 'slider' || r.variant === 'stepper')) event(s, 'changed ' + r.ref + ' (' + k + ')');
@@ -290,10 +267,6 @@ function key(s, k) {
   }
 }
 
-// ---- LG's side ----
-
-// own-layer.sh apply: a new layer goes in place of the loaded one. Returns whether it reported. One that does not
-// compile leaves the TV as it was; one that is never heard from is not known to be loaded.
 function layerUp(s) {
   if (!s.installed || s.faults.layerFails) return false;
   const at = iso();
@@ -341,8 +314,6 @@ function manifestOf(s) {
   return JSON.stringify({ created: b.created, lookData: !!b.lookData, hook: !!b.hook, ourHook: b.hook === 'ours', settings: !!b.settings, layer: !!b.layer, stub: !!b.stub, settingsMounted: b.settingsMounted, lookInstalled: b.lookInstalled });
 }
 
-// A reboot: everything the boot undoes goes (mounts, the layer, reports, /tmp), ssh is down for a few polls, then
-// the boot hook runs.
 function reboot(s) {
   s.boots++;
   Object.assign(s, { mounted: false, layer: false, settingsHost: false, netinput: false, probingUntil: 0, reports: [], themepackLog: '', ownLayerLog: '', files: {}, lgQs: false,
@@ -354,7 +325,6 @@ function reboot(s) {
 
 function launchSettings(s, params) {
   if (!s.mounted) {
-    // On purpose only in a fallback (the layer broken, the stub removed); anywhere else it is an event.
     if (!s.broken && s.stub) event(s, "LG's Settings opened");
     s.launched.push('com.palm.app.settings');
     s.lgSettingsWas = s.fg; s.fg = 'com.palm.app.settings';
@@ -381,13 +351,11 @@ function luna(s, uri, p) {
       (s.probingCalls = s.probingCalls || []).push(p.on);
       return ok({ probing: p.on });
     case look + 'getProbe': {
-      // As the service: nothing while probing is off (or expired); a read keeps it on.
       const on = Date.now() < s.probingUntil;
       if (!on) return ok({ now: iso(), probing: false, probes: {} });
       s.probingUntil = Math.max(s.probingUntil, Date.now() + 600000);
       const p = s.layer ? probes(s) : {};
       if (!s.settingsHost) delete p['parts/Settings.qml'];
-      // One publication per read, from the current layer instance (each load makes a new one).
       s.probeSeq = (s.probeSeq || 0) + 1;
       for (const k of Object.keys(p)) Object.assign(p[k], { layer: String(s.layerInstance || 1), seq: s.probeSeq });
       return ok({ now: iso(), probing: true, probes: p });
@@ -422,7 +390,6 @@ function luna(s, uri, p) {
     case 'com.webos.applicationManager/launch':
       if (p.id === 'com.palm.app.settings') launchSettings(s, p.params);
       else if (p.id === APP.id) { if (s.settingsHost) openAt(s, 'Look'); }
-      // An input coming back to the front (a restore) is no event; any other launch is.
       else if (/^com\.webos\.app\.(hdmi\d|livetv)$/.test(p.id)) { s.fg = p.id; (s.inputLaunches = s.inputLaunches || []).push(p.id); }
       else if (APPS.includes(p.id)) { s.launched.push(p.id); s.fg = p.id; }
       else { s.fg = p.id; event(s, 'launched ' + p.id); }
@@ -433,7 +400,6 @@ function luna(s, uri, p) {
     case 'com.webos.applicationManager/listLaunchPoints': return ok({ launchPoints: APPS.map((id) => ({ id })) });
     case 'com.webos.surfacemanager/getForegroundAppInfo':
       return ok({ foregroundAppInfo: [{ appId: s.fg, windowType: '_WEBOS_WINDOW_TYPE_CARD' }].concat(s.home ? [{ appId: 'com.webos.app.home', windowType: '_WEBOS_WINDOW_TYPE_HOME' }] : []) });
-    // The TV's shape: a list, not one appId.
     case 'com.webos.service.systemUIManager/getForegroundAppInfo':
       if (s.faults.oddSystemUi) return ok({ foreground: 'quicksettings' });
       return ok({ foregroundAppInfo: (s.lgQs ? [{ appId: 'com.webos.app.quicksettings', windowType: '_WEBOS_WINDOW_TYPE_OVERLAY' }] : [])
@@ -445,7 +411,6 @@ function luna(s, uri, p) {
       if (p.appId === 'com.webos.app.quickinputpicker') { if (s.picker.shown) event(s, 'picker launched while open: input switched'); s.picker.shown = true; }
       if (p.appId === 'com.webos.app.quicksettings') { if (s.layer && s.settingsHost && !s.faults.lgQuickSettings) quickWith(s, p.params); else s.lgQs = true; }
       return ok({});
-    // As on the TV: the input picker and Home stay open; LG's Quick Settings closes.
     case 'com.webos.service.systemUIManager/closeByAppId':
       if (p.id === 'com.webos.app.quicksettings') { s.lgQs = false; s.lgQsPicker = false; }
       return ok({});
@@ -455,14 +420,12 @@ function luna(s, uri, p) {
     case 'com.webos.surfacemanager/captureCompositorOutput': s.files[p.output] = surface(s); return ok({});
     case 'com.webos.notification/createToast':
       s.toast = { message: p.message, until: Date.now() + SHOW_MS };
-      // An HDMI device turning the TV off through CEC in the middle of a scenario.
       if (s.faults.standbyOnToast) { s.power = 'ActiveStandby'; s.fg = ''; }
       return ok({});
     case 'com.webos.service.connectionmanager/getstatus': return ok({ wired: { state: 'connected' }, wifi: { state: 'disconnected' } });
     case 'com.webos.service.tv.display/getHDMIInfo': return ok({ width: 3840, height: 2160, frameRate: 120, scanType: true, HDMImode: true });
     case 'com.webos.service.tv.systemproperty/getSystemInfo': return ok({ modelName: 'OLED00X0', firmwareVersion: '00.00.00' });
     case 'com.palm.systemservice/osInfo/query': return ok({ core_os_release: '0.0.0' });
-    // As on the TV: only the keys asked for; the zone is a whole object, one of getPreferenceValues' list.
     case 'com.palm.systemservice/getPreferences': {
       const all = { useNetworkTime: true, useNetworkTimeZone: true, timeFormat: 'HH12', timeZone: ZONES[0] }, out = {};
       for (const k of p.keys || []) if (k in all) out[k] = all[k];
@@ -474,7 +437,6 @@ function luna(s, uri, p) {
       return ok({ utc: Math.floor(Date.now() / 1000), offset: ZONES[0].offsetFromUTC, timezone: ZONES[0].ZoneID, systemTimeSource: 'manual', timeValid: true });
     case 'dev.themepack.look.service/getTelemetry': return ok({ kit: 'unknown' });
     case 'com.webos.service.wifi/getstatus': return ok({ status: 'serviceDisabled' });
-    // As on the TV: btaudiosrc does not answer; bluetooth2 lists the devices (a speaker and the magic remote).
     case 'com.webos.service.bluetooth2/device/getStatus':
       return ok({ devices: s.btDevices || [
         { name: 'Speaker', address: '00:00:00:00:00:01', paired: true, connectedProfiles: ['a2dp'], typeOfDevice: 'bredr' },
@@ -491,7 +453,6 @@ function luna(s, uri, p) {
   return { returnValue: false, errorText: 'fake TV: no ' + m };
 }
 
-// What the capture shows, coarsely: the colour of the topmost surface of ours.
 function surface(s) {
   const p = probes(s)['parts/Settings.qml'];
   if (s.menu.open) return s.menu.pin ? 'pin' : s.menu.editing ? 'keyboard' : 'settings';
@@ -516,15 +477,12 @@ export function png(kind, w = 96, h = 54) {
   return Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), chunk('IHDR', ihdr), chunk('IDAT', zlib.deflateSync(raw)), chunk('IEND', Buffer.alloc(0))]);
 }
 
-// ---- commands ----
-
 const LUNA = /luna-send(?: -[nw] \d+| -i)* (luna:\/\/\S+) '((?:[^']|'\\'')*)'/g;
-// Every luna-send in the command, in order; the answer is the last one's.
 function lunaLine(s, cmd) {
   let last = null;
   for (const m of cmd.matchAll(LUNA)) {
     let p = {};
-    try { p = JSON.parse(m[2].replace(/'\\''/g, "'")); } catch (e) { /* bad payload: answered as {} */ }
+    try { p = JSON.parse(m[2].replace(/'\\''/g, "'")); } catch (e) { }
     last = JSON.stringify(luna(s, m[1], p));
   }
   return last;
@@ -545,18 +503,16 @@ function burst(s, cmd) {
   return out.join('\n') + '\n';
 }
 
-// One ssh call: returns { status, stdout }.
 export function ssh(s, cmd, stdin) {
   const r = (stdout = '', status = 0) => ({ status, stdout });
   if (/^python - /.test(cmd)) {
     if (!/netinput\.pointer\.sock/.test(stdin)) return r('', 1);
-    // LG's network input service makes its socket only when asked (getPointerInputSocket).
     if (!s.netinput) return { status: 1, stdout: 'no key socket at /tmp/netinput.pointer.sock ([Errno 2] No such file or directory): ask getPointerInputSocket first\n' };
     for (const k of cmd.split(/\s+/).slice(2)) key(s, k);
     return r('sent\n');
   }
   if (cmd.includes('tv-suite-burst')) return r(burst(s, cmd));
-  if (cmd === '') return r(); // ssh -O exit: the control connection
+  if (cmd === '') return r();
   if (s.down > 0) { s.down--; return r('', 255); }
   if (cmd === 'date -u +%s; cut -d" " -f1 /proc/uptime') return r(Math.floor(Date.now() / 1000) + '\n' + ((Date.now() - s.bootAt) / 1000).toFixed(2) + '\n');
   if (/^\(sleep 1; reboot\)/.test(cmd)) { reboot(s); return r(); }
@@ -639,7 +595,6 @@ export function ssh(s, cmd, stdin) {
   return r('', 0);
 }
 
-// scp -q [opts] SRC DST, one side remote (host:path).
 export function scp(s, args) {
   const files = args.filter((a, i) => !a.startsWith('-') && !(args[i - 1] === '-o'));
   const [src, dst] = files.slice(-2);
@@ -647,7 +602,6 @@ export function scp(s, args) {
   if (remote(dst)) {
     const p = dst.slice(dst.indexOf(':') + 1);
     if (/60-themepack$/.test(p)) { s.hook = true; s.oldHook = false; }
-    // An uploaded package: the fake keeps the hash of what it holds, as installed files would have it.
     if (/\.ipk$/.test(p)) { (s.ipks = s.ipks || {})[p] = hashIpk(src); }
     s.files[p] = 'uploaded';
     return 0;
@@ -661,7 +615,6 @@ export function scp(s, args) {
   return 1;
 }
 
-// ssh's arguments: options, the host, then the command.
 function command(argv) {
   const args = argv.slice();
   while (args.length && args[0].startsWith('-')) { const o = args.shift(); if (['-o', '-i', '-p', '-l', '-O'].includes(o)) args.shift(); }
@@ -669,7 +622,6 @@ function command(argv) {
   return args.join(' ');
 }
 
-// Entry points for fake/ssh and fake/scp (state in the $TV_SUITE_FAKE file).
 export function main(kind, argv, stdin) {
   const f = process.env.TV_SUITE_FAKE;
   if (!f) { process.stderr.write('fake ' + kind + ': set TV_SUITE_FAKE to the fake TV state file\n'); return 255; }
@@ -685,7 +637,6 @@ export function main(kind, argv, stdin) {
   return status;
 }
 
-// The same fake in this process, on the state file (so it agrees with the repo scripts run through the PATH shims).
 export function fileBacked(f) {
   return async (cmd, argv, opts = {}) => {
     const s = load(f);
@@ -694,7 +645,6 @@ export function fileBacked(f) {
   };
 }
 
-// The same fake in this process, on a state object: an `exec` for lib/tv.mjs, so a test runs fast.
 export function inProcess(s) {
   return async (cmd, argv, { input } = {}) => {
     if (cmd === 'scp') return { status: scp(s, argv), stdout: '', stderr: '' };

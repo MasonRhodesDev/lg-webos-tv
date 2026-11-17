@@ -1,44 +1,4 @@
 #!/usr/bin/env python3
-"""Decompress an LG LZ4P container.
-
-Faithful port of the inner decoders from the stock lxboot bootloader
-(`b9-raw/a1-lxboot/lxboot_p4.img`):
-
-  0x8157c  LZ4P top-level dispatcher
-  0x81130  flag=0 normal-block decoder   <-- used for the kernel PAK
-  0x81344  flag=0 last-block decoder
-  0x803b0  flag=1 normal-block decoder   (not used here, isolated blocks)
-  0x80628  flag=1 last-block decoder
-
-Container layout:
-
-    0x00  char[4]    magic = "LZ4P"
-    0x04  u32        uncompressed_size
-    0x08  u32        check  (= 0x20 + 4*N + sum(block_sizes))
-    0x0C  u32        block_size (uncompressed, 0x40000 for kernel)
-    0x10  u32        block_count N
-    0x14  u32        flag (0 for kernel PAK on B9)
-    0x18  u32[2]     reserved (zeros)
-    0x20  u32[N]     block_sizes[i] = compressed size of block i
-    (then)          concatenated raw LZ4 blocks
-
-Key divergences from a stock LZ4 block decoder (see
-`docs/lz4p-decoder.md`):
-
-  - flag=0 inner decoder has no "ref before dst start" check. Match
-    offsets may legally walk back into previous blocks' output, i.e.
-    blocks share a sliding dictionary built from the contiguous shared
-    output buffer.
-  - tail safety threshold is `dst_end - 8` (8-byte safe copy width),
-    not the standard LZ4 5-byte-last-literals rule.
-  - `mo == 0` is NOT special-cased by the decoder (not a sentinel,
-    not an error); well-formed streams just don't emit it.
-  - The last block uses an `ip`-exhausted OR `op == dst_end` exit and
-    returns bytes produced (variable length, <= block_size).
-
-NOTE: as of this port, blocks 0..40 of the stock B9 kernel PAK decode
-correctly, but blocks 41+ do not match the on-wire stream (see report).
-"""
 from __future__ import annotations
 import argparse
 import struct
@@ -49,13 +9,6 @@ HEADER_FIXED = 0x20
 
 
 def _decode_normal(src: bytes, out: bytearray, op_start: int, dst_len: int) -> int:
-    """Decode one normal (non-last) flag=0 block into `out[op_start:op_start+dst_len]`.
-
-    Matches lxboot FUN_00081130. `out` must already contain the previous
-    blocks' output (for shared-dictionary matches). Returns input bytes
-    consumed. The caller MUST have grown `out` with enough padding to
-    absorb up to 15 bytes of wildcopy overshoot past op_start+dst_len.
-    """
     n = len(src)
     ip = 0
     op = op_start
@@ -83,7 +36,7 @@ def _decode_normal(src: bytes, out: bytearray, op_start: int, dst_len: int) -> i
         ip += lit
         op = cpy
         mo = src[ip] | (src[ip + 1] << 8); ip += 2
-        ref = op - mo  # may be < op_start; shared dictionary is intentional
+        ref = op - mo
         ml_nib = tok & 0xf
         ext = 0
         if ml_nib == 15:
@@ -98,7 +51,6 @@ def _decode_normal(src: bytes, out: bytearray, op_start: int, dst_len: int) -> i
                 f"match overflow op={op - op_start} cpy={op + mlen - op_start} "
                 f"dst_len={dst_len} mo={mo} mlen={mlen} ip={ip}"
             )
-        # byte-wise copy handles mo < mlen (RLE)
         for k in range(mlen):
             out[op + k] = out[ref + k]
         op += mlen
@@ -107,11 +59,6 @@ def _decode_normal(src: bytes, out: bytearray, op_start: int, dst_len: int) -> i
 
 
 def _decode_last(src: bytes, out: bytearray, op_start: int, dst_len: int) -> int:
-    """Decode the last flag=0 block (lxboot FUN_00081344).
-
-    Terminates on EITHER input exhausted OR output reaching dst_end.
-    Returns bytes produced (may be < dst_len).
-    """
     n = len(src)
     ip = 0
     op = op_start
@@ -181,7 +128,6 @@ def unpack(data: bytes) -> bytes:
             file=sys.stderr,
         )
 
-    # Shared output buffer. Pre-size to uncomp_size + wildcopy overshoot pad.
     out = bytearray(uncomp_size + 16)
     op = 0
     cur = data_off

@@ -1,5 +1,3 @@
-// Puts everything that is built on the TV, step by step, with a check after each step and the rollback printed. It
-// stops at the first failed check with the reason. Every step can run again: it reinstalls the same thing.
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -14,7 +12,6 @@ const rel = (f) => 'tools/theme-pack/' + f;
 const APP = JSON.parse(fs.readFileSync(path.join(THEME, 'tv', 'appinfo.json'), 'utf8'));
 const SETTINGS_APP = '/usr/palm/applications/com.palm.app.settings';
 
-// A repo script with TV_HOST set, its output echoed and kept.
 async function script(ctx, file, args) {
   ctx.say('$ TV_HOST=$TV_HOST sh ' + rel(file) + ' ' + args.join(' '));
   const r = await spawnCmd('sh', [path.join(THEME, file), ...args], { env: Object.assign({}, process.env, { TV_HOST: ctx.tv.host }), timeout: 30 * 60000 });
@@ -24,7 +21,6 @@ async function script(ctx, file, args) {
 }
 const lastLine = (out) => out.trim().split('\n').filter(Boolean).pop() || '(no output)';
 
-// Waits for a report since `t0` that `match` picks, or fails with what arrived instead.
 async function waitReport(ctx, t0, match, seconds) {
   for (let i = 0; i < seconds * 2; i++) {
     const rs = await ctx.tv.reports(t0);
@@ -46,7 +42,6 @@ export const STEPS = [
       if (r.error) return 'the backup failed, nothing was changed: ' + r.error;
       ctx.note('backup', r.manifest);
       ctx.say('  the backup on the TV was made ' + r.manifest.created + (r.made ? ' (now)' : ', before this deploy; it is kept'));
-      // Deployed before (by hand, or an earlier suite): the backup holds that setup, not the TV's from before the layer.
       if (r.made && (r.manifest.ourHook || r.manifest.stub)) ctx.say('  note: the TV already runs our boot hook' + (r.manifest.stub ? ' and stub' : '') +
         ', so this backup holds that setup; the TV\'s setup from before our layer is not in it (keep that one off the TV)');
       return null;
@@ -66,12 +61,10 @@ export const STEPS = [
       const b = await script(ctx, 'tv/build-ipk.sh', [dist]);
       if (b.status !== 0) return 'build-ipk.sh failed: ' + lastLine(b.out);
       const ipk = lastLine(b.out);
-      // Up to date already: nothing to install (the hash leaves out data/, where the owner's look lives).
       const want = hashIpk(ipk);
       const have = (await ctx.tv.sh(tvHashScript(APP.id))).stdout.trim();
       ctx.note('look.hash', { build: want, tv: have || 'not installed' });
       if (have === want) { ctx.say('  the installed Look package matches this build (' + want + '): not reinstalled'); return null; }
-      // The owner's look, before the reinstall, and a copy of the service's data (look.json) beside the backup.
       const look = await ctx.tv.luna('luna://dev.themepack.look.service/getLook', {}).catch(() => null);
       ctx.lookBefore = look && look.returnValue !== false && look.look ? look.look : null;
       if (ctx.lookBefore) ctx.say('  the look before installing: ' + JSON.stringify(ctx.lookBefore));
@@ -86,7 +79,6 @@ export const STEPS = [
       if (!groups) return 'permissions.sh did not run (no "compositor groups:" line)';
       ctx.note('look.groups', groups.trim());
       if (/did not finish/.test(i.out)) return 'ls-control scan-services did not finish';
-      // The owner's look survives the reinstall: if the service lost it, it is set again and read back.
       if (ctx.lookBefore) {
         let now = null;
         for (let k = 0; k < 10 && !now; k++) { now = await ctx.tv.luna('luna://dev.themepack.look.service/getLook', {}).then((a) => a.look, () => null); if (!now) await ctx.sleep(1000); }
@@ -127,8 +119,6 @@ export const STEPS = [
     },
     async check(ctx) {
       const t0 = ctx.layerT0 || '';
-      // The injector reports last, once every part is made: seconds after the layer's first report, which is all
-      // own-layer.sh waits for.
       const { hit: created } = await waitReport(ctx, t0, (r) => r.text === 'layer created by injection' || /^inject: /.test(r.text), 20);
       if (!created || created.kind !== 'ready') return created ? 'the injector says: ' + created.text : 'no "layer created by injection" report' + (t0 ? ' since ' + t0 : '');
       const { hit, rs } = await waitReport(ctx, t0, (r) => r.text === 'settings: host ready' || /^settings: host up, but/.test(r.text), 20);
@@ -148,10 +138,8 @@ export const STEPS = [
     async apply(ctx) {
       const all = await script(ctx, 'webos/install-boot.sh', ['install']);
       if (all.status !== 0) return 'install-boot.sh install failed: ' + lastLine(all.out);
-      // The log's tail can hold earlier runs; this run starts at its last "=== " line.
       const at = all.out.lastIndexOf('\n=== ');
       const r = { out: at >= 0 ? all.out.slice(at + 1) : all.out };
-      // The hook's own words for why it left LG's Settings: the exact reason.
       const left = r.out.split('\n').reverse().find((l) => /settings left stock|UI layer did not load/.test(l));
       if (left && !/settings (stub|already) mounted/.test(r.out)) return 'the boot hook: ' + left.trim();
       if (!/settings (stub|already) mounted/.test(r.out)) return 'the boot hook never said "settings stub mounted": ' + lastLine(r.out);
@@ -162,7 +150,6 @@ export const STEPS = [
       if (!m.stdout.includes(' ' + SETTINGS_APP + ' ')) return 'mount lists no bind over ' + SETTINGS_APP;
       const info = await ctx.tv.luna('luna://com.webos.applicationManager/getAppInfo', { id: 'com.palm.app.settings' });
       const a = info.appInfo || {};
-      // Not a stop: TV-CHECKS asks to record whether SAM serves the stub's description or a cached stock one.
       ctx.note('boot.appInfo', { version: a.version, vendor: a.vendor, usePrerendering: a.usePrerendering });
       if (a.vendor !== 'theme-pack') ctx.say('  note: SAM still serves a ' + (a.vendor || 'stock') + ' description for com.palm.app.settings (see TV-CHECKS, Boot mount)');
       return null;

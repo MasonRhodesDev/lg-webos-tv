@@ -1,11 +1,4 @@
 #!/usr/bin/env node
-// Renders the shots for the design canvas's generated "pack" page: our surfaces in a few looks, drawn by the QML kit
-// through the preview harness (preview/render.mjs), into OUT_DIR as PNGs, index.html (a contact sheet) and
-// index.json (each shot's scene, state, style, themes and file). Putting them on the canvas is done by hand.
-//
-//   node export-previews.mjs OUT_DIR [--scene NAME]... [--look STYLE[+THEME...]]... [--jobs N]
-//
-// Without --scene, every surface scene (not the kit's contact sheets or test scenes); without --look, the looks below.
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';

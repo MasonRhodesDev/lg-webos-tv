@@ -2,19 +2,12 @@ import QtQuick 2.4
 import ".."
 import "keys.js" as KeyMap
 
-// A horizontal ribbon of tiles; focus scrolls into view. `model` is a list of tile specs ({ label, sub, icon, image,
-// hue, badge, badgeTone, chip, chipTone, current, disabled, width, lead, heading }) or { separator: true, width }.
-// `heading` starts a group: its name sits above the tile, `lead` px of extra space before it. An LG-mirrored surface
-// (the input picker) sets currentIndex from LG and, with `follows: false`, places the ribbon itself so its tiles stay
-// over LG's; our own menus give it focus and it moves with Left/Right (wrapping if `wraps`).
 ListView {
     id: ribbon
     property bool focusShown: true
     property bool wraps: false
-    // False: the ribbon never scrolls or fades tiles out of view; its owner places it (an LG-mirrored surface).
     property bool follows: true
     property real tileHeight: Look.px("tile-h")
-    // How far above the tiles group headings reach.
     readonly property real headingSpace: probe.height + Look.px("space-s")
     signal activated(int index, var tile)
     signal back()
@@ -37,8 +30,6 @@ ListView {
     boundsBehavior: Flickable.StopAtBounds
     highlightFollowsCurrentItem: false
 
-    // Scroll only as far as keeps the focused tile, and part of the next, inside the ribbon, starting from `from`: where
-    // it is when focus moves, its start when its size changes (as RowList).
     function reveal(animated, from) {
         if (from === undefined) from = contentX;
         var item = currentItem;

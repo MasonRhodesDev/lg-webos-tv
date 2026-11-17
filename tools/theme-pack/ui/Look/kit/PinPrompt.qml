@@ -1,10 +1,6 @@
 import QtQuick 2.4
 import ".."
 
-// Asking for the PIN (the PIN prompt board): the picture dimmed, a centred glass panel `pin-w` wide with the lock in
-// its well, the title and why, a slot per digit (filled ones hold a dot, the next one has the active edge) and the
-// PinPad. Fill the screen with it and give it focus. When the last digit is in it emits entered(pin); the surface
-// checks it and calls reject(text) to clear it and say why, or closes. Back is cancelled().
 FocusScope {
     id: prompt
     property string title: "Enter PIN"

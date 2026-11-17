@@ -3,9 +3,6 @@ import QtQuick.Window 2.2
 import Preview 1.0
 import Look 1.0
 
-// The layer's late claims against a fake LG root: an overlay view whose item LG creates, destroys and creates again,
-// and a notification view that loads after the layer starts. Prints each step and exits 1 on the first failure:
-// qml LateClaims.qml
 Window {
     id: win
     width: 1920; height: 1080
@@ -16,22 +13,18 @@ Window {
         anchors.fill: parent
         property var notificationView: null
 
-        // LG's OverlayView: a system UI view whose currentView is the shown item's container.
         Item { id: overlay; property string viewName: "overlay"; property var currentView: null }
-        // The wrapper holding LG's notification loader.
         Item { id: notificationLoader }
     }
 
     Component {
         id: overlayItem
-        // StarfishSystemUIContainer → StarfishSystemUIWindow → the windowContent FocusScope.
         Item {
             Item { Item { objectName: "windowContent"; property int numButtons: 9 } }
         }
     }
     Component {
         id: notification
-        // NotificationView's root and its toast view, both made under the loader.
         Item {
             id: notificationRoot
             property Item toast: Item {
@@ -79,7 +72,6 @@ Window {
         },
         function () {
             check(part("FakeOverlay").lg === null && !part("FakeOverlay").visible, "LG destroys the overlay: lg is null, the part hides");
-            // LG clears currentView after the item is gone; reading the stale value must not break the layer.
             overlay.currentView = null;
             container = overlayItem.createObject(overlay);
             overlay.currentView = container;
@@ -91,7 +83,6 @@ Window {
             other.children[0].children[0].objectName = "somethingElse";
             overlay.currentView = other;
             check(part("FakeOverlay").lg === windowContent(), "a claimed part ignores later overlay changes");
-            // A native loader may hand over its item before parenting it, so the toast view is not anywhere yet.
             var nv = notification.createObject(null);
             host.notificationView = nv;
             check(part("Toast").lg === null, "notification view arrives unparented: toast not claimed yet");
@@ -101,14 +92,11 @@ Window {
             var toast = host.notificationView.toast;
             check(part("Toast").lg === toast && toast.opacity === 0, "notification view loads late: toast view claimed under its loader");
             check(reports("ok", "Toast") === 1, "toast: reported ok");
-            // LG's onLoadedCallback then reparents it to the root; the claim is the same object and holds.
             host.notificationView.parent = host;
             check(part("Toast").lg === toast, "toast view reparented to host: still claimed");
-            // Probing is off (the household's TV): the layer sends no probe at all.
             var sent = 0;
             for (var i = 0; i < Fixture.commands.length; i++) if (Fixture.commands[i].method === "/setProbe") sent++;
             check(sent === 0, "probing off: no probe is sent");
-            // The suite turns probing on: every part's probe goes out at once.
             Fixture.load(JSON.stringify({ "returnValue": true, "probing": true }));
         },
         function () {

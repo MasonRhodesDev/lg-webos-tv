@@ -1,7 +1,3 @@
-// Where a ring sits in its outset box, read from its recipe's `style` (CSS placement syntax, which render-assets.mjs
-// also reads to compose the art). The ring has every edge set by its outset; `width`/`height` in px size it, and
-// `left:auto` or `top:auto` move it to the right or bottom edge (`right:auto`/`bottom:auto` keep it at the left or
-// top). Without a size it fills the box. Other declarations are ignored.
 function placement(style) {
     var p = { "left": false, "right": false, "top": false, "bottom": false, "width": -1, "height": -1 };
     var decls = (style || "").split(";");
@@ -18,7 +14,6 @@ function placement(style) {
     return p;
 }
 
-// The ring's rectangle in its outset box of w × h.
 function rect(p, w, h) {
     var rw = p.width >= 0 ? p.width : w, rh = p.height >= 0 ? p.height : h;
     return {
@@ -29,9 +24,6 @@ function rect(p, w, h) {
     };
 }
 
-// A recipe's outset as [top, right, bottom, left] for the component's state. It is a number, four numbers, or per
-// state: { rest, focused, current, disabled }, each a number or four; the first of focused, current, disabled that
-// the component is in and the recipe names wins, else rest.
 function sides(o) { return typeof o === "number" ? [o, o, o, o] : (o || [0, 0, 0, 0]); }
 function outset(o, focused, current, disabled) {
     if (o === null || typeof o !== "object" || o.length !== undefined) return sides(o);

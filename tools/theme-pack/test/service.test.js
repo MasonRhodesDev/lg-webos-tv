@@ -7,9 +7,6 @@ const { execFileSync } = require('node:child_process');
 
 const dir = path.join(__dirname, '..');
 
-// The service as the package installs it: service.js next to its exported packs and a writable data/, with a stand-in
-// for webos-service that records the registered methods so a test can call them as the bus would.
-// `themes` replaces the exported theme packs with the given ones; `look` is a data/look.json from an earlier run.
 function start(opts) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'look-service-'));
   fs.copyFileSync(path.join(dir, 'service', 'service.js'), path.join(root, 'service.js'));
@@ -31,7 +28,6 @@ function start(opts) {
   require(path.join(root, 'service.js'));
   const svc = require(path.join(fake, 'index.js')).last;
   let token = 0;
-  // Calls a method; returns every answer it gets, including later ones to a subscription.
   function call(name, payload, subscribe) {
     const answers = [];
     svc.methods[name].onCall({ payload: payload || {}, isSubscription: !!subscribe, uniqueToken: String(++token),
@@ -167,7 +163,6 @@ test('probing is off at start, tells the layer through the Look subscription, re
   assert.ok(!require('node:fs').readFileSync(require('node:path').join(dir, 'service', 'service.js'), 'utf8').match(/probing[^\n]*writeFileSync/), 'never written to disk');
 });
 
-// The calendar. These run on a clock the test sets, at local noon, so they hold in any time zone.
 const noon = (y, m, d) => new Date(y, m - 1, d, 12).getTime();
 const HOUR = 3600000;
 function clock(t, y, m, d) { t.mock.timers.enable({ apis: ['Date', 'setTimeout'], now: noon(y, m, d) }); }
@@ -197,7 +192,6 @@ test('the theme listing passes on group and season, and orders seasonal themes b
   const autumn = listed(got).find((x) => x.id === 'autumn');
   assert.deepStrictEqual(autumn, { id: 'autumn', name: 'autumn', description: '', group: 'seasonal',
     season: [{ from: '09-23', to: '11-30' }], dates: [{ from: '2026-09-23', to: '2026-11-30' }], inSeason: true });
-  // A window that has passed gives its next run; one that crosses New Year ends in the next year.
   assert.deepStrictEqual(datesOf(got, 'halloween'), [{ from: '2027-10-17', to: '2027-10-31' }]);
   assert.deepStrictEqual(datesOf(got, 'newyear'), [{ from: '2026-12-26', to: '2027-01-03' }]);
   assert.strictEqual(listed(got).find((x) => x.id === 'winter').inSeason, false);
@@ -205,7 +199,6 @@ test('the theme listing passes on group and season, and orders seasonal themes b
 
 test('the days that move are worked out for the year: Thanksgiving, Easter, Hanukkah', (t) => {
   const cases = [
-    // year, Thanksgiving, Easter Sunday, first day of Hanukkah
     [2024, '2024-11-28', '2024-03-31', '2024-12-26'],
     [2025, '2025-11-27', '2025-04-20', '2025-12-15'],
     [2026, '2026-11-26', '2026-04-05', '2026-12-05'],
@@ -248,9 +241,7 @@ test('auto turns on the season and one holiday that cover today, and keeps the o
   assert.strictEqual(saved().auto, true);
   assert.strictEqual(sub.length, 2);
 
-  // A theme asked for by hand while auto is on: the calendar still owns the seasonal ones.
   assert.deepStrictEqual(call('setLook', { themes: ['christmas'] })[0].look.themes, ['autumn']);
-  // Off again: the look stays as the calendar left it, and is the household's to change.
   assert.deepStrictEqual(call('setLook', { auto: false, themes: ['glow', 'autumn'] })[0].look.themes, ['glow', 'autumn']);
   assert.deepStrictEqual(call('setLook', { themes: ['christmas'] })[0].look.themes, ['christmas']);
 });
@@ -258,7 +249,6 @@ test('auto turns on the season and one holiday that cover today, and keeps the o
 test('a season lies under its holiday; of two holidays the shorter window wins', (t) => {
   clock(t, 2026, 12, 6);
   const { call } = start({ themes: sample });
-  // 6 December 2026: winter, Christmas (25 days) and Hanukkah (8 days) all cover the day.
   assert.deepStrictEqual(call('setLook', { auto: true })[0].look.themes, ['winter', 'hanukkah']);
   assert.deepStrictEqual(call('setLook', { skip: ['hanukkah'] })[0].look.themes, ['winter', 'christmas']);
   assert.deepStrictEqual(call('setLook', { skip: ['hanukkah', 'winter'] })[0].look.themes, ['christmas']);
@@ -290,7 +280,6 @@ test('the calendar is read again when the day turns, and subscribers hear only w
 });
 
 test('the time is written down each minute for the next boot, but not a clock nobody has set', (t) => {
-  // The service's file is as old as this run, so 2019 is before it and 2031 after it.
   clock(t, 2019, 1, 1);
   const { keptTime } = start({ themes: sample });
   t.mock.timers.tick(60000);
@@ -305,7 +294,6 @@ test('the time is written down each minute for the next boot, but not a clock no
 });
 
 test('a clock set after the service started is heard within a minute, and a clock set back is followed too', (t) => {
-  // The TV has no battery clock: it starts in 2019, and its date arrives later (from the network, or set by hand).
   clock(t, 2019, 1, 1);
   const { call, saved } = start({ themes: sample, look: { auto: true, themes: ['glow'] } });
   const sub = call('getLook', {}, true);
@@ -321,7 +309,6 @@ test('a clock set after the service started is heard within a minute, and a cloc
   t.mock.timers.tick(10 * 60000);
   assert.strictEqual(sub.length, 2, 'a day that has not turned says nothing');
 
-  // Set back (the mocked timers are due by the mocked date, so here it is a call that sees it).
   t.mock.timers.setTime(noon(2025, 12, 24));
   const got = call('getLook')[0];
   assert.deepStrictEqual([got.today, got.look.themes], ['2025-12-24', ['glow', 'winter', 'christmas']]);
@@ -336,7 +323,6 @@ test('with auto off the calendar changes no theme, and a day that turned unseen 
   assert.deepStrictEqual(sub[sub.length - 1].look.themes, ['halloween'], 'a theme picked by hand stays');
   assert.strictEqual(listed(sub[sub.length - 1]).find((x) => x.id === 'halloween').inSeason, false);
 
-  // The clock jumps (set late after a boot, or a long sleep) with no timer run: the next call sees the new day.
   t.mock.timers.setTime(noon(2026, 12, 24));
   const got = call('setLook', { auto: true })[0];
   assert.strictEqual(got.today, '2026-12-24');
@@ -381,7 +367,6 @@ test('every theme pack names a known group, and every seasonal pack gives window
   for (const f of fs.readdirSync(path.join(dir, 'packs', 'themes'))) {
     const pack = require(path.join(dir, 'packs', 'themes', f));
     const item = listed(got).find((x) => x.id === pack.id);
-    // No group is a custom theme.
     assert.ok(pack.group === undefined || pack.group === 'seasonal' || pack.group === 'custom', pack.id + ': group ' + pack.group);
     if (pack.group !== 'seasonal') {
       assert.strictEqual(pack.season, undefined, pack.id + ': only a seasonal theme has a season');

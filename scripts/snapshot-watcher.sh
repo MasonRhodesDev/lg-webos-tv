@@ -1,9 +1,4 @@
 #!/usr/bin/env bash
-# snapshot-watcher — poll the TV every 5 s, log NVM + hib state changes and
-# dmesg suspend/resume events. Used during the snapshot-boot research.
-#
-# Usage: scripts/snapshot-watcher.sh <output-log>
-# Reads TV_HOST and TV_USER from .env (default TV_USER=root).
 
 set -u
 
@@ -29,7 +24,6 @@ echo "=== watcher started $(date -Is) ===" | tee -a "$OUT"
 
 while :; do
   now="$(date -Is)"
-  # Compact remote probe: NVM bytes + hib header + /sys/power/state
   remote="$(ssh -q -o ConnectTimeout=5 "$TV" '
     N=$(dd if=/dev/mmcblk0p11 bs=1 count=4 skip=427 2>/dev/null | od -An -v -tu1 | tr -s " " "_")  # 0x1ab..0x1ae
     M=$(dd if=/dev/mmcblk0p11 bs=1 count=4 skip=2441 2>/dev/null | od -An -v -tu1 | tr -s " " "_") # 0x989..0x98c

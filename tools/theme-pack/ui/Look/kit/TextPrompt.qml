@@ -1,10 +1,6 @@
 import QtQuick 2.4
 import ".."
 
-// Typing a line of text (the Keyboard board): the picture dimmed, a `prompt` label over a TextField in the middle of
-// the space above the keyboard, and the Keyboard on a ribbon panel along the bottom. Fill the screen with it and give
-// it focus. It owns the text while open: `text` is where it starts. Done is accepted(text) (only once `minLength`
-// characters are in), Back is cancelled().
 FocusScope {
     id: prompt
     property string label
@@ -14,7 +10,6 @@ FocusScope {
     property int minLength: 0
     property bool secret: false
     property string doneLabel: "Done"
-    // The keys it opens on: letters, or symbols (digits first).
     property string layout: "letters"
     property bool shown: true
     property bool pointer: true
@@ -24,7 +19,6 @@ FocusScope {
     signal cancelled()
     anchors.fill: parent
 
-    // Starts afresh each time it opens.
     onShownChanged: if (shown) { keys.reset(); keys.layout = layout; }
 
     Scrim { kind: "dim"; shown: prompt.shown }

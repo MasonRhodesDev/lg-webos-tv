@@ -7,8 +7,6 @@ const { spawnSync } = require('node:child_process');
 
 const script = path.join(__dirname, '..', 'tv', 'set-clock.sh');
 
-// tv/set-clock.sh with a stand-in `ssh` first on PATH. The stand-in is the TV's half: it writes down who was called
-// and what arrived on stdin, and answers as `body` says.
 function run(body) {
   const bin = fs.mkdtempSync(path.join(os.tmpdir(), 'set-clock-'));
   const seen = path.join(bin, 'seen');

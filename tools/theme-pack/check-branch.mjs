@@ -1,11 +1,3 @@
-// The checks a branch must pass before it merges into main, one PASS/FAIL line each. Exits non-zero on any FAIL.
-//
-//   node check-branch.mjs [BRANCH_OR_WORKTREE_PATH] [--base main] [--render]
-//
-// The target defaults to the current directory. A branch name is looked up among the repo's worktrees, since the
-// tests and the render run in a checkout of it. --render also runs preview/render.mjs into a temp dir (needs Qt 5's
-// qml and Xvfb, see the README). Extra portability patterns, one regex per line, come from the CHECK_BRANCH_PATTERNS
-// env var (newline separated) and from .check-branch.local next to this file (gitignored; see the .example).
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -16,7 +8,6 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 
 export const TRAILERS = [/^\s*co-authored-by:/im, /generated with/i, /\u{1F916}/u];
 
-// Private addresses (RFC 1918) and the home directories of a person.
 export const PORTABILITY = [
   { name: 'private IPv4', re: /(?<![\d.])(?:10\.\d{1,3}|192\.168|172\.(?:1[6-9]|2\d|3[01]))\.\d{1,3}\.\d{1,3}(?![\d.])/ },
   { name: 'home path', re: /(?:^|[^\w.-])\/(?:home|Users)\/(?!<)[\w.-]+\// },
@@ -28,7 +19,6 @@ export function findTrailer(message) {
 
 export function isCoreFile(file) { return /^core(\.\d+)?$/.test(file.split('/').pop()); }
 
-// Patterns from one-per-line text; blank lines and #comments are skipped.
 export function parsePatterns(text) {
   return String(text || '').split('\n').map((l) => l.trim()).filter((l) => l && !l.startsWith('#'))
     .map((l) => ({ name: 'local pattern', re: new RegExp(l) }));
@@ -39,9 +29,6 @@ export function findPrivate(line, patterns = PORTABILITY) {
   return hit ? hit.name : null;
 }
 
-// Why a failed render run failed, from its exit status and output. render.mjs prints "N failed:" and then each failing
-// shot with its QML errors; anything else (a crash, a signal, a Node trace) is shown as the tail of what it printed. The
-// progress counter ("12/560", redrawn with \r) is never the cause, so it is dropped.
 export function renderFailureNote(r, maxLines = 12) {
   const text = [r.stdout, r.stderr].map((t) => String(t || '')).join('\n');
   const lines = text.split(/[\r\n]+/).filter((l) => l.trim() && !/^\d+\/\d+$/.test(l.trim()));
@@ -58,7 +45,6 @@ function git(cwd, ...args) {
   return r.stdout;
 }
 
-// Where a branch is checked out: the worktree whose branch it is.
 function worktreeOf(target) {
   if (fs.existsSync(target) && fs.statSync(target).isDirectory()) return path.resolve(target);
   const list = git('.', 'worktree', 'list', '--porcelain').split('\n\n');

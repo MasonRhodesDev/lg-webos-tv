@@ -1,35 +1,4 @@
 #!/bin/sh
-# Build the webOS UI Atlas page from a backup taken with scripts/backup.sh.
-#
-# Usage: tools/ui-atlas/build.sh [options] BACKUP_DIR OUT_DIR
-#
-#   BACKUP_DIR   one scripts/backup.sh output directory (it holds images/,
-#                files/ and runtime/). Only read, never written.
-#   OUT_DIR      where index.html, img/ and fonts/ are written. Keep it out of
-#                git: it contains LG's images and fonts.
-#
-# Options:
-#   --capture-hbc      run the Homebrew Channel app once in headless Chromium
-#                      (network off) to get its DOM; saved to OUT_DIR/.cache/
-#   --hbc-dom FILE     use this saved DOM capture instead
-#                      (default: OUT_DIR/.cache/hbc_dom.html if it exists;
-#                      otherwise the Homebrew preview is skipped)
-#   --shots DIR        add real screenshots: DIR/manifest.json plus the image
-#                      files it names (see README.md, "Screenshots")
-#   --keep-work        keep the temporary work dir and print its path
-#   -h, --help         show this help
-#
-# Environment:
-#   ROOTFS_PART   partition holding the active rootfs, e.g. mmcblk0p28
-#                 (default: root= from BACKUP_DIR/runtime/proc_cmdline.txt)
-#   OTNCABI_PART  partition mounted on /mnt/otncabi, e.g. mmcblk0p31
-#                 (default: from BACKUP_DIR/runtime/proc_mounts.txt)
-#   CHROMIUM      Chromium/Chrome binary for --capture-hbc (default: first of
-#                 chromium, chromium-browser, google-chrome on PATH)
-#   TMPDIR        where the ~1.5 GB work dir is created (default /tmp)
-#
-# Required tools: sh, unsquashfs (squashfs-tools), tar, python3 (3.8+).
-# Optional: Chromium or Chrome, only for --capture-hbc.
 set -eu
 
 HERE=$(cd "$(dirname "$0")" && pwd)
@@ -68,7 +37,6 @@ done
   die "$BACKUP does not look like a scripts/backup.sh output (no images/ or files/)"
 BACKUP=$(cd "$BACKUP" && pwd)
 
-# Which partitions: the runtime capture says what was mounted where.
 if [ -z "${ROOTFS_PART:-}" ]; then
   [ -f "$BACKUP/runtime/proc_cmdline.txt" ] || die "set ROOTFS_PART (no runtime/proc_cmdline.txt)"
   ROOTFS_PART=$(tr ' ' '\n' < "$BACKUP/runtime/proc_cmdline.txt" | sed -n 's|^root=/dev/||p' | head -n 1)
@@ -81,7 +49,6 @@ if [ -z "${OTNCABI_PART:-}" ]; then
 fi
 
 one_image() {
-  # backup.sh names images s<start-sector>_<part>.img
   set -- "$BACKUP"/images/s*_"$1".img
   [ $# -eq 1 ] && [ -f "$1" ] || die "expected exactly one image for $2 in $BACKUP/images"
   echo "$1"
@@ -119,7 +86,6 @@ mkdir -p "$WORK/x/media_developer"
 tar -xf "$DEV_TAR" --no-same-owner --no-same-permissions -C "$WORK/x/media_developer" media/developer/apps
 HBC_APP=$WORK/x/media_developer/media/developer/apps/usr/palm/applications/org.webosbrew.hbchannel
 
-# Homebrew Channel DOM: fresh capture, a given file, or the cached copy.
 if [ "$CAPTURE_HBC" = 1 ]; then
   CH=${CHROMIUM:-}
   if [ -z "$CH" ]; then
@@ -130,9 +96,6 @@ if [ "$CAPTURE_HBC" = 1 ]; then
   [ -n "$CH" ] || die "--capture-hbc needs Chromium or Chrome on PATH (or set CHROMIUM)"
   echo "== capturing Homebrew Channel DOM with $CH (network off)"
   mkdir -p "$OUT/.cache"
-  # Every host resolves to nothing and the proxy is a closed port, so the app's
-  # repository fetch fails offline. Headless takes 56 px of the window for
-  # browser chrome; 1920x1136 leaves the app the TV's 1920x1080 viewport.
   "$CH" --headless --disable-gpu --no-first-run --no-default-browser-check \
     --user-data-dir="$WORK/chrome-profile" \
     --host-resolver-rules="MAP * ~NOTFOUND" --proxy-server="127.0.0.1:9" \

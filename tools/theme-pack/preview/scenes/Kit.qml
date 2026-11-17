@@ -1,8 +1,6 @@
 import QtQuick 2.4
 import Look 1.0
 
-// The kit's contact sheet, board 1 of 2: panels, headers, every row variant and the controls in every state.
-// Chips, badges and the icon set are on board 2.
 Item {
     id: kit
     width: 1920
@@ -13,7 +11,6 @@ Item {
     Screen {
         Scrim { kind: "left" }
 
-        // A side panel as Quick Settings uses it: every row variant, one focused.
         Panel {
             placement: "side-left"
             Header { id: qsHead; title: "Quick settings"; subtitle: "HDMI 2 · 4K" }
@@ -38,8 +35,6 @@ Item {
             }
         }
 
-        // A sub-page as our Settings uses it: breadcrumb, sections, radio and check rows. State settings-rows: the
-        // Settings boards' rows: categories, a picker's choice rows, an action, a busy value, a disabled row.
         Panel {
             x: 96 + Look.px("panel-w") + 40
             y: 54
@@ -74,7 +69,6 @@ Item {
             }
         }
 
-        // States: each control and row at rest, focused, current and disabled.
         Column {
             x: 1920 - 96 - 460
             y: 54

@@ -1,8 +1,6 @@
 import QtQuick 2.4
 import Preview 1.0
 
-// Stands in for LG's bus client. The Look service is answered from the preview's fixture, the settings services from
-// the settings fixture (TvSettings); reports are printed.
 QtObject {
     property string appId
     signal response(string method, string payload)

@@ -1,8 +1,6 @@
 import QtQuick 2.4
 import ".."
 
-// The remote keys a surface answers to, along its foot: [{ key: "OK" | "BACK" | "up" ..., keys: ["up", "down"],
-// label: "Move" }]. Arrow keys draw as arrows; any other key is its name on the cap.
 Row {
     id: hints
     property var hints: []

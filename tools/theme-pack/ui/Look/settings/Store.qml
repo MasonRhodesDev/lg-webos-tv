@@ -5,54 +5,25 @@ import "catalog.js" as Catalog
 import "menu.js" as Menu
 import "clock.js" as Clock
 
-// The settings data store (SETTINGS-PLAN.md, the data layer). It owns every read, subscription and write of our
-// Settings and quick sheet; pages bind to it and never call the bus.
-//
-//   watch(refs) / unwatch(refs)  subscribe to the items a page shows (reference-counted per channel)
-//   state(ref)                   { item, value, label, visible, active, options [{value, label, active}], min, max, step }
-//   set(ref, value)              optimistic: the new value shows at once, and is rolled back if the write fails
-//   act(ref)                     run an action item
-//   holds(cond)                  a row condition: { ref, is: [values] } or { ref, not: [values] }
-//   list(ref)                    a live list: wifiNetworks [{ ssid, bars, secure, securityType, profileId, status }],
-//                                btDevices [{ address, name, type, paired, status }]; busy(ref) while it scans
-//   wifiConnect(net, passKey), wifiForget(net), btSearch(), btPair(dev), btConnect(dev), btDisconnect(dev),
-//   btForget(dev)                one network or pairing action each: optimistic, rolled back with refused() when the TV
-//                                refuses it or does not answer (request()); the page asks the household first
-//   values.wifiEnabled ("enabled"/"disabled", ref wifiEnabled) and values.btPairedCount (ref btPairedCount, labelled
-//   "1 paired") come with the wifi and bluetooth channels, for other pages' values and conditions.
-//   pinMatches(pin), unlocked    the PIN, checked here against lock.systemPin; `unlocked` until Settings closes
-//   The TV's clock (ref clock, and its parts clockYear … clockMinute) is read and set here too: see setClock().
-//
-// Rows bind to `revision`, bumped on every change, plus their ref. A ref is a catalog item id (or "Page/id") or one of
-// menu.js's `extra` items.
 QtObject {
     id: store
 
-    // Who our calls are from. SETTINGS-PLAN.md, bus identity: service/permissions.sh grants this name the groups.
     property string appId: Look.busName
     property int revision: 0
-    // By storage key: "<category>.<key>" for settingsservice, the item id for everything else.
     property var values: ({})
-    // settingsservice descriptions by storage key: { visible, active, values: [{ value, visible, active }], range }.
     property var desc: ({})
-    // A write failed and was rolled back.
     signal failed(string ref, string text)
-    // A network or pairing action was refused or went unanswered and was rolled back, or went through: `text` is the
-    // whole sentence for a toast ("Not joined Home: the password is wrong", "Paired Headphones").
     signal refused(string ref, string text)
     signal succeeded(string ref, string text)
-    // An action that belongs to the compositor: open a system UI (the input picker).
     signal systemUiRequested(string appId)
 
     readonly property string settings: "luna://com.webos.settingsservice"
 
     function item(ref) { return Menu.extra[ref] || Catalog.items[ref] || null; }
-    // The item whose value an item shows: itself, or for a view (menu.js `from`) the item it views.
     function source(it) { return it && it.from ? item(it.from) : it; }
     function isSettings(it) { it = source(it); return !!it && !!it.api && it.api.service === "com.webos.settingsservice" && !!it.api.keys; }
     function keyOf(it) { it = source(it); return isSettings(it) ? it.api.category + "." + it.api.keys[0] : it.id; }
 
-    // A channel is one subscription: a settingsservice category, or one of the other services.
     function channelOf(it) {
         it = source(it);
         if (!it || !it.api) return "";
@@ -64,11 +35,9 @@ QtObject {
         if (svc === "com.webos.service.tv.display" && it.api.read === "getHDMIInfo") return "signal";
         if (svc === "com.webos.service.tv.systemproperty" || svc === "com.palm.systemservice/osInfo") return "system";
         if (svc === "com.palm.systemservice/time") return "clock";
-        // The time zone comes with the list of zones to choose from, so it has a channel of its own.
         if (svc === "com.palm.systemservice" && it.api.read === "getPreferences") return it.api.keys && it.api.keys[0] === "timeZone" ? "zone" : "prefs";
         if (svc === "dev.themepack.look.service") return "kit";
         if (it.api.look) return "look";
-        // Wi-Fi's on/off is cheap to watch; the scan of the air runs only while a page lists the networks.
         if (it.api.service === "com.webos.service.wifi") return it.api.read === "findnetworks" ? "wifiScan" : "wifi";
         if (it.api.service === "com.webos.service.btaudiosrc" || it.api.service === "com.webos.service.bluetooth2") return "bluetooth";
         return "";
@@ -105,10 +74,7 @@ QtObject {
             if (isSettings(it)) { var k = it.api.keys[0]; if (--ch.keys[k] <= 0) ch.keys[k] = 0; }
             if (ch.count <= 0) {
                 close(name);
-                // Emptied, not deleted: deleting and re-adding members of these objects crashes the harness's Qt
-                // 5.15 V4 engine (Object::insertMember).
                 channels[name] = null;
-                // Not known again until the next open reads it: a stale "active" must not outlive its answer.
                 if (name === "kit") { delete values.telemetryKit; changed(); }
             }
         }
@@ -120,13 +86,11 @@ QtObject {
         if (name === "bluetooth") btStop();
         if (name === "wifiScan") scanning.wifiNetworks = false;
         if (name === "clock") clockTick.stop();
-        // The PIN is read only while a page that asks for it shows, and kept no longer.
         if (name === "settings:lock") forgetPin();
         for (var i = 0; i < ch.services.length; i++) drop(ch.services[i]);
         ch.services = [];
     }
 
-    // (Re)opens a channel's subscriptions; a settings category re-subscribes with its whole key set.
     function open(name) {
         var ch = channels[name];
         ch.dirty = false;
@@ -170,7 +134,6 @@ QtObject {
             sig.call("luna://com.webos.service.tv.display", "/getHDMIInfo", JSON.stringify({ "subscribe": true }));
             ch.services = [sig];
         } else if (name === "system") {
-            // Read once: none of it changes while the TV runs.
             var sys = service(), os = service();
             sys.response.connect(function (method, payload) { store.onSystem(parse(payload), null); });
             os.response.connect(function (method, payload) { store.onSystem(null, parse(payload)); });
@@ -178,7 +141,6 @@ QtObject {
             os.call("luna://com.palm.systemservice", "/osInfo/query", JSON.stringify({ "parameters": ["core_os_release"] }));
             ch.services = [sys, os];
         } else if (name === "kit") {
-            // Read on each open: the boot hook applies some 35 s after power-on.
             var kit = service();
             kit.response.connect(function (method, payload) {
                 var m = parse(payload);
@@ -198,7 +160,6 @@ QtObject {
             prefs.call(systemservice, "/getPreferences", JSON.stringify({ "keys": ["useNetworkTime"], "subscribe": true }));
             ch.services = [prefs];
         } else if (name === "clock") {
-            // The time, and whether the household reads it on a 12 or a 24-hour clock.
             var clk = service(), fmt = service();
             clk.response.connect(function (method, payload) { store.onClock(store.parse(payload)); });
             fmt.response.connect(function (method, payload) {
@@ -222,7 +183,6 @@ QtObject {
             });
             tz.call(systemservice, "/getPreferences", JSON.stringify({ "keys": ["timeZone"], "subscribe": true }));
             ch.services = [tz];
-            // Every zone the TV knows, a few hundred of them: read once and kept.
             if (!zones.length) request(systemservice, "/getPreferenceValues", JSON.stringify({ "key": "timeZone" }), function (m) {
                 if (!m || m.returnValue === false || !m.timeZone || !m.timeZone.length) return;
                 store.zones = m.timeZone;
@@ -236,7 +196,6 @@ QtObject {
         } else if (name === "wifiScan") {
             var scan = service();
             scan.response.connect(function (method, payload) { store.onNetworks(payload); });
-            // Reading the networks is a scan of the air, not a write: it runs while the page shows, as LG's does.
             scanning.wifiNetworks = true;
             scan.call(wifi, "/findnetworks", JSON.stringify({ "subscribe": true }));
             ch.services = [scan];
@@ -304,7 +263,6 @@ QtObject {
     readonly property string wifi: "luna://com.webos.service.wifi"
     readonly property string bt: "luna://com.webos.service.btaudiosrc"
     readonly property string bt2: "luna://com.webos.service.bluetooth2"
-    // Live lists by ref, and which of them are scanning.
     property var lists: ({ "wifiNetworks": [], "btDevices": [] })
     property var scanning: ({})
     function list(ref) { return lists[ref] || []; }
@@ -315,7 +273,6 @@ QtObject {
         for (var i = 0; i < l.length; i++) if (l[i][key] === value) return l[i];
         return null;
     }
-    // Changes one entry of a list in place and returns what it was, for a rollback.
     function patch(ref, key, value, fields) {
         var l = list(ref).slice(), before = null;
         for (var i = 0; i < l.length; i++) {
@@ -337,8 +294,6 @@ QtObject {
         replace(ref, l);
     }
 
-    // Wi-Fi (com.webos.service.wifi): getstatus says whether it is on; findnetworks lists what is in the air, as
-    // foundNetworks[].networkInfo { ssid, displayName, signalBars, connectState, availableSecurityTypes, profileId }.
     function onWifiState(payload) {
         var m = parse(payload);
         if (!m || m.returnValue === false || !m.status || pending["wifiEnabled"]) return;
@@ -349,7 +304,6 @@ QtObject {
         var m = parse(payload);
         if (!m || m.returnValue === false || !m.foundNetworks) return;
         var out = [], connecting = {}, l = list("wifiNetworks");
-        // A join in flight keeps its own status until it is answered.
         for (var j = 0; j < l.length; j++) if (l[j].status === "connecting") connecting[l[j].ssid] = true;
         for (var i = 0; i < m.foundNetworks.length; i++) {
             var n = m.foundNetworks[i].networkInfo || m.foundNetworks[i];
@@ -362,13 +316,11 @@ QtObject {
             out.push({ "ssid": n.ssid, "name": n.displayName || n.ssid, "bars": n.signalBars || 1, "secure": sec !== "none",
                        "securityType": sec, "profileId": n.profileId, "status": status });
         }
-        // Connected first, then saved, then the rest by signal.
         var rank = { "connected": 0, "connecting": 1, "saved": 2, "new": 3 };
         out.sort(function (a, b) { return rank[a.status] - rank[b.status] || b.bars - a.bars; });
         scanning.wifiNetworks = false;
         replace("wifiNetworks", out);
     }
-    // LG's connect error codes (its Settings' network error table), in our words.
     function wifiError(m) {
         var c = m ? m.errorCode : -1;
         if (c === 10 || c === 15) return "the password is wrong";
@@ -407,20 +359,11 @@ QtObject {
         }, function () { store.restore("wifiNetworks", "ssid", before); store.refused("wifiForget", "Not forgotten: the TV did not answer"); });
     }
 
-    // Bluetooth. What is paired, and connected, comes from com.webos.service.bluetooth2/device/getStatus
-    // { devices: [{ address, name, paired, typeOfDevice, classOfDevice, connectedProfiles }] } (btaudiosrc's
-    // getPairedDevices goes unanswered on the TV). Search, pair, connect, disconnect and forget go to
-    // com.webos.service.btaudiosrc, as LG's own Settings sends them: startDiscovery says { state: "started", device }
-    // per device found and { state: "stopped" } at the end.
-    //
-    // The magic remote is paired over Bluetooth too. It is never listed and never acted on: forgetting or
-    // disconnecting it would leave the household without a remote. Only audio devices are listed and counted.
     function isRemote(d) {
         if (!d) return false;
         if (/^LGE\s?MR/i.test(d.name || "")) return true;
         return d.typeOfDevice === "ble" && !isAudio(d);
     }
-    // Bluetooth's class of device: major class 4 is audio and video. Unknown is taken as audio, unless it is the remote.
     function isAudio(d) { return d.classOfDevice === undefined || ((d.classOfDevice >> 8) & 0x1f) === 4; }
     function audible(d) { return !!d && !!d.address && !isRemote(d) && isAudio(d); }
     function onBtStatus(m) {
@@ -440,7 +383,6 @@ QtObject {
     }
     function readPaired() { request(bt2, "/device/getStatus", "{}", function (m) { store.onBtStatus(m); }, null); }
     function findIn(l, address) { for (var i = 0; i < l.length; i++) if (l[i].address === address) return l[i]; return null; }
-    // The hard rule, checked again at every action: never the remote.
     function protectedDevice(dev, text) {
         if (!isRemote(dev)) return false;
         refused("btDevices", text + ": that is the TV's remote");
@@ -480,7 +422,6 @@ QtObject {
         scanning.btDevices = false;
         changed();
     }
-    // One device action: the device shows `during` at once, and goes back to what it was if the TV says no.
     function btAction(dev, method, during, done, text) {
         if (protectedDevice(dev, text)) return;
         var before = patch("btDevices", "address", dev.address, { "status": during });
@@ -522,7 +463,6 @@ QtObject {
         }, function () { rollback("the TV did not answer"); });
     }
 
-    // The PIN. LG's own Settings reads lock.systemPin and compares; so do we. An unread PIN never matches.
     property bool unlocked: false
     function pinMatches(pin) {
         var v = values["lock.systemPin"];
@@ -531,7 +471,6 @@ QtObject {
     function pinKnown() { return values["lock.systemPin"] !== undefined; }
     function forgetPin() { values["lock.systemPin"] = undefined; }
 
-    // tv.time answers a subscription once and never again, so the store reads it again after each write.
     function readSleep() {
         var s = service();
         s.response.connect(function (method, payload) {
@@ -544,19 +483,9 @@ QtObject {
         return s;
     }
 
-    // The TV's clock (com.palm.systemservice): time/getSystemTime answers { utc (seconds), offset (the zone, minutes
-    // ahead of UTC) } and posts again when the time is set; time/setSystemTime { utc } sets it. A post, here and from
-    // getPreferences, carries no returnValue, and from getPreferences only the key that changed.
-    //
-    // `clock` is what the TV last said, kept as the TV's time less this process's so that it runs on between answers.
-    // Setting it by hand: each step of a part (setClock) moves `clockShift`, the seconds stepped that the TV has not
-    // been told yet, and the row shows the result at once; a moment after the last step the TV is told once
-    // (sendClock), and the answer is read back. A refusal drops the steps, so the rows show the TV's time again.
     readonly property string systemservice: "luna://com.palm.systemservice"
     property var clock: null
     property real clockShift: 0
-    // The write in flight: { utc, offset }. The time shown stands still at it until the TV answers, since the clock
-    // this process reads may itself be the one being set.
     property var clockSent: null
     function clockUtc() {
         if (!clock) return undefined;
@@ -568,10 +497,6 @@ QtObject {
         clock = { "skew": m.utc - new Date().getTime() / 1000, "offset": typeof m.offset === "number" ? m.offset : clock ? clock.offset : 0 };
         changed();
     }
-    // Read once more, after something that moves the clock. `sentOffset`: the zone offset a write was worked out in.
-    // Across a daylight-saving change the TV answers with another, and the wall time it shows is then an hour from
-    // the one asked for: the difference is sent once more (and not a third time: an hour that does not exist stays
-    // where the TV puts it).
     function readClock(sentOffset) {
         request(systemservice, "/time/getSystemTime", "{}", function (m) {
             store.onClock(m);
@@ -591,7 +516,6 @@ QtObject {
     }
     function sendClock(corrected) {
         if (!clock) return;
-        // One write at a time: steps made while one is in flight go in the next.
         if (clockSent) { clockSettle.restart(); return; }
         if (!clockShift) return;
         var utc = Math.round(new Date().getTime() / 1000 + clock.skew + clockShift), offset = clock.offset;
@@ -613,7 +537,6 @@ QtObject {
         }, function () { dropped("the TV did not answer"); });
     }
     property var clockSettle: Timer { interval: 600; onTriggered: store.sendClock(false) }
-    // While a page shows the clock, it follows the minute.
     property real clockMinute: 0
     property var clockTick: Timer {
         interval: 1000
@@ -623,7 +546,6 @@ QtObject {
             if (minute !== store.clockMinute) { store.clockMinute = minute; store.changed(); }
         }
     }
-    // The clock, or one part of it, as state() answers it: a part lists what it can be set to.
     function clockState(it) {
         var utc = clockUtc(), h24 = values.timeFormat === "HH24";
         var out = { "item": it, "value": undefined, "label": "", "visible": true, "active": true, "options": [], "min": 0, "max": 100, "step": 1 };
@@ -643,10 +565,6 @@ QtObject {
         return out;
     }
 
-    // The time zone. The TV keeps it as a whole zone { ZoneID, Description, City, Country, CountryCode,
-    // offsetFromUTC, supportsDST }, answers it so from getPreferences, and takes it back so in setPreferences;
-    // getPreferenceValues { key: "timeZone" } lists every zone it knows. Our value is the ZoneID, and the picker offers
-    // the zones of the country the TV is in.
     property var zone: null
     property var zones: []
     function zoneOf(id) {
@@ -654,7 +572,6 @@ QtObject {
         for (var i = 0; i < zones.length; i++) if (zones[i].ZoneID === id) return zones[i];
         return null;
     }
-    // "Pacific Time · Los Angeles".
     function zoneLabel(z) {
         if (!z) return "";
         return [z.Description || "", z.City || ""].filter(function (x) { return !!x; }).join(" \u00b7 ") || z.ZoneID || "";
@@ -670,7 +587,6 @@ QtObject {
         if (!cond) return true;
         var v = rawValue(item(cond.ref));
         if (v === undefined) return true;
-        // Compared as text: the TV may answer "1" where a rule names 1, or the reverse.
         function among(list) { for (var i = 0; i < list.length; i++) if (String(list[i]) === String(v)) return true; return false; }
         if (cond.is) return among(cond.is);
         if (cond.not) return !among(cond.not);
@@ -708,9 +624,6 @@ QtObject {
         return out;
     }
 
-    // The TV's settingsservice answers range values as strings ("85"); other services as numbers. A range value is a
-    // number in state() or, when it is unreadable, undefined (and a slider then refuses to move). Writes go back in
-    // the TV's own type (`wire`).
     function num(v) {
         if (typeof v === "number") return isFinite(v) ? v : undefined;
         if (typeof v === "string" && /^\s*-?\d+(\.\d+)?\s*$/.test(v)) return Number(v);
@@ -728,13 +641,10 @@ QtObject {
             var styles = Look.available.styles || [];
             for (var i = 0; i < styles.length; i++) if (styles[i].id === v) label = styles[i].name;
         } else if (it.id === "signal" || it.from === "signal") {
-            // Only an HDMI input has a signal to describe; an unknown input may still be one.
             var input = values["dimensionInfo.input"];
             label = input !== undefined && String(input).indexOf("hdmi") !== 0 ? ""
                   : it.id === "signal" ? Menu.signalLabel(v) : Menu.valueLabel(it.id, v);
         } else if (it.id === "wifiSummary") {
-            // Connection's Wi-Fi row and the Wi-Fi page's subtitle: Off, or the network it is on (the live list while
-            // the page scans, else connectionmanager), or On.
             var joined = lookup("wifiNetworks", "status", "connected");
             label = values.wifiEnabled === "disabled" ? "Off" : values.wifiEnabled === undefined ? ""
                   : joined ? joined.name : values.wifiStatus || "On";
@@ -758,7 +668,6 @@ QtObject {
         };
     }
 
-    // Writes in flight by storage key: { previous, ref }. Sliders send at most every 100 ms, always the last value.
     property var queued: ({})
     property var flush: Timer {
         interval: 100
@@ -779,7 +688,6 @@ QtObject {
         if (it.type === "range") {
             if (typeof value !== "number" || !isFinite(value)) { console.warn("settings store: " + ref + " not a number: " + value); return; }
             if (num(previous) === value) return;
-            // Our own writes hold numbers; the type is the one the TV last answered in.
             if (wire[key] === undefined && (typeof previous === "string" || typeof previous === "number")) wire[key] = typeof previous;
         }
         values[key] = value;
@@ -793,10 +701,6 @@ QtObject {
         send(ref, value, previous);
     }
 
-    // A call that expects one answer: answered(message) when it comes, unanswered() if none comes within
-    // `timeout` (default writeTimeout; a missing bus group drops calls silently). Its Service is destroyed either way.
-    // The wait is counted down by the watchdog's own ticks, never read off the clock: a call may be the one that sets
-    // the clock, and a clock set forward or back must neither time the others out nor keep them waiting.
     property int writeTimeout: 5000
     property var inflight: []
     function request(uri, method, params, answered, unanswered, timeout) {
@@ -831,8 +735,6 @@ QtObject {
         }
     }
 
-    // Writes in flight by storage key. While one is pending, the subscription's echoes of that key are ignored, so a
-    // slider being moved doesn't jump back to an older value.
     property var pending: ({})
 
     function send(ref, value, previous) {
@@ -841,9 +743,7 @@ QtObject {
             var settingsObj = {};
             settingsObj[it.api.keys[0]] = it.type === "range" && wire[key] === "string" ? String(value) : value;
             params = { "category": it.api.category, "settings": settingsObj };
-            // LG writes these per app, as its own Settings does.
             if (it.id === "truMotionMode" || it.id === "arcPerApp") params.current_app = true;
-            // A PIN of the household's own, as LG's reset writes it.
             if (it.api.keys[0] === "systemPin") settingsObj.initialPinCode = false;
             uri = settings; method = "/setSystemSettings";
         } else if (it.api.service === "com.webos.service.tv.time") {
@@ -855,7 +755,6 @@ QtObject {
             uri = systemservice; method = "/setPreferences";
             params = {};
             if (it.api.keys[0] === "timeZone") {
-                // The whole zone, as the TV lists it.
                 var z = zoneOf(value);
                 if (!z) { console.warn("settings store: no such time zone: " + value); values[key] = previous; changed(); return; }
                 params.timeZone = z;
@@ -879,7 +778,6 @@ QtObject {
                 var ch = store.channels.sleep;
                 if (ch) { store.drop(ch.services[0]); ch.services = [store.readSleep()]; }
             } else if (it.id === "timeZone" && store.clock) {
-                // Another zone is another offset: the clock is read again in it.
                 store.readClock();
             }
         }, function () { settle(); rollback("the TV did not answer"); });
@@ -897,7 +795,6 @@ QtObject {
         }, function () { store.failed(ref, "the TV did not answer"); });
     }
 
-    // Our own Look's values come from the Look service, through Look.
     Component.onCompleted: { Look.chosenChanged.connect(store.changed); Look.availableChanged.connect(store.changed); }
     Component.onDestruction: { Look.chosenChanged.disconnect(store.changed); Look.availableChanged.disconnect(store.changed); }
 }

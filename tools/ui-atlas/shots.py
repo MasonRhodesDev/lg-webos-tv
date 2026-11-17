@@ -1,14 +1,3 @@
-"""Copy real screenshots into the output and write the manifest build.py reads.
-
-python3 -I shots.py SHOTS_DIR OUT_IMG_SHOTS_DIR WORK_MANIFEST
-
-SHOTS_DIR/manifest.json:
-  {"captured": "YYYY-MM-DD",
-   "shots": {"<slot>": {"file": "name.webp", "alt": "...", "caption": "HTML"}, ...}}
-
-Slots are the ids build.py knows (SHOT_SLOTS there). Images must already be
-web-ready (WebP, PNG or JPEG, ideally <= 300 KB); this script does not convert.
-"""
 import json, os, re, shutil, sys
 
 SRC, DST, OUT = sys.argv[1], sys.argv[2], sys.argv[3]

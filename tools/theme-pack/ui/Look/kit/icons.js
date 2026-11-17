@@ -1,5 +1,4 @@
 .pragma library
-// The icon set: SVG path data on a 24x24 grid, drawn as 2 px round strokes.
 var ICONS = {
     port: 'M3 8h18v5l-3 3H6l-3-3z',
     flask: 'M9 3h6M10 3v6L5 18a2 2 0 0 0 1.8 3h10.4A2 2 0 0 0 19 18l-5-9V3M7.5 14h9',
@@ -43,7 +42,6 @@ var ICONS = {
     shortcut: 'M14 4h6v6M20 4l-9 9M18 14v6H4V6h6',
     cast: 'M3 8V5h18v14h-6M3 12a7 7 0 0 1 7 7M3 16a3 3 0 0 1 3 3M3 19h.01',
     gamepad: 'M7 8h10a5 5 0 0 1 4.6 7l-.8 2a2.5 2.5 0 0 1-4.3.5L15 16H9l-1.5 1.5a2.5 2.5 0 0 1-4.3-.5l-.8-2A5 5 0 0 1 7 8zM8 11v3M6.5 12.5h3M15.5 12h.01M17.5 13.5h.01',
-    // The Settings boards' icons.
     sun: 'M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zM12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4',
     half: 'M12 3a9 9 0 1 0 0 18zM12 3a9 9 0 0 1 0 18',
     thermo: 'M14 14V4a2 2 0 0 0-4 0v10a4 4 0 1 0 4 0z',
@@ -68,7 +66,6 @@ var ICONS = {
     shield: 'M12 3l8 3v6c0 4.5-3.4 8-8 9-4.6-1-8-4.5-8-9V6zM9 12l2 2 4-4',
     volume: 'M11 5L6 9H2v6h4l5 4zM15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14',
     screenOff: 'M12 3v9M6.4 6.4a8 8 0 1 0 11.2 0',
-    // The PIN prompt board's lock, and Wi-Fi signal by strength (wifi is full).
     lock: 'M7 11h10a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-6a2 2 0 0 1 2-2zM8 11V8a4 4 0 0 1 8 0v3',
     wifi1: 'M8.5 16a5 5 0 0 1 7 0M12 19.5h.01',
     wifi2: 'M5 12.5a10 10 0 0 1 14 0M8.5 16a5 5 0 0 1 7 0M12 19.5h.01',

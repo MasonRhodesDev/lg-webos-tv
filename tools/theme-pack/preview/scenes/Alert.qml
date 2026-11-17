@@ -1,9 +1,5 @@
 import QtQuick 2.4
 
-// LG's alert view as a part sees it (objectName alertView, beside the toast view under the compositor root): a model
-// of alerts ({ alertInfo: { title, message, modal, buttons: [{ label }] } }) and an Alert delegate per row carrying
-// those fields, its buttons (LG's Button: widthBasis, highlighted) and buttonClicked/closeClicked. A state fills the
-// model as LG's notification service would and puts LG's focus on a button.
 Item {
     id: scene
     property string part: "Alert.qml"
