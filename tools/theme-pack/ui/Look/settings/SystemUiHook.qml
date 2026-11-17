@@ -1,15 +1,6 @@
 import QtQuick 2.4
 import ".."
 
-// Hook A (SETTINGS-PLAN.md section 2): everything that opens LG's Quick Settings (the gear button, the picture-mode
-// and sleep hotkeys, showQuickSettings, voice) opens our quick sheet instead. LG's system UI manager (objectName
-// systemUIManager, a child of the compositor root) loads each system UI from its `config.appinfo` table; we give it
-// a copy of LG's table whose Quick Settings entry loads QuickSettingsEntry.qml. Assigning `config` cuts LG's binding
-// to configd's value, so the copy is made again whenever configd's value changes.
-// The copy also carries entries of our own (`extra`), new ids LG's manager then loads on any systemUIManager/launch:
-// dev.themepack.home, which the Home key's filter launches (HomeEntry.qml). One hook owns the table; a second one
-// assigning it would fight this one.
-// On the TV a running compositor honours the copied table at once, and a replacement layer's hook takes it over.
 QtObject {
     id: hook
     property Item host
@@ -17,7 +8,6 @@ QtObject {
     readonly property string quickSettings: "com.webos.app.quicksettings"
     property var manager: null
     property bool applied: false
-    // Our own entries, appended to LG's table. Plain values: LG's manager keeps them after this layer is gone.
     property var extra: [{ "id": "dev.themepack.home", "defaultWindowType": "overlay", "main": String(Qt.resolvedUrl("HomeEntry.qml")) }]
 
     function findManager() {
@@ -26,13 +16,11 @@ QtObject {
         return null;
     }
 
-    // LG's own table: configd's value once it has answered, else the manager's built-in default.
     function source() {
         var s = host.systemSettings, v = s && s.systemUIManager;
         return v && v.appinfo ? v : original;
     }
 
-    // configd answers after the layer starts; until then the table is empty and the hook waits for it.
     property bool waiting: false
     function apply() {
         if (restored) return;
@@ -69,8 +57,6 @@ QtObject {
         applied = true;
     }
 
-    // Gives LG back its own table (configd's value, or the one it had): the host is going, or a launch found no host.
-    // After a restore the hook stays off: configd's later answers no longer re-apply it.
     property bool restored: false
     function restore() {
         if (restored) return;

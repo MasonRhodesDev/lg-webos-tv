@@ -1,10 +1,6 @@
 import QtQuick 2.4
 import ".."
 
-// Our alert dialog (SmokeAlert board): an app's or the system's question with buttons ("USB drive removed"). LG's
-// alert view keeps its logic (the notification service, stacking, timeouts, focus and keys, button actions); this
-// draws the alert LG has focused and shows which of its buttons has focus. LG's own pointer areas stay where LG put
-// them; a click on one of ours is handed to LG's alert, so it does what a click on LG's button does.
 Item {
     id: part
     property Item lg: null
@@ -13,8 +9,6 @@ Item {
     function claims(item) { return item.objectName === "alertView" && item.model !== undefined && item.modalAlertsVisible !== undefined; }
 
     readonly property int count: lg && lg.model ? lg.model.count : 0
-    // LG's delegate for the alert in front (an Alert item), and its buttons in order. Delegates come a frame after
-    // the model changes, so they are looked up once the frame has passed.
     property Item alert: null
     property var lgButtons: []
     onCountChanged: pick.restart()

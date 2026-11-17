@@ -3,18 +3,6 @@ import QtQuick.Window 2.2
 import Look 1.0
 import Preview 1.0
 
-// Renders a scene at 1920x1080 over a stand-in picture and saves it:
-//   qml Shot.qml -- SCENE.qml PAYLOAD_JSON OUT.png [STATE]
-//   qml Shot.qml -- SCENE.qml PAYLOAD_JSON --states      (prints the scene's state names and frame, for render.mjs)
-//
-// A scene is an Item. It names what to draw in one of three ways:
-//   - `part: "VolumeBar.qml"` and `lg`: one part from ui/Look/parts, given LG's item as the part sees it.
-//   - `parts: [{ part: "Toast.qml", lg: item }, ...]`: several parts; `lg` may be left out for a part of our own.
-//   - neither: the scene draws itself (a whole menu of our own); it is laid over the picture.
-// A scene may declare QML `states` (what LG's item is doing: a row focused, a picker open); STATE applies one by name.
-// The base state is rendered too, unless the scene sets `property bool baseShot: false` (preview/states.mjs).
-// A scene may set `frame` (a rect) to the part of the shot that matters, which the contact sheet shows.
-// A part with `claims` must claim its `lg`, so a mock can't drift from what the part looks for on the TV.
 Window {
     id: win
     width: 1920; height: 1080
@@ -75,7 +63,6 @@ Window {
         ready.start();
     }
 
-    // The style's font loads asynchronously; a shot taken before it would show the system font.
     readonly property bool fontWanted: { var s = Fixture.payload.style; return !!(s && s.font && s.font.files && s.font.files.length && Fixture.payload.fonts); }
     Timer {
         id: ready
@@ -83,8 +70,6 @@ Window {
         repeat: true
         onTriggered: if (!win.fontWanted || Look.font !== "") { stop(); shoot.start(); }
     }
-    // A scene that throws never reaches the shot; give up rather than hang. Shots run several at once on software GL, so a
-    // loaded machine can take well over 15 s to get one out; this is a hang limit, not a speed requirement.
     Timer { interval: 120000; running: true; onTriggered: win.fail("no shot after 120 s" + (win.fontWanted && Look.font === "" ? " (the style's font never loaded)" : "")) }
     Timer {
         id: shoot

@@ -1,8 +1,6 @@
 import QtQuick 2.4
 import ".."
 
-// Work going on: a turning three-quarter ring in the ink it sits on, the size of an icon. Shown in
-// a row while it scans or connects (ListRow `busy`); turns only while visible.
 Canvas {
     id: busy
     property color color: Look.color("ink-2")

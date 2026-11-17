@@ -1,6 +1,5 @@
 import QtQuick 2.4
 
-// LG's VolumeMute (a child of the Volume item) as the part sees it: shown while the sound stays muted.
 Item {
     property string part: "VolumeMute.qml"
     property rect frame: Qt.rect(1440, 0, 480, 270)

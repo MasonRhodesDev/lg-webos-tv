@@ -1,8 +1,3 @@
-# verify-remote.sh: read-only probe, run on the TV by verify.sh (busybox sh).
-# verify.sh prepends the data variables (TARGETS, LISTEN_ALLOW, SETTINGS,
-# SENTINELS, EULA_KEYS, ALLOW_REMOTE). Prints lines starting OK / WARN /
-# FAIL / INFO. Writes nothing: luna-send runs under script(1) with
-# /dev/null as the typescript.
 PATH=/usr/sbin:/usr/bin:/sbin:/bin
 MARKER="# telemetry-off: LG telemetry blackhole"
 ok() { echo "OK   $*"; }
@@ -108,7 +103,6 @@ echo "== bind mounts over the rootfs (all, not only ours)"
 awk '$2 ~ /^\/(usr|etc|lib|bin|sbin)\// && $2 !~ /^\/usr\/(share\/fonts|lib\/nyx\/modules)$/ { print "INFO   " $1 " on " $2 }' /proc/mounts
 
 echo "== sockets"
-# /proc/net/{tcp,udp}{,6}: established/connected peers and listeners.
 sockets=$(for f in tcp udp tcp6 udp6; do
     [ -f /proc/net/$f ] || continue
     awk -v proto=$f -v allow="$LISTEN_ALLOW" -v allowremote="$ALLOW_REMOTE" '

@@ -1,10 +1,4 @@
 #!/usr/bin/env bash
-# tv-probe — read B9 state over SSH (uptime, NVM arm bytes, hib header).
-# Idempotent. Read-only. Uses one SSH session.
-#
-# Usage:
-#   TV_HOST=<tv-address> ./tools/tv-probe
-#   TV_HOST=<tv-address> ./tools/tv-probe --save state.txt
 
 set -euo pipefail
 

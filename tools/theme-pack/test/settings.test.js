@@ -5,8 +5,6 @@ const path = require('node:path');
 const vm = require('node:vm');
 const { spawnSync } = require('node:child_process');
 
-// Our own Settings: the generated catalog module, the page framework's tree, and the key-driven navigation test in
-// the preview harness (Qt 5's qmltestrunner: QML_TEST_BIN, default qmltestrunner-qt5 or qmltestrunner).
 const dir = path.join(__dirname, '..');
 const lib = (f, ctx) => vm.runInContext(fs.readFileSync(path.join(dir, 'ui/Look/settings', f), 'utf8')
   .replace(/^\.pragma library$/m, '').replace(/^\.import .*$/mg, ''), ctx);
@@ -19,7 +17,7 @@ function modules() {
 function onPath(name) {
   if (name.indexOf('/') >= 0) return fs.existsSync(name) ? name : null;
   for (const d of (process.env.PATH || '').split(path.delimiter)) {
-    try { fs.accessSync(path.join(d, name), fs.constants.X_OK); return path.join(d, name); } catch (e) { /* next */ }
+    try { fs.accessSync(path.join(d, name), fs.constants.X_OK); return path.join(d, name); } catch (e) { }
   }
   return null;
 }
@@ -41,7 +39,6 @@ test('every page and item our menu names exists, and every catalog page is reach
     if (r.page) assert.ok(P.exists(r.page), id + ': page ' + r.page);
   }
   for (const c of M.categories) assert.ok(M.pages[c.page], 'category ' + c.id + ' has a designed page');
-  // Walk the tree from the categories through every page link.
   const seen = new Set(), todo = M.categories.map((c) => c.page);
   const store = { state: (ref) => ({ item: C.items[ref] || M.extra[ref], visible: true, active: true, label: '', options: [], min: 0, max: 1, step: 1 }),
                   holds: () => true, item: (ref) => C.items[ref] || M.extra[ref] };
@@ -102,13 +99,11 @@ test('the footer and Privacy and terms claim only what LG\'s eulaStatus reply an
   assert.strictEqual(M.valueLabel('agreements', stringTrue), 'Accepted');
 });
 
-// The Look page's rows, from the service's answer as Look.qml holds it.
 const lookWith = (chosen, themes) => ({ chosen, available: { styles: [{ id: 'smoke', name: 'Smoke' }], themes } });
 const plainRows = (rows) => JSON.parse(JSON.stringify(rows));
 
 test('the Look page keeps one themes list when the service lists no seasonal theme', () => {
   const { P } = modules();
-  // An older service: no group, no auto.
   const rows = plainRows(P.lookRows(null, lookWith({ style: 'smoke', themes: ['winter'] },
     [{ id: 'glow', name: 'Glow', description: 'A glow' }, { id: 'winter', name: 'Winter' }])));
   assert.deepStrictEqual(rows.map((r) => r.section || r.label), ['Style', 'Smoke', 'Themes', 'Glow', 'Winter']);
@@ -134,7 +129,6 @@ test('picking a seasonal theme replaces the seasonal themes that are on; the cal
   const themes = [{ id: 'glow', name: 'Glow', group: 'custom' }, { id: 'mine', name: 'Mine' },
     { id: 'winter', name: 'Winter', group: 'seasonal' }, { id: 'christmas', name: 'Christmas', group: 'seasonal' },
     { id: 'autumn', name: 'Autumn', group: 'seasonal' }];
-  // What the calendar left on when Automatic was turned off: a season and a holiday.
   const L = lookWith({ style: 'smoke', themes: ['winter', 'glow', 'christmas', 'mine'], auto: false, skip: ['autumn'] }, themes);
   assert.deepStrictEqual(plainRows(P.seasonPicked(L, 'autumn')), ['glow', 'mine', 'autumn']);
   assert.deepStrictEqual(plainRows(P.seasonPicked(L, '')), ['glow', 'mine']);
@@ -148,7 +142,6 @@ test('picking a seasonal theme replaces the seasonal themes that are on; the cal
   assert.strictEqual(quiet.find((r) => r.kind === 'auto').hint, 'Nothing is in season today');
 });
 
-// The clock: the TV's time (seconds, UTC) and its zone (minutes ahead of UTC) as the Time and date page shows them.
 const clock = () => { const K = vm.createContext({}); lib('clock.js', K); return K; };
 
 test('the clock\'s parts come from the TV\'s time and zone offset, whatever zone this runs in', () => {
@@ -157,11 +150,9 @@ test('the clock\'s parts come from the TV\'s time and zone offset, whatever zone
   const east = plainRows(K.parts(utc, -300));
   assert.deepStrictEqual(east, { year: 2026, month: 11, day: 11, hour: 21, minute: 41, second: 5, weekday: 3 });
   assert.strictEqual(K.utcOf(east, -300), utc);
-  // The same moment further east is already the next day.
   const tokyo = plainRows(K.parts(utc, 540));
   assert.deepStrictEqual([tokyo.day, tokyo.hour, tokyo.weekday], [12, 11, 4]);
   assert.strictEqual(K.utcOf(tokyo, 540), utc);
-  // A boot without a network: the first second of 2019, UTC.
   const boot = K.parts(Date.UTC(2019, 0, 1) / 1000, -480);
   assert.strictEqual(K.dateLabel(boot) + ' ' + K.timeLabel(boot, false), 'Mon, Dec 31, 2018 4:00 PM');
   assert.strictEqual(K.dateLabel(east), 'Wed, Nov 11, 2026');
@@ -212,7 +203,6 @@ test('a part of the clock is a stepper row that wraps, and is greyed until the c
   assert.strictEqual(P.steppedTo(Object.assign({}, minute, { index: 59 }), 1), 0);
   const hour = plainRows(P.row(spec('clockHour'), store(true, 'off'), 0));
   assert.deepStrictEqual([hour.options[hour.index], hour.values[hour.index]], ['9 PM', 21]);
-  // Automatic time owns the clock: the parts show, greyed, and say how to change them.
   const held = plainRows(P.row(spec('clockMinute'), store(true, 'on'), 0));
   assert.deepStrictEqual([held.disabled, held.hint, held.options[held.index]], [true, 'Turn off Automatic to set it', '41']);
   const unread = plainRows(P.row(spec('clockYear'), store(false, 'off'), 0));

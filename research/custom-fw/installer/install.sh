@@ -1,25 +1,4 @@
 #!/usr/bin/env bash
-# install.sh — flash a built hib image to the B9 and set the two
-# "resume pending" bytes in the env partition.
-#
-# Usage:
-#   TV_HOST=<tv-address> ./installer/install.sh path/to/hib.img
-#   TV_HOST=<tv-address> ./installer/install.sh           # uses payload/build/hib.img
-#
-# Environment:
-#   TV_HOST    required (user@ip for ssh)
-#   SSH_OPTS   extra options to ssh (e.g. -i <keyfile>)
-#   NO_BACKUP  set to 1 to skip the runtime backup step (not recommended)
-#
-# What it does:
-#   1. Pulls p11 (env) + p48 (hib) from the TV into
-#      installer/backups-runtime/<timestamp>/. This is a second backup;
-#      the repo's committed backups/*.pre-install.bin is the first.
-#   2. dd's the hib image to /dev/mmcblk0p48.
-#   3. Writes 0x53 ('S') at p11[0x1AB] and 0x01 at p11[0x989].
-#   4. sync, verify.
-#
-# Rollback: installer/uninstall.sh with the same TV_HOST.
 
 set -euo pipefail
 

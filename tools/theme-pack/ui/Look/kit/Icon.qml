@@ -2,7 +2,6 @@ import QtQuick 2.4
 import ".."
 import "icons.js" as Icons
 
-// One icon from the kit's set (icons.js), or raw path data on the same 24x24 grid, stroked in `color`.
 Canvas {
     id: icon
     property string name
@@ -18,8 +17,6 @@ Canvas {
     onColorChanged: requestPaint()
     onStrokeChanged: requestPaint()
     onWidthChanged: requestPaint()
-    // On the TV a paint made while hidden or before the canvas is ready may never reach the screen, so it paints
-    // again whenever it becomes ready or shows.
     onAvailableChanged: if (available) requestPaint()
     onVisibleChanged: if (visible) requestPaint()
 

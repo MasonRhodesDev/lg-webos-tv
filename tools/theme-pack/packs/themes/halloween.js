@@ -1,13 +1,10 @@
 (function () {
-  // Haunted night: a moonlit dusk with bats behind everything, cobwebs gathering in corners, a graveyard along the
-  // bottom edge, jack-o'-lantern orange for light, spiders on the switches and a pumpkin on every slider.
   var INK = '#1A0F24';
   var BAT = 'M2 12c3-1 4-4 6-2 1-2 2.5-2 4 1 1.5-3 3-3 4-1 2-2 3 1 6 2-3 0-5 2-6 4-1-1.5-2.5-1.5-4 0-1.5-1.5-3-1.5-4 0-1-2-3-4-6-4z';
   function bat(x, y, s, o) {
     return '<svg style="position:absolute;left:' + x + 'px;top:' + y + 'px;opacity:' + o + '" width="' + s + '" height="' + s +
       '" viewBox="0 0 24 24" aria-hidden="true"><path d="' + BAT + '" fill="' + INK + '"></path></svg>';
   }
-  // The dusk fades out by 60 % of the height; the moon (180 px, at 880, 70) carries its own halo.
   var SKY = '<svg style="position:absolute;left:0px;top:0px" width="1920" height="1080" viewBox="0 0 1920 1080" aria-hidden="true">' +
       '<defs><linearGradient id="tp-hw-dusk" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#280A3C" stop-opacity="0.35"></stop>' +
       '<stop offset="0.6" stop-color="#280A3C" stop-opacity="0"></stop></linearGradient></defs>' +
@@ -42,7 +39,6 @@
     '<circle cx="20" cy="22" r="10" fill="' + INK + '"></circle><circle cx="20" cy="12" r="6" fill="' + INK + '"></circle>' +
     '<circle cx="17.6" cy="11" r="1.6" fill="#FF8A1F"></circle><circle cx="22.4" cy="11" r="1.6" fill="#FF8A1F"></circle></svg>';
 
-  // A graveyard in the bottom overscan strip, under the input ribbon: a low hill, headstones and lit pumpkins.
   var GRAVEYARD = (function () {
     var stones = '', pumpkins = '';
     var at = [[150, 22, 18], [330, 30, 22], [610, 20, 16], [880, 26, 20], [1180, 22, 18], [1420, 32, 22], [1690, 24, 18]];

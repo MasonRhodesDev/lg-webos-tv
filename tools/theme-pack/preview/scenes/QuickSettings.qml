@@ -1,8 +1,6 @@
 import QtQuick 2.4
 import "lg"
 
-// LG's Quick Settings as a part sees it: the full-screen `windowContent` FocusScope (numButtons, utils,
-// selectedButton, stringTable) and its panel Column, whose children are the rows plus spacer Rectangles.
 Item {
     id: scene
     property string part: "QuickSettings.qml"
@@ -147,7 +145,6 @@ Item {
         }
     }
 
-    // Base: open, focus on the first row.
     states: [
         State { name: "focus-first"; StateChangeScript { script: picture.forceActiveFocus() } },
         State {

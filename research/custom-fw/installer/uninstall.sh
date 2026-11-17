@@ -1,15 +1,4 @@
 #!/usr/bin/env bash
-# uninstall.sh — restore p48 and p11 from backups.
-#
-# Usage:
-#   TV_HOST=<tv-address> ./installer/uninstall.sh
-#
-# Default backup source order:
-#   1. installer/backups-runtime/<latest>/   (made by install.sh)
-#   2. backups/*.pre-install.bin             (committed baseline)
-#
-# Override with:
-#   P11=path/to/p11.bin P48=path/to/p48.bin ./installer/uninstall.sh
 
 set -euo pipefail
 
@@ -20,7 +9,6 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT="$(cd "$HERE/.." && pwd)"
 
 pick_backup() {
-    # $1 = runtime filename, $2 = fallback filename
     local runtime="$HERE/backups-runtime"
     if [ -d "$runtime" ]; then
         local latest

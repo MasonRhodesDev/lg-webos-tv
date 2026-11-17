@@ -1,12 +1,4 @@
 #!/usr/bin/env bash
-# install — deploy the custom runtime overlay to the TV
-#
-# Usage:
-#   scripts/install              Push init.d script + apply luna settings
-#   scripts/install --dry-run    Show what would happen without touching the TV
-#   scripts/install --remove     Remove the init.d script from the TV
-#
-# Reads TV_HOST and TV_USER from .env.
 
 set -euo pipefail
 
@@ -49,7 +41,6 @@ done
 ssh_cmd() { ssh "${SSH_OPTS[@]}" "${TV_USER}@${TV_HOST}" "$@"; }
 ssh_tty() { ssh -tt "${SSH_OPTS[@]}" "${TV_USER}@${TV_HOST}" "$@" 2>/dev/null; }
 
-# --- Connectivity check ---
 echo "Checking TV at $TV_HOST..."
 if ! ssh_cmd 'echo ok' >/dev/null 2>&1; then
     echo "error: cannot reach $TV_HOST via SSH" >&2
@@ -57,7 +48,6 @@ if ! ssh_cmd 'echo ok' >/dev/null 2>&1; then
 fi
 echo "  connected."
 
-# --- Remove mode ---
 if $REMOVE; then
     echo "Removing $INIT_D_DEST..."
     if $DRY_RUN; then
@@ -70,9 +60,6 @@ if $REMOVE; then
     exit 0
 fi
 
-# --- Install mode ---
-
-# 1. Push the init.d script
 echo ""
 echo "=== init.d script ==="
 LOCAL_SCRIPT="$REPO_DIR/$INIT_D_SCRIPT"
@@ -90,7 +77,6 @@ else
     echo "  installed."
 fi
 
-# 2. Push any extra files from the custom section
 if [[ -f "$CONFIG" ]]; then
     echo ""
     echo "=== custom files ==="
@@ -124,7 +110,6 @@ if [[ -f "$CONFIG" ]]; then
         fi
     done
 
-    # 3. Apply luna settings
     echo ""
     echo "=== luna settings ==="
     if $DRY_RUN; then

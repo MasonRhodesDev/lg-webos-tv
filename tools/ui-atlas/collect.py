@@ -1,4 +1,3 @@
-"""Collect per-element facts from the extracted trees. Usage: python3 -I collect.py GUI_DIR OUT_JSON"""
 import json, os, re, sys, subprocess
 
 G = sys.argv[1]
@@ -58,7 +57,6 @@ JSPAIR = re.compile(r"""["']?service["']?\s*:\s*["'](?:(?:luna|palm)://)?([A-Za-
 
 
 def svc_methods(p):
-    """service -> {method -> [files]} from QML Service{} blocks (file-level pairing) and JS {service,method} literals."""
     res = {}
     for f in walk(p):
         if not f.endswith((".qml", ".js")) or "/resources/" in f or "/node_modules/" in f:
@@ -136,7 +134,6 @@ for key, spec in ELEMENTS.items():
         e["appinfo"] = load(ai)
     out[key] = e
 
-# HBC
 hb = {"paths": {}, "luna": {}}
 for sub in ("applications/org.webosbrew.hbchannel", "services/org.webosbrew.hbchannel.service"):
     full = os.path.join(HBC, sub)

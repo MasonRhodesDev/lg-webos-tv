@@ -1,13 +1,6 @@
 pragma Singleton
 import QtQuick 2.4
 
-// The TV's settings services as the preview answers them (SETTINGS-PLAN.md section 4): a US TV (an OLED55B9) watching
-// HDMI 2 at 4K 120 Hz in Filmmaker mode, sound on the TV speakers, on a cable with the internet blocked, LG's data
-// agreements withdrawn, tools/telemetry-off in force, Wi-Fi off, one soundbar paired, the PIN 0000 (the boards'
-// TV). Scenes and tests change `values`, `desc` and
-// `fail` (or `silent`) before or while they run. Addresses are from the documentation ranges (RFC 5737, and RFC 7042
-// for the Bluetooth MACs). Picture's range values are strings, as the real settingsservice answers them; Sound's
-// balance stays a number, and the volume (com.webos.audio) is one, to keep both cases covered.
 QtObject {
     id: fixture
 
@@ -30,8 +23,6 @@ QtObject {
         "lock": { "parentalControl": false, "systemPin": "0000" },
         "network": { "deviceName": "Living room TV" }
     })
-    // Description overrides by "category.key": { visible, active, values: [visible values] }. Anything else is
-    // described from the catalog's domain, every value visible and active.
     property var desc: ({
         "picture.pictureMode": { "values": ["vivid", "normal", "cinema", "sports", "game", "expert1"] },
         "picture.truMotionMode": { "active": false },
@@ -46,11 +37,7 @@ QtObject {
         "wired": { "state": "connected", "ipAddress": "192.0.2.24", "gateway": "192.0.2.1", "onInternet": "no" },
         "wifi": { "state": "disconnected" }
     })
-    // tv.display getHDMIInfo: the current HDMI input's signal.
     property var hdmi: ({ "returnValue": true, "HDMImode": true, "width": 3840, "height": 2160, "frameRate": 120, "scanType": true })
-    // The Home dock's data. eim getAllInputStatus: the inputs, HDMI 2 watched (the foreground app), HDMI 4 renamed by
-    // its owner. applicationManager listLaunchPoints: LG's apps and two installed ones (removable). An app id launched
-    // through applicationManager/launch becomes the foreground app.
     property var inputs: [
         { "id": "AV_1", "label": "AV", "port": 1, "appId": "com.webos.app.externalinput.av1", "connected": true, "activate": false, "modified": false },
         { "id": "HDMI_1", "label": "HDMI 1", "port": 1, "appId": "com.webos.app.hdmi1", "connected": true, "activate": true, "hdmiPlugIn": true, "modified": false },
@@ -65,18 +52,12 @@ QtObject {
         { "id": "org.example.radio", "title": "Radio", "icon": "", "removable": true, "systemApp": false }
     ]
     property string foreground: "com.webos.app.hdmi2"
-    // attachedstoragemanager listDevices: LG's internal stores, and a USB drive once a scene plugs one in.
     property var storage: [{ "deviceId": "INTERNAL_STORAGE_SAMPLE_PHOTO", "deviceUri": "/usr/palm/applications/com.webos.app.photovideo/assets/samplePhoto",
                              "deviceType": "internal sample photo", "deviceName": "Sample photos" }]
     function setForeground(appId) { foreground = appId; notify("", "foreground"); }
 
-    // tv.systemproperty getSystemInfo and systemservice osInfo/query.
     property var system: ({ "modelName": "OLED55B9PUA", "firmwareVersion": "05.40.45", "core_os_release": "4.10.0" })
-    // The Look service's getTelemetry: tools/telemetry-off in force this boot.
     property string telemetryKit: "active"
-    // systemservice getPreferences: the first answer has every key asked for; a later post has only the key that
-    // changed, and no returnValue. The time zone is a whole zone, one of `zones` (getPreferenceValues lists them: on
-    // the TV a few hundred, here a handful, most of them the TV's own country's).
     property var preferences: ({ "useNetworkTime": false, "useNetworkTimeZone": true, "timeFormat": "HH12",
         "timeZone": { "ZoneID": "America/New_York", "City": "New York", "Description": "Eastern Time", "Country": "United States of America",
                       "CountryCode": "US", "offsetFromUTC": -300, "supportsDST": 1, "preferred": true } })
@@ -97,11 +78,7 @@ QtObject {
         return { "ZoneID": id, "City": city, "Description": description, "Country": country, "CountryCode": code,
                  "offsetFromUTC": offset, "supportsDST": dst };
     }
-    // The clock (systemservice time/getSystemTime, time/setSystemTime), in seconds since 1970. It stands still, so a
-    // scene shows the same minute on every run: Wednesday 11 November 2026, 9:41:05 PM in New York.
     property real clockUtc: Date.UTC(2026, 10, 12, 2, 41, 5) / 1000
-    // The zone's offset at the clock's time, in minutes: an hour on from April to October where the zone keeps
-    // daylight saving (near enough for a preview).
     function clockOffset() {
         var z = preferences.timeZone, month = new Date((clockUtc + z.offsetFromUTC * 60) * 1000).getUTCMonth();
         return z.offsetFromUTC + (z.supportsDST && month >= 3 && month <= 9 ? 60 : 0);
@@ -122,7 +99,6 @@ QtObject {
         }
         return n ? out : null;
     }
-    // Wi-Fi as com.webos.service.wifi answers it (off, as on the boards; its networks show once a scene turns it on). `password` is what each secured network takes.
     property string wifiState: "serviceDisabled"
     property var networks: [
         { "ssid": "Home", "signalBars": 4, "availableSecurityTypes": ["psk"], "profileId": 1, "connectState": "ipConfigured", "password": "tea4two@" },
@@ -132,10 +108,6 @@ QtObject {
         { "ssid": "Garage", "signalBars": 2, "availableSecurityTypes": ["psk"], "password": "wrench12" }
     ]
     property int nextProfile: 3
-    // Bluetooth as the real TV answers com.webos.service.bluetooth2/device/getStatus: paired devices with their class
-    // (major class 4 is audio), the magic remote among them (BLE, "LGE MR19"). Connected means connectedProfiles is
-    // not empty. Actions go to com.webos.service.btaudiosrc, as LG's Settings sends them; `nearby` is what its search
-    // finds.
     property var btDevices: [
         { "address": "00:00:5E:00:53:01", "name": "Living room soundbar", "paired": true, "typeOfDevice": "bredr",
           "classOfDevice": 2360320, "connectedProfiles": ["a2dp"], "trusted": false, "blocked": false, "rssi": 0 },
@@ -147,12 +119,8 @@ QtObject {
                          "connectedProfiles": connected ? ["a2dp"] : [], "trusted": false, "blocked": false, "rssi": 0 });
     }
     property var btNearby: [{ "address": "00:00:5E:00:53:03", "name": "Headphones", "type": "headset" }]
-    // Keys ("category.key", "sleepTimer", "volume", "wifi.connect", "wifi.forget", "wifi.state", "bt.connect",
-    // "bt.disconnect", "bt.forget", "bt.search", "clock", "prefs.<key>") whose next write fails, to show the rollback.
     property var fail: ({})
-    // Keys whose writes are never answered (a call the bus drops), to show the timeout rollback.
     property var silent: ({})
-    // Every call made, for tests: [{ uri, method, params }]. Toasts (com.webos.notification/createToast) are in it too.
     property var calls: []
     property var subs: []
 
@@ -180,8 +148,6 @@ QtObject {
         return { "returnValue": true, "results": results };
     }
 
-    // Posts to the subscribers of one thing. For "prefs", `name` is the preference that changed (none: every one a
-    // subscriber asked for).
     function notify(category, key, name) {
         for (var i = 0; i < subs.length; i++) {
             var s = subs[i];
@@ -274,7 +240,6 @@ QtObject {
     function handleBt(svc, method, p) {
         var i, d;
         if (method === "/getPairedDevices") {
-            // The real TV leaves this unanswered; nothing of ours may need it.
             return;
         } else if (method === "/startDiscovery") {
             if (failing("bt.search", svc, method)) return;
@@ -309,7 +274,6 @@ QtObject {
         }
     }
 
-    // Returns false for calls that are not the settings services'.
     function handle(svc, uri, method, params) {
         var p = params ? JSON.parse(params) : {};
         var service = uri.replace(/^(luna|palm):\/\//, "");
@@ -409,7 +373,6 @@ QtObject {
             if (failing("clock", svc, method)) return true;
             clockUtc = p.utc;
             answer(svc, method, { "returnValue": true });
-            // A set posts to the subscribers too (with no returnValue).
             notify("", "clock");
         } else {
             answer(svc, method, { "returnValue": true });

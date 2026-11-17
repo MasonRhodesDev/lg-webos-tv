@@ -2,13 +2,6 @@ import QtQuick 2.4
 import ".."
 import "keys.js" as KeyMap
 
-// Our on-screen keyboard (the Keyboard board): four rows of Keys, `key-gap` apart and centred, driven by the D-pad.
-// Letters, with Shift for one capital, and "123" for digits and symbols (Shift there for more). Data out, no text of
-// its own: typed(ch), erased(), done(), back(). Up/Down move to the nearest key in the next row; OK presses; the
-// remote's digit keys and a USB keyboard's characters type straight in. The finishing key carries the current bar.
-//
-// Ours, not LG's Maliit keyboard: Maliit is its own process (MaliitServer) drawing a Wayland surface of its own
-// type, which only text inputs of client apps summon; our layer's QML is inside the compositor and is no such client.
 FocusScope {
     id: board
     property string doneLabel: "Done"
@@ -24,7 +17,6 @@ FocusScope {
     signal done()
     signal back()
 
-    // Wide keys, as the board draws them, in key widths.
     readonly property var wide: ({ "shift": 230 / 132, "erase": 230 / 132, "layout": 230 / 132, "space": 760 / 132, "done": 300 / 132 })
     function chars(s) { var out = []; for (var i = 0; i < s.length; i++) out.push({ "op": "char", "label": s.charAt(i) }); return out; }
     function op(name, label) { return { "op": name, "label": label }; }
@@ -55,7 +47,6 @@ FocusScope {
     width: implicitWidth
     height: implicitHeight
 
-    // Where a key is, by its name: { row, col } or null.
     function locate(label) {
         for (var r = 0; r < rows.length; r++) for (var c = 0; c < rows[r].length; c++) if (rows[r][c].label === label) return { "row": r, "col": c };
         return null;
@@ -80,11 +71,9 @@ FocusScope {
         else if (k.op === "layout") { layout = layout === "letters" ? "symbols" : "letters"; shifted = false; col = Math.min(col, rows[row].length - 1); }
         else if (k.op === "done" && doneEnabled) done();
     }
-    // Opening again starts on the letters, focus on the first key.
     function reset() { layout = "letters"; shifted = false; row = 0; col = 0; }
 
     Keys.onPressed: {
-        // A USB keyboard's Backspace erases here; the remote's Back still closes.
         if (event.key === Qt.Key_Backspace) { erased(); event.accepted = true; return; }
         var k = KeyMap.nav(event, Qt);
         if (k === "up") moveRow(-1);

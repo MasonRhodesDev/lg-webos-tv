@@ -1,11 +1,6 @@
 import QtQuick 2.4
 import ".."
 
-// A line of text being typed (the Keyboard board): a `surface` box `field-h` tall, radius `r-row`, the text in the
-// `entry` role with a caret in the focus colour after it, and, with a `maxLength`, a count ("9 / 20") beside it. While
-// `active` (it takes what the keyboard types) its edge is `active-w` in `focus-edge`; otherwise the surface edge.
-// `secret` shows dots, all but the last character typed, so a password can be checked as it goes in.
-// Data in: `text` is the surface's; the field never changes it.
 Item {
     id: field
     property string text
@@ -44,7 +39,6 @@ Item {
                 color: field.shown ? Look.color("ink") : Look.color("ink-3")
                 elide: Text.ElideNone
                 anchors.verticalCenter: parent.verticalCenter
-                // Long text scrolls left so the caret stays in view.
                 x: field.shown ? Math.min(0, line.width - caret.width - caret.gap - implicitWidth) : caret.width + caret.gap
             }
             Rectangle {

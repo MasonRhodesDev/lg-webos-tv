@@ -1,17 +1,6 @@
 #!/bin/sh
-# Homebrew Channel boot hook: the TV being switched off during startup is not a crash.
-# Homebrew sets webosbrew_failsafe as startup begins and clears it 10 s after the last init.d hook. A flag still set
-# at the next power-on means "startup crashed", and that boot skips every hook: no SSH, no layer, no Settings stub,
-# no update block. A CEC standby or LG's Quick Start+ (which boots the TV in the background and powers it off within
-# about a minute) can switch the TV off before then, and a suspended startup may never get to clear it.
-# tvpowerd reports every such step down (Active Standby, Suspend, Power Off); the first one during startup clears the
-# flag. The state at subscription is skipped: a Quick Start+ boot starts in Active Standby. Hangs, watchdog resets and
-# panics report nothing, so they still end in failsafe.
-# Runs first; the watch runs in the background and gives up after 3 minutes (99-clear-failsafe has cleared the flag
-# by then, or startup is stuck and failsafe is deserved).
 FLAG=/var/luna/preferences/webosbrew_failsafe
 LOG=/var/lib/webosbrew/clean-poweroff.log
-# The boot hooks ran this boot: failsafe-recover.sh leaves such a boot alone.
 touch /tmp/webosbrew-hooks-ran
 (
   first=1

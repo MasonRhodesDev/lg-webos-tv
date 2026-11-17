@@ -2,7 +2,6 @@ const test = require('node:test');
 const assert = require('node:assert');
 
 const load = () => import('../check-branch.mjs');
-// Built from parts so this file does not itself trip the portability check.
 const ip = (...p) => p.join('.');
 
 test('trailer matcher flags attribution lines and passes ordinary messages', async () => {

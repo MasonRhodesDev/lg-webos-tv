@@ -1,61 +1,4 @@
 #!/usr/bin/env python3
-"""Build a B9 hib partition image that lxboot's snapshot-resume path will
-LZ4-decompress into multiple destination PFNs and ERET to a given entryPC.
-
-Layout (all little-endian):
-
-  0x0000 .. 0x1000           header (zeros except named fields below)
-     0x0F20 u32 magic         = 0x03160326
-     0x0F24 u32 compType       3 (lz4)
-     0x0F28 u32 payloadSize   = metaOff + nBlocks*16 - 0x1000, i.e. size of
-                                 body region [0x1000, trailer_start)
-     0x0F2C u32 blockCount    = N
-     0x0F30 u32 metaOff       = partition-relative start of comp meta table
-     0x0F38 u32 entryPC       = ELR_EL2 for ERET (phys addr, usually = first
-                                 block's start_pfn<<12)
-     0x0F78 u32 depCount      = 0
-
-  0x1000 .. metaOff           N LZ4 raw blocks, each prefixed by a 16-byte
-                              record at metaOff:
-                                 u32 start_pfn  (destination >> 12)
-                                 u32 src_off    (0 for the first block; next
-                                                 = prev_src + prev_size)
-                                 u32 flags      (0; stock format string
-                                                 doesn't reveal this field)
-                                 u32 size       (lz4-compressed bytes)
-
-  metaOff .. trailer_start    N * 16 bytes of comp meta records
-  trailer_start = ALIGN(payloadSize, 16)
-    +0x0000 u32 magic         = 0xABF6178A
-    +0x0004 u32 block_size    = (hashed region size)
-    +0x0008 u32 block_count   = 1       (use single-chunk SHA path)
-    +0x000C u32 reserved      = 0
-    +0x0010 .. +0x2010        reserved space for per-chunk records
-    +0x2010 bytes[0x20]       SHA-256 of body region
-    total trailer size        = 0x2110 (SIG_HDR_SIZE)
-
-Remainder padded with zeros to 150 MiB.
-
-LZ4 compression here produces a literal-only raw block (no frame header, no
-end marker). Per the LZ4 Block Format v1.5.1 this is one or more
-"sequences" of:
-
-    token (1B) : high nibble = literal length prefix
-                 low  nibble = match length prefix (must be 0 since we emit
-                              no match to decode)
-    optional 0xFF literal-length extension bytes
-    literal bytes
-    [match offset + match length — we never emit]
-
-For a block whose last sequence contains only literals and no match, the
-format requires the last 5 bytes to be "end of block" as literals — which
-is implicit if the token's match-length low nibble is 0 and we don't emit
-match offset bytes. The decoder sees no more input and stops. This is the
-"literal-only" trick commonly used for incompressible payloads. The Linux
-kernel's `LZ4_decompress_safe` honors it.
-
-Pure stdlib Python 3.
-"""
 from __future__ import annotations
 import argparse
 import hashlib
@@ -82,14 +25,13 @@ META_REC_SIZE = 16
 
 
 def lz4_literal_only(data: bytes) -> bytes:
-    """Encode `data` as one or more LZ4 raw-block literal-only sequences."""
     out = bytearray()
     i = 0
     n = len(data)
     while i < n:
         chunk_len = min(n - i, 0xFFFF)
         if chunk_len >= 15:
-            token = 0xF0  # literal length prefix = 15, no match
+            token = 0xF0
             out.append(token)
             rem = chunk_len - 15
             while rem >= 0xFF:
@@ -100,10 +42,6 @@ def lz4_literal_only(data: bytes) -> bytes:
             out.append((chunk_len & 0x0F) << 4)
         out.extend(data[i:i + chunk_len])
         i += chunk_len
-    # Per the spec a trailing sequence with no match must not end with a
-    # token followed by nothing; the last 5 bytes must be literals.
-    # If data is < 5 bytes this still works as `LZ4_decompress_safe` doesn't
-    # enforce the "at least 5" when we also don't emit a match.
     return bytes(out)
 
 
@@ -111,7 +49,7 @@ def align_up(x: int, align: int) -> int:
     return (x + align - 1) & ~(align - 1)
 
 
-CHUNK_SIZE = 0x20000  # 128 KiB per meta record, matching stock snapshot layout
+CHUNK_SIZE = 0x20000
 
 
 def pack(
@@ -123,8 +61,6 @@ def pack(
     if len(blocks) < 1:
         raise SystemExit("need at least one block")
 
-    # Split each input into CHUNK_SIZE-bounded sub-blocks so individual
-    # meta records stay close to stock's observed size.
     chunked: list[tuple[int, bytes]] = []
     for dest, src in blocks:
         raw = src.read_bytes()
@@ -134,23 +70,17 @@ def pack(
             chunked.append((dest + off, piece))
             off += CHUNK_SIZE
 
-    # Compress each chunk with literal-only LZ4
     comp_blobs: list[bytes] = []
     for _, piece in chunked:
         comp_blobs.append(lz4_literal_only(piece))
 
-    # From here on, treat `chunked` as the real block list for layout.
     blocks = [(dest, Path("<chunk>")) for dest, _ in chunked]
-    _chunk_data = chunked  # for later
+    _chunk_data = chunked
 
-    # Layout: body at 0x1000, blocks concatenated, then meta table.
     body_streams_size = sum(len(c) for c in comp_blobs)
-    meta_off_partition_rel = PAGE + body_streams_size  # metaOff in header
+    meta_off_partition_rel = PAGE + body_streams_size
     meta_size = len(blocks) * META_REC_SIZE
-    body_end = meta_off_partition_rel + meta_size  # end of body = raw trailer pos
-    # payloadSize at 0xF28 stores the trailer partition offset (not body
-    # length). Confirmed against the single-block hib: meta_off + 16 = 0x2030
-    # which matches trailer position.
+    body_end = meta_off_partition_rel + meta_size
     payload_size = body_end
     trailer_abs = align_up(payload_size, 16)
     trailer_end = trailer_abs + SIG_HDR_SIZE
@@ -165,7 +95,6 @@ def pack(
     def wr32(off: int, v: int) -> None:
         struct.pack_into("<I", img, off, v & 0xFFFFFFFF)
 
-    # Header
     wr32(HDR_MAGIC_OFF, MAGIC)
     wr32(HDR_COMPTYPE_OFF, COMPTYPE_LZ4)
     wr32(HDR_PAYLOAD_SIZE_OFF, payload_size)
@@ -174,28 +103,24 @@ def pack(
     wr32(HDR_ENTRY_OFF, entry_pc)
     wr32(HDR_DEPCOUNT_OFF, 0)
 
-    # Compressed body
     cursor = PAGE
     src_offsets = []
     for comp in comp_blobs:
-        src_offsets.append(cursor - PAGE)  # record is relative to body start
+        src_offsets.append(cursor - PAGE)
         img[cursor:cursor + len(comp)] = comp
         cursor += len(comp)
 
-    # Comp meta table
     for i, ((dest_phys, _), comp) in enumerate(zip(blocks, comp_blobs)):
         r = meta_off_partition_rel + i * META_REC_SIZE
         pfn = (dest_phys >> 12) & 0xFFFFF
         struct.pack_into("<IIII", img, r,
                          pfn, src_offsets[i], 0, len(comp))
 
-    # Trailer
     wr32(trailer_abs + 0, TRAILER_MAGIC)
-    wr32(trailer_abs + 4, trailer_abs - PAGE)  # hashed region size
-    wr32(trailer_abs + 8, 1)  # block_count = 1 → single-chunk SHA path
+    wr32(trailer_abs + 4, trailer_abs - PAGE)
+    wr32(trailer_abs + 8, 1)
     wr32(trailer_abs + 12, 0)
 
-    # Compute SHA-256 over the hashed region BEFORE writing the trailer bytes
     sha = hashlib.sha256(bytes(img[PAGE:trailer_abs])).digest()
     img[trailer_abs + 0x2010:trailer_abs + 0x2010 + 32] = sha
 
@@ -210,9 +135,7 @@ def pack(
     print(f"  entryPC        @0x{HDR_ENTRY_OFF:04x} = 0x{entry_pc:08x}")
     print(f"  trailer        @0x{trailer_abs:x}")
     print(f"  body SHA-256   = {sha.hex()}")
-    # Summarise by source: run-length-compress consecutive chunks that go to
-    # adjacent destinations.
-    runs: list[tuple[int, int, int, int]] = []  # (dest, count, raw_total, lz4_total)
+    runs: list[tuple[int, int, int, int]] = []
     for (dest_phys, _), piece, comp in zip(blocks, [p for _, p in _chunk_data], comp_blobs):
         if runs and runs[-1][0] + runs[-1][1] * CHUNK_SIZE == dest_phys:
             d, c, r, l = runs[-1]
@@ -224,7 +147,6 @@ def pack(
 
 
 def parse_block_arg(s: str) -> tuple[int, Path]:
-    # format: HEXADDR:PATH
     if ":" not in s:
         raise SystemExit(f"expected HEXADDR:PATH, got {s!r}")
     addr_s, path_s = s.split(":", 1)

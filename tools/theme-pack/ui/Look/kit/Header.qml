@@ -1,7 +1,6 @@
 import QtQuick 2.4
 import ".."
 
-// A panel's head: an optional breadcrumb (where this page sits), the title, and an optional subtitle at the right.
 Item {
     id: header
     property string title

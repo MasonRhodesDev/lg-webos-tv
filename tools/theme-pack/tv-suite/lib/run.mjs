@@ -1,7 +1,3 @@
-// Runs the scenarios: each one checks its preconditions, presses keys only through the guard (keys.mjs), waits by
-// polling the TV's state (the parts' probes, luna gets), captures, asserts, and cleans up. Before the first scenario
-// the suite takes a baseline of everything it could touch and journals it (journal.mjs); after every scenario it puts
-// the TV back to that baseline and reads every value again to verify it.
 import fs from 'node:fs';
 import path from 'node:path';
 import { guard } from './keys.mjs';
@@ -12,17 +8,11 @@ const SVC = 'luna://dev.themepack.look.service';
 const SS = 'luna://com.webos.settingsservice';
 const QS = 'com.webos.app.quicksettings', PICKER = 'com.webos.app.quickinputpicker';
 
-// What a scenario must leave as it found it. The volume, the Look and the write scenarios' settings are changed on
-// purpose, and put back by the scenario; anything still different afterwards fails it and is restored here.
 export const WATCHED = ['pictureMode', 'energySaving', 'soundOutput', 'soundMode', 'deviceName', 'parentalControl', 'quickStartMode',
   'contrast', 'backlight'];
 
-// How old our Settings' probe may be (seconds by the service's clock): the layer sends it again every second while
-// a menu of ours is open and every five seconds otherwise (Layer.qml).
 export const FRESH = { open: 3, closed: 12 };
 
-// The system UI app in front, from systemUIManager's foregroundAppInfo list: LG's Quick Settings, the input picker,
-// '' for none, or 'unknown' for any other overlay, another shape or no answer (the guard then presses nothing).
 export async function systemUiFront(tv) {
   let a;
   try { a = await tv.luna('luna://com.webos.service.systemUIManager/getForegroundAppInfo', {}); } catch (e) { return 'unknown'; }
@@ -33,8 +23,6 @@ export async function systemUiFront(tv) {
   return ids.includes(QS) ? QS : ids.includes(PICKER) ? PICKER : '';
 }
 
-// A probe from another layer instance than before means the layer restarted: its state is taken only once that
-// instance has sent again (a higher sequence number), so nothing is pressed in the moment after a restart.
 function layerCheck(ctx, m) {
   const L = ctx.layer;
   if (!L.id) { ctx.layer = { id: m.layer, seq: m.seq, confirm: false }; return ''; }
@@ -59,12 +47,10 @@ export function makeCtx({ tv, out, say = console.log, poll = 250, sleep }) {
     results,
     scenario: null,
     notes: {},
-    // The PIN as read at the baseline: compared in memory, never written anywhere.
     secrets: {},
     journal: null,
     keyAt: '',
     keySeq: 0,
-    // The layer instance the probes come from, and its last sequence number (Layer.qml, service.js).
     layer: { id: '', seq: 0, confirm: false },
     aborted: false,
     note(k, v) { ctx.notes[k] = v; },
@@ -75,15 +61,10 @@ export function makeCtx({ tv, out, say = console.log, poll = 250, sleep }) {
       if (ctx.current) ctx.current.checks.push(r);
       return !!ok;
     },
-    // Fails the scenario now.
     must(name, ok, detail) { if (!ctx.check(name, ok, detail)) throw new Error(name + (detail ? ': ' + detail : '')); },
     skip(why) { throw new Skip(why); },
     async luna(uri, payload, opts) { return tv.luna(uri, payload, opts); },
-    // A fallback scenario that deploys the layer without our Settings part sets `fallback` to 'part': the layer's
-    // liveness is then read from the input picker's probe, which every layer sends.
     fallback: '',
-    // What the TV shows, and whether that can be trusted: `fresh` needs our Settings' probe recent by the service's
-    // clock, and newer than the last key pressed.
     async state() {
       const r = await tv.probeRead();
       const p = r.states, m = ctx.fallback === 'part' ? r.meta.InputPicker : r.meta.Settings;
@@ -101,7 +82,6 @@ export function makeCtx({ tv, out, say = console.log, poll = 250, sleep }) {
                mute: p.VolumeMute || null, systemUi, fresh: !stale, stale, now: r.now };
     },
     async settings() { return ((await tv.probes()).Settings) || { quick: {}, menu: {} }; },
-    // Polls `fn` until it returns something truthy; fails with what it last saw.
     async wait(what, fn, { timeout = 8000 } = {}) {
       const end = Date.now() + timeout;
       let last;
@@ -113,7 +93,6 @@ export function makeCtx({ tv, out, say = console.log, poll = 250, sleep }) {
         await ctx.sleep(ctx.poll);
       }
     },
-    // Every key: a fresh state first (waiting a few seconds for one), then the guard, then the press.
     async key(name, allow = {}) {
       if (ctx.aborted) throw new Refused('interrupted');
       let st;
@@ -136,12 +115,11 @@ export function makeCtx({ tv, out, say = console.log, poll = 250, sleep }) {
       fs.mkdirSync(dir, { recursive: true });
       const file = path.join(dir, String(ctx.current.captures.length + 1).padStart(2, '0') + '-' + name + '.png');
       let look = null;
-      try { look = (await tv.luna(SVC + '/getLook', {})).look; } catch (e) { /* recorded without */ }
+      try { look = (await tv.luna(SVC + '/getLook', {})).look; } catch (e) { }
       try { await tv.capture(file); } catch (e) { ctx.check('capture ' + name, false, e.message); return null; }
       ctx.current.captures.push({ name, file: path.relative(ctx.out, file), board: board || null, scene: scene || null, state: shotState || null, look });
       return file;
     },
-    // A file the TV already wrote (a burst frame), saved as a capture.
     async capturePulled(name, remote, extra = {}) {
       const dir = path.join(ctx.out, ctx.scenario.id);
       fs.mkdirSync(dir, { recursive: true });
@@ -153,10 +131,9 @@ export function makeCtx({ tv, out, say = console.log, poll = 250, sleep }) {
     async look() { return (await tv.luna(SVC + '/getLook', {})).look; },
     async setLook(look) { return tv.luna(SVC + '/setLook', { style: look.style, themes: look.themes }); },
     async foreground() { return (await tv.luna('luna://com.webos.applicationManager/getForegroundAppInfo', {})).appId || ''; },
-    // Every app in front: SAM's foreground app and the compositor's windows (LG's Home shows only there).
     async front() {
       const ids = [await ctx.foreground().catch(() => '')];
-      try { for (const w of (await tv.luna('luna://com.webos.surfacemanager/getForegroundAppInfo', {})).foregroundAppInfo || []) ids.push(w.appId); } catch (e) { /* SAM's alone */ }
+      try { for (const w of (await tv.luna('luna://com.webos.surfacemanager/getForegroundAppInfo', {})).foregroundAppInfo || []) ids.push(w.appId); } catch (e) { }
       return ids.filter(Boolean).filter((x, i, a) => a.indexOf(x) === i);
     },
     async volume() {
@@ -172,15 +149,12 @@ export function makeCtx({ tv, out, say = console.log, poll = 250, sleep }) {
   return ctx;
 }
 
-// Everything a scenario must not change, read from the TV: { values, pin }. A value that cannot be read is
-// { unreadable: why }, which never equals anything. The PIN is returned for in-memory comparison only.
 const unreadable = (e) => ({ unreadable: String(e && e.message || e) });
 export async function snapshot(ctx) {
   const v = {};
   const read = async (k, fn) => { try { const x = await fn(); v[k] = x === undefined ? unreadable('no value') : x; } catch (e) { v[k] = unreadable(e); } };
   await read('look', () => ctx.look());
   await read('volume', () => ctx.volume());
-  // Whether the TV is on: someone may turn it off (or an HDMI device may, through CEC) while the suite runs.
   await read('power', async () => {
     const p = await ctx.luna('luna://com.webos.service.tvpower/power/getPowerState', {});
     if (typeof p.state !== 'string') throw new Error(p.errorText || 'no state');
@@ -193,14 +167,11 @@ export async function snapshot(ctx) {
     if (c.returnValue === false) throw new Error(c.errorText || 'refused');
     return { wired: c.wired && c.wired.state, wifi: c.wifi && c.wifi.state, ssid: c.wifi && c.wifi.ssid };
   });
-  // The paired devices and their connected profiles, from bluetooth2 (btaudiosrc does not answer on this firmware).
   await read('bluetooth', async () => ({ paired: await btPaired(ctx.tv) }));
   let pin;
   try { const a = await ctx.tv.luna(SS + '/getSystemSettings', { category: 'lock', keys: ['systemPin'] }); pin = a.settings ? a.settings.systemPin : undefined; } catch (e) { pin = undefined; }
   return { values: v, pin };
 }
-// settingsservice answers range values as strings on the TV ("85"); a value is compared normalised (a numeric string
-// equals its number), and its type is checked apart, since a restore must write it back in the type it was read in.
 export function norm(v) {
   if (typeof v === 'string' && /^-?\d+(\.\d+)?$/.test(v.trim())) return Number(v);
   if (Array.isArray(v)) return v.map(norm);
@@ -212,7 +183,6 @@ export const same = (a, b) => !(a && a.unreadable) && !(b && b.unreadable) && JS
 export const sameType = (a, b) => typeOf(a) === typeOf(b);
 const shown = (x) => (x && x.unreadable ? 'unreadable (' + x.unreadable + ')' : JSON.stringify(x));
 
-// bluetooth2's paired devices as "address profile,profile" lines, sorted (the magic remote is one of them).
 export async function btPaired(tv) {
   const b = await tv.luna('luna://com.webos.service.bluetooth2/device/getStatus', {});
   if (b.returnValue === false || !Array.isArray(b.devices)) throw new Error(b.errorText || 'no devices list');
@@ -220,24 +190,17 @@ export async function btPaired(tv) {
     .map((d) => String(d.address) + ' ' + (Array.isArray(d.connectedProfiles) ? d.connectedProfiles.slice().sort().join(',') : '')).sort();
 }
 
-// The Look service on the TV is older than probing (setProbing unknown): deploy installs the one this suite needs.
 export const DEPLOY_FIRST = 'the Look service on the TV predates probing (setProbing is unknown there): run deploy first';
 export const predatesProbing = (e) => /unknown method|no such method|method .*not found|setProbing.*(unknown|not)/i.test(String(e && e.message || e));
 
-// Puts the TV back to `baseline` (a snapshot's values) and reads everything again: { acted, left }. `left` is what is
-// still not verified as the baseline after the restore, by that second read.
 export async function restoreVerified(ctx, baseline, pin) {
-  // The manual pass's Back steps run on the input the person chose; the person restores the baseline's afterwards.
   if (ctx.foregroundOverride) baseline = Object.assign({}, baseline, { foreground: ctx.foregroundOverride });
   const cur = (await snapshot(ctx)).values, acted = [];
-  // Turned off (or on) meanwhile: nothing is put back over the household's choice, and the run stops; the journal
-  // stays open for a command run once the TV is as it was. (Unreadable is a TV still booting: restored as before.)
   if (baseline.power !== undefined && !(cur.power && cur.power.unreadable) && !same(baseline.power, cur.power)) {
     ctx.aborted = true;
     return { acted, left: ['power: was ' + shown(baseline.power) + ', now ' + shown(cur.power) + ' (the TV was turned off or on meanwhile): nothing is restored and the run stops'] };
   }
   for (const k of Object.keys(baseline)) {
-    // A setting back at its value but in another type (85 for the TV's "85") is written back too.
     const typeOnly = WATCHED.includes(k) && same(baseline[k], cur[k]) && !sameType(baseline[k], cur[k]);
     if ((same(baseline[k], cur[k]) && !typeOnly) || (baseline[k] && baseline[k].unreadable)) continue;
     const was = baseline[k];
@@ -248,13 +211,11 @@ export async function restoreVerified(ctx, baseline, pin) {
         if (!cur.volume || cur.volume.muted !== was.muted) await ctx.luna('luna://com.webos.audio/setMute', { mute: was.muted });
         acted.push(k);
       } else if (k === 'foreground' && was) {
-        // Back to the input or app that was in front: a launch of the same app id, restoring, not switching.
         await ctx.luna('luna://com.webos.applicationManager/launch', { id: was });
         await ctx.sleep(2000);
         acted.push(k);
       } else if (WATCHED.includes(k)) {
         const sk = settingKey(k);
-        // Written back exactly as it was read, in its own type (a string stays a string).
         await ctx.luna(SS + '/setSystemSettings', { category: sk.category, settings: { [sk.key]: was } });
         acted.push(k);
       }
@@ -271,9 +232,6 @@ export async function restoreVerified(ctx, baseline, pin) {
   return { acted, left };
 }
 
-// Closes whatever of ours is open with Back, through the guard (so never on a stale probe or over LG's UI); LG's
-// Quick Settings with closeByAppId; the input picker and LG's Home with Back (closeByAppId leaves both open on the
-// TV), once the guard confirms each is what is in front. Returns why something could not be closed, or ''.
 export const HOME_APP = 'com.webos.app.home';
 export async function closeAll(ctx) {
   let why = '';
@@ -288,7 +246,6 @@ export async function closeAll(ctx) {
   if (!why && st.picker && st.picker.shown) {
     try {
       await ctx.key('BACK', { picker: true });
-      // systemUIManager lists it a moment after it has gone.
       await ctx.wait('the input picker to close', async () => { const s = await ctx.state(); return !(s.picker || {}).shown && s.systemUi !== PICKER; }, { timeout: 12000 });
     } catch (e) { why = 'the input picker could not be closed: ' + e.message; }
   }
@@ -301,7 +258,6 @@ export async function closeAll(ctx) {
   return why;
 }
 
-// Turns the service's probing on and waits for our Settings' probe: nothing is pressed or judged without it.
 export async function probingUp(ctx, timeout = 10000) {
   try { await ctx.tv.setProbing(true); } catch (e) { throw new Error(predatesProbing(e) ? DEPLOY_FIRST : 'the Look service cannot turn probing on (' + e.message + '): deploy this branch first'); }
   const end = Date.now() + timeout;
@@ -318,24 +274,20 @@ export async function probingUp(ctx, timeout = 10000) {
   }
 }
 
-// Takes the baseline and opens the journal, unless one is already open (a nested call: coldboot's and manual's).
 export async function baseline(ctx) {
   if (ctx.journal) return false;
   const b = await snapshot(ctx);
   const bad = Object.keys(b.values).filter((k) => b.values[k] && b.values[k].unreadable);
   if (bad.length) throw new Error('no baseline: ' + bad.map((k) => k + ' is ' + shown(b.values[k])).join('; ') + '. Nothing is changed without one.');
   if (b.values.power !== 'Active') throw new Error('the TV is not on (power state ' + shown(b.values.power) + '): nothing is pressed while it is off');
-  // Without the PIN no change of it could be seen: nothing that presses keys runs.
   if (b.pin === undefined) throw new Error('no baseline: the PIN (lock.systemPin) is unreadable, so a change of it could not be seen. Nothing is changed without it.');
   ctx.journal = journal.open(ctx.tv.host, ctx.out, b.values);
   ctx.secrets.pin = b.pin;
   return true;
 }
 
-// Restores to the journal's baseline and closes the journal once that is verified.
 export async function finish(ctx, owned) {
   const r = await restoreVerified(ctx, ctx.journal.baseline, ctx.secrets.pin);
-  // A broken layer or a removed stub the journal still marks is not undone by a restore of values.
   if (ctx.journal.layer) r.left.push('the layer is still marked broken on purpose');
   if (ctx.journal.stub) r.left.push('the stub is still marked removed');
   if (owned && !r.left.length) { journal.close(ctx.journal); ctx.journal = null; }
@@ -344,7 +296,6 @@ export async function finish(ctx, owned) {
 }
 
 export async function runScenarios(ctx, scenarios) {
-  // Every wait and the key guard read the parts' probes; without them nothing could be checked or pressed safely.
   await probingUp(ctx);
   ctx.tv.resetKeys();
   await ctx.tv.ensureKeys();

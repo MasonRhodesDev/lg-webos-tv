@@ -2,16 +2,10 @@ import QtQuick 2.4
 import "Look"
 import "inject.js" as Inject
 
-// Puts our layer into the compositor that is already running, with no restart. LG's system UI manager loads this file
-// as an overlay (luna://com.webos.service.systemUIManager/launch with this file as `main`); it finds LG's root above
-// itself, creates Look/Layer.qml under it and asks its container to unload it again. Nothing is drawn here.
-// The compositor keeps every QML file it has loaded, by path, so a changed layer has to come from a new path
-// (own-layer.sh loads a fresh copy of ui/ each time).
 Item {
     id: injector
     property bool done: false
 
-    // LG's root is the ancestor that holds the system UI manager.
     function lgRoot() {
         for (var p = injector.parent; p; p = p.parent) {
             var k = p.children;
@@ -27,19 +21,13 @@ Item {
     function inject() {
         var host = lgRoot();
         if (!host) { Look.report("error", "inject: LG's root was not found above the overlay"); return; }
-        // A layer that does not compile leaves the loaded one running.
         var ready = Inject.prepare(Qt.resolvedUrl("Look/Layer.qml"), host);
         if (ready.error) { Look.report("error", "inject: " + ready.error); return; }
-        // The loaded layer makes way for this one.
         var old = loaded(host);
         if (old) {
             try { old.retire(); } catch (e) { Look.report("gap", "inject: the old layer could not hand LG's items back: " + e); }
-            // Out of LG's tree at once, so the new layer's parts cannot find anything in it.
             old.objectName = "";
             old.parent = null;
-            // A layer from before unlink() stays connected to what outlives it (its own Look for one), and the
-            // compositor's Qt would call into it after it is destroyed and crash. Such a layer is left alive, out of
-            // sight, until the compositor restarts.
             if (typeof old.unlink === "function") old.destroy();
             else Look.report("gap", "inject: the old layer cannot disconnect itself; left alive, out of sight");
         }
@@ -51,11 +39,9 @@ Item {
         done = true;
         if (parent && typeof parent.windowExit === "function") parent.windowExit();
     }
-    // LG's container says "launch" once the overlay is registered; it can be closed from then on.
     function lifeCycle(payload) { if (payload && payload.event === "launch") finish(); }
     Timer { interval: 5000; running: true; onTriggered: injector.finish() }
 
-    // LG's container, while it tells this file its life cycle.
     property Item box: null
     Component.onCompleted: {
         if (parent && parent.lifeCycleStatusChanged !== undefined) {

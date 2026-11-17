@@ -1,7 +1,6 @@
 .env
 tv-config.json
 
-# ui-atlas: generated from a backup; contains LG's copyrighted files and the owner's screen
 tools/ui-atlas/.local/
 tools/ui-atlas/out/
 tools/ui-atlas/**/facts.json
@@ -14,15 +13,10 @@ tools/ui-atlas/**/*.jpg
 tools/ui-atlas/**/*.ttf
 tools/ui-atlas/**/__pycache__/
 
-# theme-pack build output
 tools/theme-pack/dist/
-# Core dumps from crashed tools (e.g. Qt with no display)
 core.[0-9]*
 tools/theme-pack/.check-branch.local
 
-# Research-only artifacts: never commit raw firmware dumps or decrypted bodies
-# (they are LG's copyrighted files and may hold device secrets). Keep them
-# outside the repo and point the research tools at them.
 *.epk
 *.bin
 *.img
@@ -30,7 +24,6 @@ tools/theme-pack/.check-branch.local
 *.hib
 hib.img
 
-# Build output and work directories for the research tools
 research/epk/work/
 research/epk/paks/
 research/custom-fw/payload/build/

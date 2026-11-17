@@ -4,21 +4,8 @@ import ".."
 import "../settings"
 import "inputs.js" as Inputs
 
-// Our Home dock: a ribbon of inputs and apps along the bottom of the screen, over whatever is playing. A part of our
-// own: it replaces no LG item.
-//
-// The Home key reaches it through a key filter of ours (ui/home-key.js, put in LG's chain by HomeKeyHook.qml) that
-// launches our system UI entry (HomeEntry.qml), which emits SettingsBus.homeRequested. The key filter is installed
-// only while Hook A's table carries that entry (SettingsBus.hook set): without the entry a launch would find nothing
-// and Home would do nothing. A long press of Home, and any failure on the way, opens LG's Home instead.
-//
-// While open it holds focus in LG's focus chain at layer 7 and lives in LG's popup plane (Hold.qml), as our Settings
-// does; the two never hold the plane at once. Back closes it, so does a second Home, a click outside the ribbon and a
-// change of the app in front.
 FocusScope {
     id: part
-    // LG's root, from the layer that made this part, read once: while open the part sits in LG's popup plane (Hold.qml),
-    // whose parent chain does not lead back to the layer.
     property Item host: null
     function findHost() { if (!host && parent && parent.host !== undefined) host = parent.host; }
     readonly property int layerNumber: 7
@@ -26,23 +13,20 @@ FocusScope {
 
     property bool open: false
     property alias ribbon: ribbon
-    // LG's focus chain; tests give a stand-in with the same two functions.
     property url focusChain: Qt.resolvedUrl("../settings/LgFocus.qml")
 
-    // What the dock shows, from the bus (refreshed on each open).
-    property var inputs: []      // eim getAllInputStatus devices
-    property var apps: []        // installed apps: removable launch points
-    property bool drive: false   // a USB drive attached
+    property var inputs: []
+    property var apps: []
+    property bool drive: false
     property string driveName: ""
-    property string watching: "" // the app in front (an input's app id while watching one)
-    property var hdmiSignal: null // tv.display getHDMIInfo, for the input being watched
+    property string watching: ""
+    property var hdmiSignal: null
     property bool online: true
     property var now: new Date()
 
     readonly property string usbApp: "com.webos.app.photovideo"
     readonly property string lgHomeApp: "com.webos.app.home"
 
-    // { open, focus: { index, label }, tiles: [labels], keys: key filter installed }, for the tests and the TV suite.
     readonly property var probe: ({
         "open": open,
         "focus": open && ribbon.spec(ribbon.currentIndex) ? { "index": ribbon.currentIndex, "label": ribbon.spec(ribbon.currentIndex).label } : null,
@@ -56,9 +40,6 @@ FocusScope {
     readonly property var focusHandler: focusLink.handler
     Hold { id: hold; host: part.host; item: part; onYielded: part.close() }
 
-    // ---- the tiles
-
-    // "4K · 60 Hz" from getHDMIInfo, for the input being watched.
     function format(s) {
         if (!s || !s.width) return "";
         var res = s.width >= 3840 ? "4K" : s.height >= 1080 ? "1080p" : s.height >= 720 ? "720p" : s.width + "×" + s.height;
@@ -83,9 +64,6 @@ FocusScope {
         out.push({ "label": "LG Home", "sub": "LG's apps", "icon": "home", "width": 220, "appId": lgHomeApp, "kind": "lghome" });
         return out;
     }
-    // The bus answers after the dock is open, and each answer makes a new tile list, which resets the ribbon's focus.
-    // The ribbon's model is set here rather than bound, so the reset is ours: focus goes back on the same tile (by kind
-    // and app id), or on the input being watched.
     property string focusKey: ""
     property bool seating: false
     function keyOf(t) { return t ? t.kind + ":" + (t.appId || t.label) : ""; }
@@ -103,8 +81,6 @@ FocusScope {
         for (var i = 0; i < tiles.length; i++) if (tiles[i].current) return i;
         return 0;
     }
-
-    // ---- open and close
 
     function requested(params) {
         if (open) close();
@@ -132,8 +108,6 @@ FocusScope {
         var params = t.kind === "lghome" ? { "category": "home" } : {};
         bus.call("luna://com.webos.applicationManager", "/launch", JSON.stringify({ "id": t.appId, "params": params }));
     }
-
-    // ---- the bus
 
     property var bus: Service {
         appId: Look.busName
@@ -167,7 +141,6 @@ FocusScope {
         }
     }
 
-    // The app in front, on one standing subscription. Its first answer is where things stand, not a change.
     property bool heardForeground: false
     property var foreground: Service {
         appId: Look.busName
@@ -182,13 +155,9 @@ FocusScope {
         }
     }
 
-    // ---- what it draws
-
     Timer { interval: 30000; repeat: true; running: part.open; onTriggered: part.now = new Date() }
-    // A TV that has never had the network reads a year long past; its clock is not worth showing.
     readonly property bool clockSet: now.getFullYear() >= 2020
 
-    // Behind the dock while it is open: a click outside it closes the dock instead of reaching the app underneath.
     MouseArea {
         anchors.fill: parent
         enabled: part.open
@@ -242,8 +211,6 @@ FocusScope {
             onCurrentIndexChanged: if (!part.seating) part.focusKey = part.keyOf(spec(currentIndex))
             onBack: part.close()
         }
-        // The magic remote: pointing moves focus, a click activates. A sibling of the ribbon: inside it, it would
-        // scroll with the tiles.
         MouseArea {
             x: ribbon.x
             y: ribbon.y
@@ -264,9 +231,6 @@ FocusScope {
         }
     }
 
-    // ---- life
-
-    // Install the key filter while the table carries our entry; give LG's chain back when it does not.
     function follow() {
         if (retired) return;
         var live = SettingsBus.hook !== null && SettingsBus.hook.applied;
@@ -285,7 +249,6 @@ FocusScope {
         follow();
     }
 
-    // Gives back what this part took: the key filter chain, the focus chain and popup plane, the bus.
     property bool retired: false
     function retire() {
         if (retired) return;

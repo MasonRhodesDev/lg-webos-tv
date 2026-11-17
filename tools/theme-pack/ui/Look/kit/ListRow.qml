@@ -1,21 +1,6 @@
 import QtQuick 2.4
 import ".."
 
-// The one row anatomy every list uses: icon slot, label (and an optional hint line), value, and a
-// trailing control chosen by `variant`:
-//   nav      chevron: opens a page (a value, if given, shows what it is set to)
-//   value    the value text and a chevron: opens a picker for it
-//   toggle   a switch (`on`)
-//   radio    a radio (`checked`): one choice of several
-//   check    a check box (`checked`): any number of several
-//   slider   a slider (`fraction`, `valueText`)
-//   stepper  ‹ value › stepping through `options` at `index`
-//   choice   one value of a picker page: a tick in the current colour when `checked` (the Settings boards)
-//   action   the value text, if any, and nothing after it: OK does it (Screen off)
-//   category a category in a side list: no trailing control, a little shorter, no plate at rest unless current
-//   info     the value text only; not focusable
-// `busy` puts a Busy spinner before the value (scanning, connecting). An optional `chip` is attached at the top-right
-// corner. Decoratable as `row`; the trailing controls are decoratable too (knob, thumb, radio, check).
 Item {
     id: row
     property string variant: "nav"
@@ -30,7 +15,6 @@ Item {
     property string valueText
     property var options: []
     property int index: 0
-    // A count or alert chip attached at the row's top-right corner ("3", "!").
     property string chip
     property string chipTone: "attention"
     property bool focused: false

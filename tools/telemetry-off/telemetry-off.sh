@@ -1,46 +1,4 @@
 #!/bin/sh
-# telemetry-off: switch off LG telemetry, ads, ACR and voice uploads on a
-# rooted webOS TV 4.x, down to the running services.
-#
-# Installed by install.sh as a Homebrew Channel init.d hook
-# (/var/lib/webosbrew/init.d/80-telemetry-off). run-parts calls it with no
-# arguments at the end of HBC's startup.sh, about 35 s after power-on.
-#
-# Usage: telemetry-off [apply|--dry-run|revert|enable|status]
-#   apply      (default) blackhole hosts, block targets (see below),
-#              re-assert settings, wipe buffers
-#   --dry-run  print exactly what apply would do; writes nothing
-#   revert     undo everything this script did, without a reboot, and set
-#              the off switch so the next boot stays a no-op
-#   enable     clear the off switch (takes effect at the next boot or apply)
-#   status     print the recorded state
-#
-# Off switch: if $TO_DIR/disabled exists, apply is a no-op.
-#
-# Safe failure. HBC enters failsafe mode on the next boot if the TV dies
-# while startup.sh runs, so this script:
-#   - never uses set -e; every step runs in its own subshell and a failing
-#     step is logged and skipped;
-#   - never touches dropbear, SSH, connman, Wi-Fi or any network interface;
-#   - bounds every luna-send with a timeout;
-#   - marks a run in progress, and if a previous run never finished (the TV
-#     died mid-apply), sets the off switch instead of trying again.
-#
-# How targets are blocked depends on how they start (targets.tsv):
-#   upstart job       bind-mount a stub over the binary, then initctl stop
-#   ls-hubd on demand bind-mount an empty file over every copy of its
-#                     .service file, SIGHUP ls-hubd to rescan, then kill the
-#                     running instance. Calls then fail with "Service does not
-#                     exist" at once. (A binary stub here would make every
-#                     caller hang for LaunchTimeout, 300 s.)
-# Running copies are found by exact /proc/PID/exe path, the method used by
-# Life's Good Without Spying (MIT, (c) 2026 Lewis Wood,
-# https://github.com/lewisdoesstuff/lifesgoodwithoutspying, nospy-lib.sh).
-# The hub-mask-and-rescan method and the target list are this firmware's.
-#
-# securitymanager is replaced with a sleeping stub (group "sm"). That turns
-# off runtime partition verification (sb_verify_task) and the
-# com.webos.service.sm API, including deviceid/getIDs (the IFAID ad ID).
 
 PATH=/usr/sbin:/usr/bin:/sbin:/bin
 export PATH
@@ -56,17 +14,16 @@ OFF_FLAG=$TO_DIR/disabled
 RUNNING=$STATE/applying
 STUB=$STATE/stub
 HOSTS_GEN=$STATE/hosts
-EMPTY=$STATE/empty               # empty file bind-mounted over .service files
-STUBBED=$STATE/stubbed.list       # one bind-mounted path per line (stubs and masks)
-STOPPED=$STATE/stopped.list       # upstart jobs this script stopped
-FLAGS_MADE=$STATE/flags.list      # LG flag files this script created
-SETTINGS_ORIG=$STATE/settings.orig  # category<TAB>key<TAB>old value
-EULA_ORIG=$STATE/eula.orig        # eulaStatus JSON before the change
+EMPTY=$STATE/empty
+STUBBED=$STATE/stubbed.list
+STOPPED=$STATE/stopped.list
+FLAGS_MADE=$STATE/flags.list
+SETTINGS_ORIG=$STATE/settings.orig
+EULA_ORIG=$STATE/eula.orig
 LOG=${TO_LOG:-/var/log/telemetry-off.log}
 MARKER="# telemetry-off: LG telemetry blackhole"
 LUNA_SETTINGS=luna://com.webos.settingsservice
 
-# Defaults; telemetry-off.conf overrides them.
 DOMAIN_FILES="10-ads.txt 20-acr.txt 30-home-recommend.txt 40-telemetry.txt 45-sdp.txt 50-thinq.txt 55-voice.txt 60-lg-cdn.txt 70-quickset.txt 80-lgchannels.txt 90-updates.txt 95-connectivity-check.txt"
 TARGET_GROUPS="acr ads sdp recommend diag voice thinq updates sm"
 SETTINGS=1
@@ -79,11 +36,8 @@ SVC_DIRS="/usr/share/luna-service2/services.d /usr/share/dbus-1/services /usr/sh
 
 DRY=0
 
-# ---------------------------------------------------------------- helpers
-
 log() { echo "$(date '+%F %T' 2>/dev/null) $*"; }
 
-# act CMD...: run CMD, or in dry-run print it.
 act() {
     if [ "$DRY" = 1 ]; then
         echo "  WOULD: $*"
@@ -92,8 +46,6 @@ act() {
     "$@"
 }
 
-# step NAME FUNC: run FUNC in a subshell so an error or exit in it can never
-# abort the rest of the run.
 step() {
     name=$1; shift
     log "-- $name"
@@ -105,10 +57,9 @@ step() {
 
 have() { command -v "$1" >/dev/null 2>&1; }
 
-# Strip comments and blank lines.
 data_lines() { [ -f "$1" ] && grep -v '^[[:space:]]*#' "$1" | grep -v '^[[:space:]]*$'; }
 
-in_list() { # WORD LIST...
+in_list() {
     w=$1; shift
     for x in $*; do [ "$x" = "$w" ] && return 0; done
     return 1
@@ -116,10 +67,6 @@ in_list() { # WORD LIST...
 
 is_mountpoint_file() { awk -v p="$1" '$2 == p { f = 1 } END { exit !f }' /proc/mounts; }
 
-# luna_get_json URI JSON: print the reply on one line. luna-send prints
-# nothing without a TTY, so run it under script(1); /dev/null is the
-# typescript, so nothing is written. Bounded by a 5 s timeout; a step stops
-# at its first unanswered read (luna is not up yet).
 luna() {
     out=$(cd / && timeout -t 5 script -q -c "luna-send -n 1 $1 '$2'" /dev/null </dev/null 2>/dev/null | tr -d '\r')
     rc=$?
@@ -130,7 +77,7 @@ luna() {
     echo "$out"
 }
 
-json_str() { # KEY < json: value of "KEY":"v" or "KEY":true/false
+json_str() {
     sed -n "s/.*\"$1\":\"\([^\"]*\)\".*/\1/p; t; s/.*\"$1\":\([a-z0-9]*\).*/\1/p" | head -n 1
 }
 
@@ -140,8 +87,6 @@ load_conf() {
     return 0
 }
 
-# targets.tsv rows in enabled groups:
-# name group stub binary job service (tab-separated, "-" = none)
 targets() {
     data_lines "$TARGETS" | while read -r name group stub bin job svc; do
         in_list "$group" $TARGET_GROUPS || continue
@@ -149,8 +94,7 @@ targets() {
     done
 }
 
-# Every existing copy of a hub service file.
-service_files() { # NAME
+service_files() {
     for d in $SVC_DIRS; do
         [ -f "$d/$1.service" ] && echo "$d/$1.service"
     done
@@ -158,7 +102,6 @@ service_files() { # NAME
 
 hub_pids() { pidof ls-hubd 2>/dev/null; }
 
-# pid<SPACE>exe for every process, in one pass (ls -l on /proc/*/exe).
 proc_exe_table() {
     ls -l /proc/[0-9]*/exe 2>/dev/null | awk '{
         t = ""; p = ""
@@ -172,7 +115,7 @@ proc_exe_table() {
     }'
 }
 
-pids_for_paths() { # "newline-separated paths"; also matches jail copies
+pids_for_paths() {
     proc_exe_table | awk -v list="$1" '
         BEGIN { n = split(list, a, "\n"); for (i = 1; i <= n; i++) if (a[i] != "") want[a[i]] = 1 }
         { e = $2; sub(/^\/var\/palm\/jail\/[^\/]+/, "", e) }
@@ -180,8 +123,6 @@ pids_for_paths() { # "newline-separated paths"; also matches jail copies
 }
 
 job_running() { initctl status "$1" 2>/dev/null | grep -q 'start/running'; }
-
-# ------------------------------------------------------------------ steps
 
 do_preflight() {
     missing=""
@@ -199,7 +140,6 @@ do_preflight() {
 }
 
 do_hosts() {
-    # Remove only our own previous mount, leaving HBC's (or stock) beneath.
     n=0
     while grep -qF "$MARKER" /etc/hosts 2>/dev/null && [ "$n" -lt 3 ]; do
         act umount /etc/hosts || act umount -l /etc/hosts
@@ -239,8 +179,6 @@ do_hosts() {
         log "   bind mount over /etc/hosts failed"
         exit 1
     fi
-    # Jails copy /etc/hosts once, when the jail is built. Report stale ones;
-    # rewriting them is left to the jailer (stubs cover the jailed targets).
     for h in /var/palm/jail/*/etc/hosts; do
         [ -f "$h" ] || continue
         grep -qF "$MARKER" "$h" || log "   note: $h predates the blackhole (jail built earlier)"
@@ -269,9 +207,6 @@ do_stubs() {
         chmod 755 "$STUB.exit" "$STUB.sleep" && : > "$EMPTY" || exit 1
     fi
     masked=0
-    # 1. Upstart targets: stub the binary, so a later start (respawn, an
-    #    instant-boot-done on a standby wake) runs the stub.
-    # 2. Hub targets: blank every copy of the .service file.
     while IFS="$TAB" read -r name group stub bin job svc; do
         [ -n "$name" ] || continue
         if [ "$stub" != "-" ] && [ -f "$bin" ]; then
@@ -312,8 +247,6 @@ do_stubs() {
     done <<EOF_T
 $rows
 EOF_T
-    # 3. Make ls-hubd re-read its service dirs. SIGHUP is what
-    #    `ls-control scan-services` sends; ls-control itself can wait forever.
     if [ "$masked" = 1 ]; then
         if [ "$DRY" = 1 ]; then
             echo "  WOULD: kill -HUP $(hub_pids)   (ls-hubd rescan)"
@@ -323,7 +256,6 @@ EOF_T
             sleep 2
         fi
     fi
-    # 4. Stop upstart jobs (before killing, so a respawn job stays down).
     echo "$rows" | cut -f5 | grep -v '^-$' | grep . | while read -r job; do
         if job_running "$job"; then
             if [ "$DRY" = 1 ]; then
@@ -337,8 +269,6 @@ EOF_T
             echo "  job not running: $job"
         fi
     done
-    # 5. Kill what still runs from the real binaries (hub-launched services
-    #    have no job), matched by exact exe path, jail copies included.
     paths=$(echo "$rows" | cut -f4 | grep -v '^-$')
     pids=$(pids_for_paths "$paths" | tr '\n' ' ')
     if [ -n "$pids" ]; then
@@ -434,11 +364,8 @@ do_wipe() {
     done
 }
 
-# ----------------------------------------------------------------- revert
-
 do_revert() {
     log "== revert"
-    # Settings back to what they were.
     if [ -f "$SETTINGS_ORIG" ]; then
         while IFS="$(printf '\t')" read -r cat key old; do
             [ -n "$old" ] || continue
@@ -451,8 +378,6 @@ do_revert() {
         luna "$LUNA_SETTINGS/setSystemSettings" "{\"settings\":{\"eulaStatus\":$(cat "$EULA_ORIG")}}" >/dev/null &&
             log "   restored eulaStatus" && rm -f "$EULA_ORIG"
     fi
-    # Unmount stubs and .service masks (only paths we recorded, and only
-    # while our stub or empty mask is the top mount), then let ls-hubd rescan.
     if [ -f "$STUBBED" ]; then
         while read -r p; do
             [ -n "$p" ] || continue
@@ -468,7 +393,6 @@ do_revert() {
         [ -n "$hp" ] && kill -HUP $hp && log "   ls-hubd ($hp) rescan requested"
         sleep 2
     fi
-    # Restart jobs we stopped. ls-hubd services come back on their next call.
     if [ -f "$STOPPED" ]; then
         sort -u "$STOPPED" | while read -r job; do
             [ -n "$job" ] || continue
@@ -476,7 +400,6 @@ do_revert() {
         done
         rm -f "$STOPPED"
     fi
-    # hosts: only if ours is the top mount.
     n=0
     while grep -qF "$MARKER" /etc/hosts 2>/dev/null && [ "$n" -lt 3 ]; do
         umount /etc/hosts 2>/dev/null || umount -l /etc/hosts 2>/dev/null
@@ -503,8 +426,6 @@ do_status() {
     [ -f "$LOG" ] && { echo "  last log lines:"; tail -n 5 "$LOG" | sed 's/^/    /'; }
 }
 
-# ------------------------------------------------------------------- main
-
 MODE=apply
 case "${1:-}" in
     ""|apply) MODE=apply ;;
@@ -525,7 +446,6 @@ if [ "$DRY" = 1 ]; then
     echo "== telemetry-off --dry-run ($(date '+%F %T' 2>/dev/null)); nothing is written"
     [ -e "$OFF_FLAG" ] && echo "  note: off switch is set; a real boot run would do nothing"
 else
-    # The off switch is checked before anything else, including the log.
     [ -e "$OFF_FLAG" ] && [ "$MODE" = apply ] && exit 0
     mkdir -p "$STATE" 2>/dev/null
     if [ -f "$LOG" ] && [ "$(wc -c < "$LOG")" -gt 131072 ]; then

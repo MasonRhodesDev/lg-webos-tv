@@ -1,6 +1,3 @@
-// Undoing what an interrupted command left: the journal's layer and stub marks first (a broken layer deployed on
-// purpose, the stub removed), then every baseline value, each read back. Used at the start of every command that
-// finds a journal, and by the signal handler.
 import * as journal from './journal.mjs';
 import { restoreVerified, closeAll } from './run.mjs';
 import { restoreLayer, installStub, mounted } from './fallbacks.mjs';
@@ -30,7 +27,6 @@ export async function resolve(ctx, j) {
   ctx.say('  the TV is back to the baseline, read back; journal closed');
 }
 
-// At a command's start: a journal left by an interrupted command is resolved before anything else.
 export async function settle(ctx) {
   const j = journal.pending(ctx.tv.host);
   if (j) await resolve(ctx, j);

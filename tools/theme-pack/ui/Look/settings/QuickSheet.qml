@@ -3,14 +3,10 @@ import ".."
 import "pages.js" as Pages
 import "menu.js" as Menu
 
-// The gear button's quick sheet (the owner's Quick settings board): a side panel of the everyday settings, changed in
-// place. OK on a value opens its picker in the same panel; OK there chooses and comes back. Left/Right move the
-// volume; OK flips Energy saving, turns the screen off, or opens all Settings. Back goes back a step, then closes.
 FocusScope {
     id: sheet
     property var store
     property bool open: false
-    // The magic remote's pointer is showing: rows follow it and take clicks.
     property bool pointer: false
     property var stack: [{ "id": "quick" }]
     readonly property var topEntry: stack[stack.length - 1]
@@ -19,7 +15,6 @@ FocusScope {
     property alias view: view
     anchors.fill: parent
 
-    // Opens at the top, or for a hotkey (LG's activateType) with that row's picker open.
     function openWith(params) {
         var s = [{ "id": "quick" }], ref = params && params.activateType ? Menu.activateTypes[params.activateType] : "";
         if (ref && Menu.extra[ref] === undefined && store.item(ref)) {

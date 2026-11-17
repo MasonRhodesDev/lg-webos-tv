@@ -1,14 +1,8 @@
 #!/bin/sh
-# Set a rooted webOS TV's clock to this machine's, over SSH. For a TV with no time source of its own (network time
-# blocked, no broadcast): it keeps no time while it is off, so its clock is wrong again after every power-on.
-# Usage: TV_HOST=<address> set-clock.sh
-# Needs root SSH (Homebrew Channel provides it). The TV's Automatic time should be off, or the TV may set it back.
 set -eu
 host=${TV_HOST:?set TV_HOST to the TV address}
 user=${TV_ROOT_USER:-root}
 
-# One connection, and the time is read here only once it is open: the TV says "ready", then takes the time on its
-# stdin. luna-send stalls on an open stdin, hence /dev/null.
 dir=$(mktemp -d)
 trap 'rm -rf "$dir"' EXIT
 mkfifo "$dir/time"

@@ -1,9 +1,5 @@
 import QtQuick 2.4
 
-// A container whose components paint in passes (the layers page's board 3, option C): every resting component's −1, then every
-// origin, then every +1, then every attachment; the focused one leaves the passes and paints its whole stack last.
-// Its children are the content. Components anywhere below it join (passes.js scopeOf()); their layers live in the
-// planes here, which never take part in layout and never clip.
 Item {
     id: passes
     default property alias content: body.data

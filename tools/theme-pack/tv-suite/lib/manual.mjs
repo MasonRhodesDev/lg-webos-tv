@@ -1,9 +1,3 @@
-// The checks that need a person at the TV, as one ordered pass: watching the picture (captures hold our layer only,
-// the video is black), switching inputs and channels (the owner's), and real devices. For each: what to press, what
-// to look for, what counts as a pass. While the person presses, the suite watches our parts' probes, the system UI and
-// the app in front, and logs what it saw; it runs what it can itself and asserts what it can see. The person gives
-// the verdict: p (pass), f (fail) or s (skip), then an optional note. Everything else once here is a scenario now
-// (scenarios.mjs).
 import { closeAll, runScenarios, baseline, finish, probingUp } from './run.mjs';
 import { SCENARIOS } from './scenarios.mjs';
 
@@ -11,16 +5,12 @@ const SAM = 'luna://com.webos.applicationManager';
 
 const scenarios = (ids) => SCENARIOS.filter((s) => ids.includes(s.id));
 
-// The Back scenarios on whatever input the person chose: the runner restores the foreground to that input meanwhile,
-// not to the baseline's (the person puts the baseline's back afterwards, and the suite checks).
 async function onInputInFront(ctx) {
   ctx.foregroundOverride = await ctx.foreground();
   try { return (await runScenarios(ctx, scenarios(['quick-sheet', 'picture-mode']))).runs.every((r) => r.status === 'pass'); }
   finally { ctx.foregroundOverride = null; }
 }
 
-// After a step the person changed something for (the input, the screen, the channel): the suite checks it is back,
-// and asks again while it is not.
 async function personRestored(ctx, it, answer) {
   const want = ctx.journal.baseline.foreground;
   if (it.restores === 'input') {
@@ -55,14 +45,10 @@ export const CHECKLIST = [
       pass: 'Network, Bluetooth, Language and Location pages, each from its route.' }
   ] },
   { group: '2. Remote buttons and the pointer', items: [
-    // The network input sends each press whole: 20 presses 100 ms apart toggle the sheet (as separate presses should),
-    // where a held button sends auto-repeats that LG's key filter drops. Only a real hold shows this.
     { id: 'gear-held', covers: ['gear-closes'],
       press: 'Hold the gear button for two seconds, then let go.',
       look: 'The quick sheet opens once and stays open. (The suite samples about twice a second, so a shorter flicker is yours to see.)', pass: 'No flicker open and shut.',
       check: (saw) => saw.filter((l) => /sheet quick/.test(l.what) && !/sheet quick/.test(l.was)).length === 1 },
-    // The network input's pointer messages (type:move with dx, dy, drag; click; scroll) reach the layer only now and
-    // then, after an LGE_CURSOR_SHOW key, and from where the cursor happens to be: rows cannot be aimed at.
     { id: 'pointer', covers: ['pointer'],
       press: 'Shake the magic remote to show the pointer. Open the gear sheet, move the pointer over its rows, click Picture mode, then press BACK twice.',
       look: 'Focus follows the pointer; the click opens the picker.', pass: 'Rows follow the pointer and a click opens the picker; no value changes.' },
@@ -139,20 +125,18 @@ export function printChecklist(say) {
   }
 }
 
-// One line for what the TV shows, from the probes, the system UI, SAM and the app in front.
 async function summary(ctx) {
   const st = await ctx.state();
   const s = st.settings || {}, m = s.menu || {}, q = s.quick || {};
   let fg = '', stub = false;
   try { fg = await ctx.foreground(); } catch (e) { fg = '?'; }
-  try { stub = ((await ctx.luna(SAM + '/running', {})).running || []).some((a) => a.id === 'com.palm.app.settings'); } catch (e) { /* unknown */ }
+  try { stub = ((await ctx.luna(SAM + '/running', {})).running || []).some((a) => a.id === 'com.palm.app.settings'); } catch (e) { }
   return [m.open ? 'settings ' + (m.stack || []).join('/') + ' ' + m.area + (m.focus ? ' @' + m.focus.label : '') : '',
     q.open ? 'sheet ' + (q.stack || []).join('/') + (q.focus ? ' @' + q.focus.label : '') : '',
     st.systemUi ? 'system UI ' + st.systemUi : '', st.picker && st.picker.shown ? 'input picker' : '',
     stub ? 'stub running' : '', 'front ' + fg].filter(Boolean).join(' | ');
 }
 
-// Runs the pass. `answer(question)` returns the person's line ("p", "f note", "s"...). `only` picks item ids.
 export async function manual(ctx, { answer, only, includeLater = true, watchEvery, results = [] } = {}) {
   ctx.tv.resetKeys();
   await probingUp(ctx);
@@ -199,7 +183,6 @@ async function pass(ctx, results, { answer, only, includeLater, watchEvery }) {
 async function ask(ctx, it, rec, { answer, watchEvery }) {
   ctx.say('  press: ' + it.press + '\n  look:  ' + it.look + '\n  pass:  ' + it.pass);
   const t0 = Date.now();
-  // Watch until the person answers.
   let answered = false, last = '';
   const watch = (async () => {
     while (!answered && !it.later) {

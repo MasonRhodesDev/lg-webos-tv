@@ -1,7 +1,6 @@
 import QtQuick 2.4
 import ".."
 
-// One choice of several: a ring, with a dot when chosen. Decoratable as `radio`.
 Item {
     id: radio
     property bool checked: false

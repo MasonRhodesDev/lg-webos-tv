@@ -1,8 +1,4 @@
 #!/usr/bin/env node
-// Turns the catalog (settings/catalog.json and its category files) into ui/Look/settings/catalog.js, a `.pragma
-// library` the compositor's QML loads without file I/O. Run it after changing the catalog; a test checks the output
-// is current.
-//   node settings/build-catalog.mjs [--check]
 import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -10,8 +6,6 @@ import { fileURLToPath } from 'node:url';
 const here = dirname(fileURLToPath(import.meta.url));
 const out = join(here, '..', 'ui', 'Look', 'settings', 'catalog.js');
 
-// Items by id, built once when the library loads: the first one with an API of its own (a row that only opens a page
-// shares its id with the setting that page holds). Every item is also reachable as "Page/id".
 const INDEX = `var items = (function () {
     var out = {};
     for (var i = 0; i < catalog.order.length; i++) {
@@ -55,7 +49,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const text = build();
   if (process.argv.includes('--check')) {
     let cur = '';
-    try { cur = readFileSync(out, 'utf8'); } catch (e) { /* missing */ }
+    try { cur = readFileSync(out, 'utf8'); } catch (e) { }
     if (cur !== text) { console.error(out + ' is stale: run node settings/build-catalog.mjs'); process.exit(1); }
   } else {
     writeFileSync(out, text);

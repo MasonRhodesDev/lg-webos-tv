@@ -2,12 +2,6 @@ import QtQuick 2.4
 import WebOSServices 1.0
 import ".."
 
-// What LG's system UI manager loads for our own entry, dev.themepack.home (SystemUiHook.qml's `extra`). The Home key's
-// filter (ui/home-key.js) launches it. It draws nothing: each launch is handed to the Home dock (parts/Home.qml)
-// through SettingsBus, and the window exits at once. A preload only exits.
-//
-// If no dock is listening (the part is gone, or this file was loaded in an engine that does not share our SettingsBus),
-// Home must still open something, so this launch opens LG's Home.
 FocusScope {
     id: entry
     anchors.fill: parent
@@ -36,7 +30,6 @@ FocusScope {
         box = parent;
         box.lifeCycleStatusChanged.connect(entry.lifeCycle);
     }
-    // LG's container, while it tells this file its life cycle.
     property Item box: null
     Component.onDestruction: { try { if (box) box.lifeCycleStatusChanged.disconnect(entry.lifeCycle); } catch (e) { } }
 }

@@ -1,13 +1,4 @@
 #!/usr/bin/env bash
-# Undo telemetry-off on the TV without a reboot, then remove it.
-#
-# Usage: tools/telemetry-off/uninstall.sh [--keep-files]
-#   --keep-files  revert and disable, but leave the kit installed
-#                 (re-arm with: sh /var/lib/webosbrew/init.d/80-telemetry-off enable)
-#
-# Revert unmounts the stubs and the hosts blackhole, restarts the upstart
-# jobs it stopped, restores changed settings and user agreements, and removes
-# the LG flag files it created. Wiped buffers cannot be restored.
 set -euo pipefail
 . "$(dirname "$0")/common.sh"
 

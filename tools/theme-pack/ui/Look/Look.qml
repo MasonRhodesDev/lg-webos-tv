@@ -3,8 +3,6 @@ import QtQuick 2.4
 import QtQml 2.2
 import WebOSServices 1.0
 
-// Look: the active style's tokens and the active themes, for our own UI layer. Until the Look service answers,
-// tokens fall back to LG-like stock values, so the layer looks plain rather than broken.
 QtObject {
     id: look
 
@@ -13,23 +11,15 @@ QtObject {
     property var themes: []
     property string assets: ""
     property string styleId: ""
-    // The active style's font family, for `font.family`. Empty (the system font) until its files have loaded; on a
-    // style change it keeps the previous family until the new one is ready, so text never flashes to the system font.
     property string font: ""
     property var fontSpec: ({ "family": "", "files": [] })
     property string fontsDir: ""
-    // The chosen look as the service holds it: { style, themes: [ids], auto, skip: [ids] }. With `auto` the service's
-    // calendar chooses the seasonal themes, leaving out those in `skip`.
     property var chosen: ({ "style": "", "themes": [] })
     property var behaviour: ({})
-    // What can be chosen: { styles: [{id, name}], themes: [{id, name, description, group}] }. A theme of group
-    // "seasonal" also has `dates`, its current or next runs as [{ from, to }] ('YYYY-MM-DD'), and `inSeason`.
     property var available: ({ "styles": [], "themes": [] })
     property bool online: false
-    // The TV suite's probing (service.js setProbing): parts' probes go to the service only while it is on.
     property bool probing: false
 
-    // Every token, so the kit is whole before the service answers: LG-like dark grey and magenta, Smoke's metrics.
     readonly property var stock: ({
         "surface": "rgba(18,18,18,0.92)", "surface-edge": "rgba(255,255,255,0.12)", "inner": "rgba(255,255,255,0.07)",
         "dim": "rgba(0,0,0,0.55)", "scrim": "rgba(0,0,0,0.35)", "ink": "#f5f5f5", "ink-2": "rgba(255,255,255,0.86)",
@@ -64,7 +54,6 @@ QtObject {
 
     function token(name) { return tokens[name] !== undefined ? tokens[name] : stock[name]; }
 
-    // Tokens are CSS colours; QML colour properties do not parse rgba().
     function colorOf(css) {
         if (css === undefined) return "transparent";
         var m = /^rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)\s*(?:,\s*([\d.]+)\s*)?\)$/.exec(css);
@@ -73,31 +62,24 @@ QtObject {
     }
     function color(name) { return colorOf(token(name)); }
     function px(name) { return parseFloat(token(name)) || 0; }
-    // A type role's weight token ("400".."800") as Qt's weight; styles only name weights their font files carry.
     function weight(role) {
         var w = parseFloat(token(role + "-weight")) || 400;
         return w >= 800 ? Font.ExtraBold : w >= 700 ? Font.Bold : w >= 600 ? Font.DemiBold : w >= 500 ? Font.Medium : Font.Normal;
     }
-    // A CSS box-shadow token ("x y blur [spread] colour") as { x, y, blur, color }.
     function shadow(name) {
         var m = /^\s*(-?[\d.]+)(?:px)?\s+(-?[\d.]+)(?:px)?\s+([\d.]+)(?:px)?(?:\s+-?[\d.]+(?:px)?)?\s+(.+)$/.exec(token(name) || "");
         return m ? { "x": Number(m[1]), "y": Number(m[2]), "blur": Number(m[3]), "color": colorOf(m[4]) }
                  : { "x": 0, "y": 0, "blur": 0, "color": "transparent" };
     }
-    // A CSS cubic-bezier() token as an easing.bezierCurve (Easing.Bezier).
     function curve(name) {
         var m = /cubic-bezier\(\s*([-\d.]+)\s*,\s*([-\d.]+)\s*,\s*([-\d.]+)\s*,\s*([-\d.]+)\s*\)/.exec(token(name) || "");
         return m ? [Number(m[1]), Number(m[2]), Number(m[3]), Number(m[4]), 1, 1] : [0.25, 0.1, 0.25, 1, 1, 1];
     }
     function hue(i) { return color("hue-" + ((i || 0) % 7)); }
-    // What a focused item fills with: the focus colour, or under a style whose behaviour says so, the item's hue.
     function focusFill(hueIndex) { return behaviour.focusFill === "hue" && hueIndex >= 0 ? hue(hueIndex) : color("focus"); }
 
-    // A recipe's fill or stroke is a colour or a token name.
     function fill(value) { return /^(#|rgb)/.test(value) ? colorOf(value) : color(value); }
 
-    // The rings one slot draws for a component type, in paint order. Themes listed later wrap further out: their back
-    // rings paint first and their front rings paint last. A recipe with no asset, fill or stroke is left out.
     function rings(target, slot) {
         var list = slot === "back" ? themes.slice().reverse() : themes, out = [];
         for (var i = 0; i < list.length; i++) {
@@ -121,8 +103,6 @@ QtObject {
         behaviour = m.style.behaviour || {};
         available = m.available || { "styles": [], "themes": [] };
         if (m.settings) {
-            // The first answer of each subscription only records where requests stand. Only opens are requests:
-            // closeSettings comes from the layer itself.
             if (settingsAt >= 0 && m.settings.at !== settingsAt && m.settings.open) settingsRequested(m.settings.target || "");
             settingsAt = m.settings.at;
         }
@@ -147,7 +127,6 @@ QtObject {
         report("ok", "font " + font + ": " + ready + " of " + files.length + " files loaded");
     }
 
-    // One loader per file: each file is one weight, and all of them register under the style's family name.
     property var fontLoaders: Instantiator {
         model: look.fontSpec.files
         onObjectAdded: look.fontStatusChanged()
@@ -157,19 +136,11 @@ QtObject {
         }
     }
 
-    // Someone asked for our Settings at a page (a catalog page id, or "" for the top): the Settings stub, the Look app,
-    // or luna-send.
     signal settingsRequested(string target)
     property real settingsAt: -1
 
-    // Changes go out on their own bus object; their result comes back through the subscription.
     function setLook(change) { command.call(service, "/setLook", JSON.stringify(change)); }
     function closeSettings() { command.call(service, "/closeSettings", "{}"); }
-    // The name our layer calls the bus by. The bus gives a client its permission groups when the client connects, and
-    // the compositor's usual name (com.webos.surfacemanager.systemui) connects in the boot snapshot, before the boot
-    // hook grants our groups, so the Look service would drop its calls. This one is in the compositor's role file and
-    // nothing of LG's uses it on webOS 4, so it connects when our layer loads and gets the groups
-    // (service/permissions.sh grants them to it).
     readonly property string busName: "com.webos.surfacemanager.wedge"
     property var command: Service { appId: look.busName }
 
@@ -193,7 +164,6 @@ QtObject {
         }
     }
 
-    // Each time the service appears on the bus, subscribe once, fresh: a subscription ends when the service restarts.
     property var status: Service {
         appId: look.busName
         onResponse: {
@@ -213,7 +183,6 @@ QtObject {
                                     JSON.stringify({ "serviceName": "dev.themepack.look.service", "subscribe": true }))
     }
 
-    // The service starts on demand. While it is away, a plain call starts it; the status above then subscribes.
     property var wake: Timer {
         interval: 5000
         repeat: true

@@ -5,10 +5,8 @@ const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 
-// The QML layer's tests run in the offscreen preview harness, on a Qt 5 `qml` tool (QML_BIN, default qml-qt5).
 const dir = path.join(__dirname, '..');
 const QML = process.env.QML_BIN || 'qml-qt5';
-// Looked up on PATH rather than run: `qml --help` with no display aborts and leaves a core file.
 const haveQml = QML.indexOf('/') >= 0 ? fs.existsSync(QML) : (process.env.PATH || '').split(path.delimiter)
   .some((d) => { try { fs.accessSync(path.join(d, QML), fs.constants.X_OK); return true; } catch (e) { return false; } });
 
@@ -79,7 +77,6 @@ test('the injector puts the layer under LG\'s root from inside the running compo
   }
 });
 
-// The Look service's answer for one style, as service/service.js's payload() builds it.
 function stylePayload(id) {
   const style = require(path.join(dir, 'packs/styles', id + '.js'));
   return JSON.stringify({ returnValue: true, look: { style: id, themes: [] }, style, themes: [] });
@@ -95,12 +92,10 @@ for (const id of fs.readdirSync(path.join(dir, 'packs/styles')).filter((f) => f.
   });
 }
 
-// The Home dock's test scene needs remote keys, so it runs under Qt 5's qmltestrunner (QML_TEST_BIN, as
-// test/settings.test.js).
 function onPath(name) {
   if (name.indexOf('/') >= 0) return fs.existsSync(name) ? name : null;
   for (const d of (process.env.PATH || '').split(path.delimiter)) {
-    try { fs.accessSync(path.join(d, name), fs.constants.X_OK); return path.join(d, name); } catch (e) { /* next */ }
+    try { fs.accessSync(path.join(d, name), fs.constants.X_OK); return path.join(d, name); } catch (e) { }
   }
   return null;
 }
@@ -119,11 +114,6 @@ test('the Home dock: key filter in and out of LG\'s chain, our table entry, open
   assert.deepStrictEqual(warnings, []);
 });
 
-// The compositor's Qt (5.6) still calls a function that is connected to a signal after the object the function
-// belongs to is destroyed, in a QML context that is gone; the first singleton such a function names takes the
-// compositor down. A desk Qt drops such a connection by itself, so no scene here can show it. This reads the source
-// instead: each `X.connect(f)` in ui/ has its `X.disconnect(f)` in the same file, unless X belongs to the object
-// that connects (it is destroyed with it).
 const OWNED = {
   'Look/Layer.qml': { 'source': 'link(), undone by unlink()', 'part.probeChanged': 'a part the layer made' },
   'Look/parts/Settings.qml': {
@@ -133,7 +123,7 @@ const OWNED = {
   'Look/settings/Store.qml': {
     'get.response': 0, 'd.response': 0, 'net.response': 0, 'vol.response': 0, 'sig.response': 0, 'sys.response': 0,
     'os.response': 0, 'kit.response': 0, 'prefs.response': 0, 'clk.response': 0, 'fmt.response': 0, 'tz.response': 0,
-    'st.response': 0, 'scan.response': 0, 'dev.response': 0, 's.response': 0 // bus objects the store makes and drops
+    'st.response': 0, 'scan.response': 0, 'dev.response': 0, 's.response': 0
   }
 };
 function qmlFiles(d) {

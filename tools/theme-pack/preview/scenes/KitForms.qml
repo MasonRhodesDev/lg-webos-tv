@@ -1,9 +1,6 @@
 import QtQuick 2.4
 import Look 1.0
 
-// The kit's text entry and PIN pieces, board 3. Base: the Keyboard board as drawn (Rename HDMI 3, "Game cons", focus on
-// o). States: the PIN prompt board (two digits in, focus on 5), a wrong PIN, a password on the symbols layout, and the
-// pieces alone in each state (fields active, idle, secret and empty; keys at rest, focused, current, disabled).
 Item {
     id: kit
     width: 1920

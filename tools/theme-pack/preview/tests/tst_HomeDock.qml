@@ -3,9 +3,6 @@ import QtTest 1.0
 import Preview 1.0
 import Look 1.0
 
-// The Home dock against the settings mock (TvSettings) and a fake LG root: the key filter put in LG's chain and given
-// back, our entry in the system UI table and its window, opening, moving, switching, Back, a second Home, a change of
-// the app in front, the popup plane shared with our Settings, and retiring. Run by qmltestrunner (test/layer.test.js).
 Item {
     id: root
     width: 1920
@@ -18,8 +15,6 @@ Item {
         { "handler": "handleHotkeys", "file": "/usr/lib/qt5/qml/KeyFilters/appLaunch.js" }
     ]
 
-    // LG's compositor root as our parts see it: configd's settings, the key filter, the system UI manager and the
-    // popup plane (layer 6, hidden while empty).
     Item {
         id: lgRoot
         anchors.fill: parent
@@ -31,7 +26,6 @@ Item {
         property var keyFilter: QtObject {
             signal backReleased()
             property bool cursorVisible: false
-            // As in YSM: bound to configd's list; every assignment reloads the chain.
             property var keyFilters: lgRoot.systemSettings.keyFilters
             property int reloads: 0
             onKeyFiltersChanged: reloads++
@@ -99,7 +93,6 @@ Item {
             verify(entry !== null, "our entry is in the system UI table");
             compare(entry.defaultWindowType, "overlay");
             verify(/settings\/HomeEntry\.qml$/.test(entry.main), entry.main);
-            // configd's list changes: the chain is made again from it, ours still in.
             lgRoot.systemSettings.keyFilters = lgFilters.concat([{ "handler": "handleMagicNumber", "file": "/usr/lib/qt5/qml/KeyFilters/systemUi.js" }]);
             list = lgRoot.keyFilter.keyFilters;
             compare(list.length, lgFilters.length + 2);
@@ -149,7 +142,6 @@ Item {
             compare(home.focusHandler.log[home.focusHandler.log.length - 1], "release 7", "focus handed back");
         }
 
-        // On the TV the bus answers after the dock is open; each answer is a new tile list.
         function test_3b_focus_survives_new_answers() {
             SettingsBus.homeRequested(null);
             while (focusedLabel() !== "HDMI 3") keyClick(Qt.Key_Right);
@@ -214,7 +206,6 @@ Item {
             home.close();
             verify(!plane.visible, "both gone: the plane hides");
             compare(plane.z, 3, "at its own height");
-            // The dock's Settings tile opens our Settings.
             SettingsBus.homeRequested(null);
             var t = home.ribbon.model;
             for (var i = 0; i < t.length; i++) if (t[i].label === "Settings") home.ribbon.currentIndex = i;
@@ -242,7 +233,6 @@ Item {
             compare(lgRoot.keyFilter.reloads, reloads + 1, "a second retire changes nothing");
             SettingsBus.homeRequested(null);
             verify(!home.open, "a retired dock does not open");
-            // configd's list changes after retiring: nothing of ours comes back.
             lgRoot.systemSettings.keyFilters = lgFilters;
             compare(ours(lgRoot.keyFilter.keyFilters), -1);
         }

@@ -3,7 +3,6 @@ const assert = require('node:assert');
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');
 
-// The preview renders a scene's base state as well as the states it declares, so a new state never drops base shots.
 test('a scene with states still renders its base state, unless it opts out', async () => {
   const { shotStates } = await import(pathToFileURL(path.join(__dirname, '..', 'preview', 'states.mjs')).href);
   assert.deepStrictEqual(shotStates({ states: [] }), ['']);

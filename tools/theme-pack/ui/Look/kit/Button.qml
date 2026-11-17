@@ -1,7 +1,6 @@
 import QtQuick 2.4
 import ".."
 
-// A pill button, decoratable as `button`. Focus is the one focus treatment (Plate). A pointer click emits clicked().
 Item {
     id: button
     property string label
@@ -9,11 +8,9 @@ Item {
     property bool focused: false
     property bool disabled: false
     property int hue: -1
-    // False on a surface that mirrors LG: LG's own mouse area under ours takes the click.
     property bool pointer: true
     signal clicked()
     height: Look.px("button-h")
-    // With only an icon, a round button as wide as it is tall.
     width: label ? content.width + 2 * Look.px("space-xl") : height
     z: focused ? 2 : 0
     scale: focused ? Look.px("focus-scale") : 1

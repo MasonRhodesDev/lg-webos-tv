@@ -1,15 +1,4 @@
 #!/usr/bin/env bash
-# Build the trampoline and pack it together with a kernel Image + DTB into
-# a hib image. Layout:
-#   0x28000000  trampoline      (one 4 KiB page)
-#   0x30088000  kernel Image    (aligned_base 0x30000000 + text_offset 0x88000)
-#   0x32000000  DTB             (fits in one 1 MiB window)
-#
-# Required inputs (overridable via env vars):
-#   KERNEL_IMAGE   default $PROJECT/kernel/Image
-#   KERNEL_DTB     default $PROJECT/kernel/lg1314.dtb
-# Optional:
-#   KERNEL_INITRD  if set, included at 0x33000000 (kernel must know via cmdline)
 
 set -euo pipefail
 

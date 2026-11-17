@@ -1,9 +1,6 @@
 import QtQuick 2.4
 import ".."
 
-// One key cap of an on-screen keyboard or keypad (the Keyboard and PIN prompt boards): an edged `inner` plate, radius
-// `r-key`, its name in `role` (cap, cap-word or pad). Focus is the one focus treatment (Plate); `current` marks the
-// key that finishes (Done) with the current bar. Decoratable as `button`. A pointer click emits clicked().
 Item {
     id: key
     property string label

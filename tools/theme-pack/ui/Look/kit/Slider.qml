@@ -1,8 +1,6 @@
 import QtQuick 2.4
 import ".."
 
-// A level: track and fill, its end decoratable as `thumb`. Horizontal, or vertical filling upwards.
-// `fraction` is 0..1; changes glide with the value motion.
 Item {
     id: slider
     property real fraction: 0
@@ -41,7 +39,6 @@ Item {
             color: slider.fillColor
         }
     }
-    // The boards draw no thumb: the fill's end is the level. A theme may decorate that point (`thumb`).
     Decor {
         target: "thumb"
         disabled: slider.disabled

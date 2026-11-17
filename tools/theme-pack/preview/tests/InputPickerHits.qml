@@ -3,9 +3,6 @@ import QtQuick.Window 2.2
 import Preview 1.0
 import Look 1.0
 
-// The input picker keeps LG's hit areas: in every state of the picker scene, each of our tiles sits exactly over
-// LG's tile, and our add-on button over LG's. Prints each check and exits 1 on the first failure:
-// qml InputPickerHits.qml
 Window {
     id: win
     width: 1920; height: 1080

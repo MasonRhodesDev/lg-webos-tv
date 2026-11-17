@@ -1,8 +1,3 @@
-// What a style and a theme are written against: the tokens every style defines, and the decoration targets theme
-// recipes write to. Build tools and tests read this; on the TV the kit reads the same names (ui/Look/Look.qml keeps a
-// stock value for every token, so the kit is whole before the Look service answers).
-
-// Colour roles, radii, sizes, type, elevation and motion.
 var TOKENS = [
   'surface', 'surface-edge', 'inner', 'dim', 'scrim',
   'ink', 'ink-2', 'ink-3', 'ink-disabled', 'edge-disabled', 'shadow',
@@ -21,17 +16,12 @@ var TOKENS = [
   'type-label', 'type-label-weight', 'type-category', 'type-category-weight', 'type-value', 'type-value-weight', 'type-body', 'type-body-weight',
   'type-caption', 'type-caption-weight', 'type-headline', 'type-headline-weight', 'type-heading', 'type-heading-weight', 'type-heading-case',
   'type-key', 'type-key-weight', 'type-numeral', 'type-numeral-weight',
-  // Text entry and PIN (the Keyboard and PIN prompt boards).
   'key-w', 'key-h', 'key-gap', 'field-h', 'active-w', 'pin-w', 'pad-w', 'pad-key-h', 'slot-w', 'slot-h', 'slot-dot',
   'type-entry', 'type-entry-weight', 'type-cap', 'type-cap-weight', 'type-cap-word', 'type-cap-word-weight',
   'type-pad', 'type-pad-weight', 'type-prompt', 'type-prompt-weight',
   'motion-focus', 'motion-value', 'motion-enter', 'motion-exit', 'ease-focus', 'ease-enter', 'ease-exit', 'enter-shift'
 ];
 
-// The decoration contract: each target, the kit component wrapped in a Decor with it, and the states that Decor
-// passes (a recipe's `when` can only see those). A recipe's target is one of these or `*`; `*` with `when: focused`
-// reaches only rows, tiles and buttons, since leaf pieces never pass `focused` (a slider in a focused row grows no
-// second bloom). The kit's Decors are checked against this list (test/assets.test.js).
 var TARGETS = {
   screen: { component: 'Screen: the whole display, behind and in front of every surface', states: [] },
   panel: { component: 'Panel: side panels, the volume bar, Settings', states: [] },

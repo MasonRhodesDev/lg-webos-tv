@@ -3,9 +3,6 @@ import QtQuick.Window 2.2
 import Preview 1.0
 import Look 1.0
 
-// Look.settingsRequested against the Look service's answers: the first answer of a subscription only records where
-// requests stand, a new `at` with open: true is a request, a close is not. Exits 1 on the first failure:
-// qml SettingsRequests.qml
 Window {
     id: win
     width: 320; height: 180
@@ -25,7 +22,6 @@ Window {
 
     readonly property var steps: [
         function () {
-            // Look subscribed when it was created; this is its subscription's first full answer.
             Fixture.load(answer({ "open": true, "target": "Sound", "at": 100 }));
             check(Look.online && Look.styleId === "smoke" && heard.length === 0, "an open Settings in the first answer is not a request");
             Fixture.load(answer({ "open": true, "target": "PictureMode", "at": 200 }));

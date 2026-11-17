@@ -1,24 +1,12 @@
 #!/bin/sh
-# Put our UI layer on the TV and load it into the compositor, or go back to stock.
-#   TV_HOST=<address> own-layer-tv.sh apply          copy ui/ and own-layer.sh, load the layer into the running
-#                                                    compositor (no restart, the screen never blanks)
-#   TV_HOST=<address> own-layer-tv.sh restart        the same copy, then restart the compositor with the layer on its
-#                                                    import path (blanks the screen for about 15 s)
-#   TV_HOST=<address> own-layer-tv.sh revert         restart the compositor on stock
-#   TV_HOST=<address> own-layer-tv.sh reports        what the layer reported (loaded, errors, gaps)
-#   TV_HOST=<address> own-layer-tv.sh capture OUT    save the on-screen UI layer (not the video picture) as a PNG
-# apply, restart and revert take a lock on the TV, so several working copies can test against one TV in turn. A lock
-# older than 10 minutes is taken over. The work itself runs on the TV, so a dropped SSH session cannot stop it halfway.
 set -eu
 host=${TV_HOST:?set TV_HOST to the TV address}
 here=$(cd "$(dirname "$0")" && pwd)
 dest=/media/developer/themepack/layer
 lock=/tmp/own-layer.lock
 
-# Bounded: a TV that stops answering fails each call within ~30 s instead of hanging.
 on_tv() { ssh -o ConnectTimeout=10 -o ServerAliveInterval=10 -o ServerAliveCountMax=2 "root@$host" "$@"; }
 locked() {
-  # mkdir is atomic, so only one copy holds the lock. The holder releases it when the TV-side script finishes.
   i=0
   until on_tv "mkdir $lock 2>/dev/null || { [ \$(( \$(date +%s) - \$(stat -c %Y $lock) )) -gt 600 ] && rm -rf $lock && mkdir $lock; }"; do
     [ $i = 0 ] && echo "waiting for the TV lock (another copy is testing)" >&2

@@ -1,20 +1,4 @@
 #!/usr/bin/env bash
-# Read-only check of the TV against the telemetry-off kit.
-#
-# Usage: tools/telemetry-off/verify.sh [-q]
-#   -q   print only WARN/FAIL lines
-#
-# Reports: target processes and upstart jobs still running, stub mounts,
-# the hosts blackhole (and stale jail copies), settings and user-agreement
-# values, every bind mount over the rootfs, and every connected or listening
-# socket that is not LAN/loopback or not in listen-allow.txt.
-# Exit 0 = all OK, 1 = at least one FAIL, 2 = could not reach the TV.
-#
-# ALLOW_REMOTE="a.b.c.d ..." (env) downgrades connections to those
-# addresses from FAIL to WARN.
-#
-# Nothing is written on the TV: the probe is streamed to `sh -s` and
-# luna-send runs under script(1) with /dev/null as its typescript.
 set -euo pipefail
 . "$(dirname "$0")/common.sh"
 quiet=0; [ "${1:-}" = -q ] && quiet=1

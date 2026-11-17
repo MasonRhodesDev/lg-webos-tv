@@ -1,8 +1,5 @@
 import QtQuick 2.4
 
-// LG's toast view as a part sees it (objectName toastView, a direct child of the compositor root): a model of at
-// most one toast, close(), and under its stack a Toast delegate per row that emits activated() on a click. A state
-// fills the model as LG's notification service would.
 Item {
     id: scene
     property string part: "Toast.qml"

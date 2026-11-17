@@ -2,8 +2,6 @@ import QtQuick 2.4
 import ".."
 import "keys.js" as KeyMap
 
-// A row of buttons with one focused. `buttons` is a list of labels or { label, icon, disabled }. Our own menus give
-// it focus and it moves with Left/Right; an LG-mirrored surface sets currentIndex instead.
 Row {
     id: bar
     property var buttons: []

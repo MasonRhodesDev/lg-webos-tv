@@ -1,11 +1,3 @@
-"""Assemble OUT_DIR/index.html.
-
-python3 -I build.py WORK_DIR OUT_DIR
-
-Reads WORK_DIR/facts.json (collect.py) and WORK_DIR/srcdoc.json (prep_srcdoc.py),
-and page.css / page.js from this script's directory. Optional:
-WORK_DIR/shots/manifest.json lists real screenshots already copied to OUT_DIR/img/shots/.
-"""
 import sys, os, json, html
 
 W, OUT_DIR = sys.argv[1], sys.argv[2]
@@ -15,7 +7,6 @@ SD = json.load(open(os.path.join(W, "srcdoc.json")))
 OUT = os.path.join(OUT_DIR, "index.html")
 _SM = os.path.join(W, "shots", "manifest.json")
 SHOTS = json.load(open(_SM, encoding="utf-8")) if os.path.exists(_SM) else {"captured": None, "shots": {}}
-# slot ids a screenshot manifest may use; each sits next to the matching reconstruction
 SHOT_SLOTS = ("home", "hdmi-banner", "input-picker", "quick-settings", "toast", "volume", "hotkey", "live-menu", "keyboard")
 esc = html.escape
 
@@ -64,7 +55,6 @@ def tv(inner, label, caption, iframe=None, title=""):
 
 
 def shot(slot):
-    """Real compositor capture for this slot, or "" when the build has none."""
     assert slot in SHOT_SLOTS, slot
     s = SHOTS["shots"].get(slot)
     if not s:
@@ -167,7 +157,6 @@ def section(title, body, cls=""):
     return f'<section class="block {cls}"><h3>{title}</h3>{body}</section>'
 
 
-# ------------------------------------------------------------------ reconstructions (1920x1080 stage HTML)
 VID = '<div class="vid"><span>HDMI 2 picture (placeholder)</span></div>'
 
 
@@ -306,7 +295,6 @@ def airplay_stage():
 </g></svg></div>'''
 
 
-# ------------------------------------------------------------------ element tabs
 TABS = []
 
 
@@ -318,7 +306,6 @@ def proc(rows):
     return table(["Process", "PID boot 1", "PID boot 2", "Started by"], rows, "proc")
 
 
-# HOME ---------------------------------------------------------------------------------
 add("home", "Home", "Home launcher", "com.webos.app.home", ["native", "boot", "criu", "keep", "preload"],
     paired(tv(home_stage(), "recon", "Ribbon tile geometry from <code>GlobalStyle.qml</code> (140&times;252 tiles, 10 px gap, 9.462&deg; slant, focus <code>#cf0652</code>); tile order and colours from <code>listLaunchPoints</code>. Third-party icons live on <code>/media/cryptofs</code>, which is not in the backup, so those tiles show their title on their real <code>iconColor</code>.", title="Home launcher ribbon reconstruction"), shot("home"))
     + '<div class="grid">'
@@ -350,7 +337,6 @@ add("home", "Home", "Home launcher", "com.webos.app.home", ["native", "boot", "c
               "<li>Open: whether the ribbon order comes from <code>com.webos.applicationManager.ordering:1</code> in db8 or from the launch-point list order shown here.</li></ul>")
     + "</div>")
 
-# HDMI -----------------------------------------------------------------------------------
 add("hdmi-input", "HDMI input", "HDMI / external input app", "com.webos.app.inputcommon · hdmi1–4", ["native", "boot", "criu", "preload"],
     paired(tv(hdmi_stage(), "recon", "Input banner from <code>TvComponent/Banner/InputBanner/SimpleBanner.qml</code>: 140 px slanted black banner built from three PNG slices, label in Miso, banner top at 640 px. The real banner sits over live HDMI video.", title="HDMI input banner reconstruction"), shot("hdmi-banner"))
     + '<div class="grid">'
@@ -387,7 +373,6 @@ add("hdmi-input", "HDMI input", "HDMI / external input app", "com.webos.app.inpu
               "<li>In boot 2 an input change came from <code>com.webos.service.tv.externaldevice</code> (HDMI-CEC) at +4087 s.</li></ul>")
     + "</div>")
 
-# INPUT PICKER --------------------------------------------------------------------------------
 add("input-picker", "Input picker", "Input picker", "com.webos.app.quickinputpicker (QML module)", ["comp", "qml"],
     paired(tv(picker_stage(), "recon", "Values from <code>InputPicker/Style.qml</code>: top band 330 px, <code>#121212</code> at 0.85 opacity (menu transparency is on), 300&times;210 tiles at 10 px spacing, 280 px title tile, 3 px separator at 0.15, selected tile <code>#8f8f8f</code> with the check mark. Input set from the EIM snapshot, labels generic.", title="Input picker reconstruction"), shot("input-picker"))
     + '<div class="grid">'
@@ -414,7 +399,6 @@ add("input-picker", "Input picker", "Input picker", "com.webos.app.quickinputpic
                  "<li>Real screenshots would help here most: no ground truth for tile text placement or category labels.</li></ul>"))
     + "</div>")
 
-# SETTINGS ------------------------------------------------------------------------------------
 add("ui-settings", "Settings", "Settings and Quick Settings", "com.palm.app.settings · com.webos.app.quicksettings", ["web", "comp", "qml"],
     '<div class="pair">'
     + tv(None, "real", "<code>index.en.html</code> ships a prerendered first frame as a string assigned to <code>#root.innerHTML</code>. Rendered here with the app&rsquo;s own <code>main.css</code> (pruned to used selectors), no scripts. LG Display and Museo Sans are not shipped, so text uses Nunito Sans; LG dingbat nav icons show as dashed placeholders.", iframe=SD["settings"], title="Settings app prerendered markup")
@@ -448,7 +432,6 @@ add("ui-settings", "Settings", "Settings and Quick Settings", "com.palm.app.sett
               "<li>appinfo declares <code>supportQuickStart: false</code> and <code>defaultWindowType: overlay</code>: Settings floats over the HDMI picture rather than replacing it.</li></ul>")
     + "</div>")
 
-# NOTIFICATIONS ------------------------------------------------------------------------------
 add("notifications", "Notifications", "Notifications and toasts", "notificationmgr · SystemUI/Notification · com.webos.app.notificationcenter", ["daemon", "comp", "web"],
     '<div class="pair">'
     + tv(toast_stage(), "recon", "Toast from <code>NotificationStyle.qml</code>: 825&times;111, <code>#ededed</code> at 0.97, radius 9, 81 px icon on <code>#505050</code>, 24 px bold text <code>#333</code>, 21 px from the top-right corner. Text is the Homebrew Channel failsafe toast from <code>startup.sh</code>.", title="Toast reconstruction")
@@ -482,7 +465,6 @@ add("notifications", "Notifications", "Notifications and toasts", "notificationm
               "<li>Home Assistant&rsquo;s <code>webostv</code> notify target lands here too.</li></ul>")
     + "</div>")
 
-# OSD -------------------------------------------------------------------------------------------
 add("osd", "Volume &amp; OSDs", "Volume and other OSDs", "YSM/Volume.qml · com.webos.app.tvhotkey", ["comp", "qml", "native"],
     '<div class="pair">'
     + tv(volume_stage(), "recon", "Volume from <code>YSM/Volume.qml</code> and the <code>volume</code> block of <code>YSM/Style.qml</code>: 21&times;552 bar 39 px from the right edge, fill <code>#cf0652</code>, track <code>rgb(110,110,110)</code> at 0.35, digits are PNGs (40&times;72), shown for 1500 ms. Level 12 is an example.", title="Volume OSD reconstruction")
@@ -512,7 +494,6 @@ add("osd", "Volume &amp; OSDs", "Volume and other OSDs", "YSM/Volume.qml · com.
               "<li>When the output is an external device (<code>volume_exterior</code>), the compositor shows a 60&times;198 up/down pill instead of a level bar.</li></ul>")
     + "</div>")
 
-# LIVE MENU ----------------------------------------------------------------------------------------
 add("live-menu", "Live menu", "Live menu", "com.webos.app.livemenu", ["native", "criu", "preload"],
     paired(tv(livemenu_stage(), "recon", "From <code>livemenu/qml/AppInitializer/GlobalStyle.qml</code>: 840 px right panel in black at 0.85, 120 px tab column <code>#333333</code> at 0.95 with 120&times;120 tab icons, 226 px header with a 6 px <code>#404040</code> divider. Panel content is not reconstructed.", title="Live menu reconstruction"), shot("live-menu"))
     + '<div class="grid">'
@@ -535,7 +516,6 @@ add("live-menu", "Live menu", "Live menu", "com.webos.app.livemenu", ["native", 
               "<li><code>enablePigScreenSaver: false</code> and <code>defaultWindowType: overlay</code>.</li></ul>")
     + "</div>")
 
-# HOMEBREW --------------------------------------------------------------------------------------------
 add("homebrew", "Homebrew", "Homebrew Channel", "org.webosbrew.hbchannel 0.7.3", ["web", "dev"],
     (tv(None, "real", "<code>index.html</code> run once in headless Chromium with networking disabled; the resulting DOM was saved and all scripts removed. The repository fetch fails offline, hence the error toast and empty list. Museo Sans swapped for Nunito Sans; Miso and the Moonstone icon font are the bundle&rsquo;s own.", iframe=SD["homebrew"], title="Homebrew Channel rendered DOM")
      if "homebrew" in SD else
@@ -567,7 +547,6 @@ add("homebrew", "Homebrew", "Homebrew Channel", "org.webosbrew.hbchannel 0.7.3",
               "<li><code>exec</code> and <code>spawn</code> give any caller that can reach the service a root shell command; keep the service off the public bus.</li></ul>")
     + "</div>")
 
-# AIRPLAY ------------------------------------------------------------------------------------------------
 add("airplay", "AirPlay", "AirPlay", "airplay (app) · airplay.service · airplay.homekit", ["web", "preload", "daemon"],
     tv(airplay_stage(), "schem", "The bundle has no UI of its own: <code>launch.html</code> forwards to the <code>contentTarget</code> URL. Drawn from the role files, the service list and <code>libairplay-webengine.so.1</code> symbols.", title="AirPlay launch chain schematic")
     + '<div class="grid">'
@@ -598,7 +577,6 @@ add("airplay", "AirPlay", "AirPlay", "airplay (app) · airplay.service · airpla
               "<li>Open: what <code>contentTarget</code> points at. A WAM devtools session (port 9998 is open) would show it without writing to the TV.</li></ul>")
     + "</div>")
 
-# ASSISTANT ------------------------------------------------------------------------------------------------
 add("assistant", "Assistant", "Google Assistant", "com.webos.app.googleassistant", ["web", "preload", "keep"],
     tv(None, "real", "<code>weather_screen_out.html</code>, a Google response card shipped inside the bundle as a test fixture, scripts removed and <code>#popout</code> forced visible. Live cards come from <code>developers.google.com/webassistant</code> at runtime and are never on disk.", iframe=SD["assistant"], title="Google Assistant bundled sample card")
     + '<div class="grid">'
@@ -626,7 +604,6 @@ add("assistant", "Assistant", "Google Assistant", "com.webos.app.googleassistant
               "<li>The only microphone path is the Magic Remote push-to-talk " + src("docs/sensors-and-mic.md") + ".</li></ul>")
     + "</div>")
 
-# KEYBOARD ----------------------------------------------------------------------------------------------------
 add("keyboard", "Keyboard", "Virtual keyboard", "MaliitServer · com.webos.service.ime", ["daemon", "qml"],
     paired(tv(keyboard_stage(), "recon", "Geometry from <code>maliit/plugins/qml/keyboard-common/Style.qml</code>: 1920&times;324 panel <code>#4b4b4b</code>, 174 px left function column, 1474 px letter area, 192 px right column, 52 px rows with 6 px gaps, keys <code>#282828</code>, focus <code>#cf0652</code>. Key legends are illustrative; real layouts come from the language data in <code>libplugin-global.so</code>.", title="Virtual keyboard reconstruction"), shot("keyboard"))
     + '<div class="grid">'
@@ -650,7 +627,6 @@ add("keyboard", "Keyboard", "Virtual keyboard", "MaliitServer · com.webos.servi
               "<li>The keyboard is a separate Wayland client, not part of any app; web apps reach it through WAM&rsquo;s input method bridge.</li></ul>")
     + "</div>")
 
-# SCREENSAVER -------------------------------------------------------------------------------------------------
 add("screensaver", "Screensaver", "Screen saver", "com.webos.app.screensaver", ["qml"],
     tv(screensaver_stage(), "recon", "Canvas re-implementation of <code>Containers/ScreenSaver.qml</code>: three particle groups coloured from <code>blue.png</code>, <code>Turquoise.png</code>, <code>red.png</code> colour tables, centred emitters, velocity 7&plusmn;3, acceleration 12&plusmn;5, turbulence 10; the hint text is <code>#6e6e6e</code> 27 px with a 3.5 s fade. Motion stops when reduced motion is requested.", title="Screen saver reconstruction")
     + '<div class="grid">'
@@ -671,7 +647,6 @@ add("screensaver", "Screensaver", "Screen saver", "com.webos.app.screensaver", [
               "<li>On an OLED used as a monitor, <code>oled-epl</code> and this app are the panel-protection pair.</li></ul>")
     + "</div>")
 
-# ------------------------------------------------------------------ overview
 ELEMS = [
     ("home", "Home launcher", "com.webos.app.home", ["native", "boot", "criu", "keep", "preload"], "sam → native Qt + CRIU", "recon"),
     ("hdmi-input", "HDMI input", "com.webos.app.inputcommon / hdmi2", ["native", "boot", "criu", "preload"], "sam → native Qt + CRIU", "recon"),
@@ -768,7 +743,6 @@ overview = (
 
 TABS.insert(0, ("overview", "Overview", "webOS UI Atlas", "LG OLED · webOS 4.5 · 05.40.45", [], overview))
 
-# ------------------------------------------------------------------ page
 CSS = ('@font-face{font-family:"Miso";src:url(fonts/Miso-Regular.ttf);font-weight:400 600}@font-face{font-family:"Miso";src:url(fonts/Miso-Light.ttf);font-weight:300}@font-face{font-family:"Miso";src:url(fonts/Miso-Bold.ttf);font-weight:700}' + open(os.path.join(HERE, "page.css")).read())
 JS = open(os.path.join(HERE, "page.js")).read()
 

@@ -2,24 +2,17 @@ import QtQuick 2.4
 import ".."
 import "inputs.js" as Inputs
 
-// Our input picker. LG's InputPickerMainView keeps all of its logic (the input list, keys, the 5 s hotkey timer,
-// launching, eject, the add-on button's actions, the tooltip); this only draws what it shows. LG's tiles stay in the
-// tree as the magic remote's hit areas, so ours keep LG's geometry and follow LG's scroll position.
 Item {
     id: part
     property Item lg: null
     readonly property bool onDemand: true
     function claims(item) { return item.mainRibbon !== undefined && item.inputPickerListModel !== undefined; }
 
-    // LG's geometry (its InputPicker style): the ribbon sits flush with the screen bottom once open, its tiles 300
-    // by 210 (the Home Dashboard tile 280), 45 above the ribbon's foot, 10 apart; a category starts 10 further on and
-    // the Home Dashboard tile's delegate carries 63 more for its separator.
     readonly property real lgTileH: 210
     readonly property real lgTileFoot: 45
     readonly property real lgSpacing: 10
     readonly property real lgCategoryLead: 10
     readonly property real lgSeparator: 63
-    // The add-on button: 54 square, 50 above its tile.
     readonly property real lgAddon: 54
     readonly property real lgAddonBand: lgAddon + 50
 
@@ -30,7 +23,6 @@ Item {
 
     anchors.fill: parent
 
-    // Our tiles, built from LG's model; `map` takes LG's index to ours (a separator follows the Home Dashboard tile).
     property var tiles: []
     property var map: []
     property int signals: 0
@@ -75,21 +67,18 @@ Item {
         signals = on;
         inputs = all;
         tiles = out;
-        // A new model resets a ListView's currentIndex, which leaves the binding standing but stale.
         ribbon.currentIndex = Qt.binding(function () { return part.focusIndex; });
     }
-    // LG fills its model from script after the view exists, and edits rows in place (a device's status).
     readonly property int lgCount: lg ? lg.inputPickerListModel.count : 0
     onLgCountChanged: rebuild()
     onLgChanged: {
         watchModel(lg ? lg.inputPickerListModel : null);
         rebuild();
     }
-    // LG's model can outlive this part, and a connected function of a destroyed part is still called.
     property var lgModel: null
     function watchModel(model) {
         if (lgModel === model) return;
-        try { if (lgModel) lgModel.dataChanged.disconnect(part.rebuild); } catch (e) { /* LG's model is already gone */ }
+        try { if (lgModel) lgModel.dataChanged.disconnect(part.rebuild); } catch (e) { }
         lgModel = model;
         if (lgModel) lgModel.dataChanged.connect(part.rebuild);
     }
@@ -100,8 +89,6 @@ Item {
     readonly property int focusIndex: ribbonLg && ribbonLg.currentIndex >= 0 && ribbonLg.currentIndex < map.length ? map[ribbonLg.currentIndex] : -1
     readonly property var probe: ({ "shown": shown, "focus": ribbonLg ? ribbonLg.currentIndex : -1, "tiles": lgCount })
 
-    // LG's add-on button (eject, device connector, channel tuning) belongs to its focused tile. LG decides when it
-    // shows and whether it holds focus; we draw it where LG's sits.
     function findAddon(item, depth) {
         if (!item) return null;
         var kids = item.children;
@@ -117,8 +104,6 @@ Item {
     readonly property string addonType: ribbonLg && ribbonLg.currentIndex >= 0 && lg.inputPickerListModel.count > ribbonLg.currentIndex
                                         ? lg.inputPickerListModel.get(ribbonLg.currentIndex).addonType : ""
 
-    // LG's scroll position, read from where its focused tile sits: a ListView's contentX is only an estimate once its
-    // delegates differ in width. Our ribbon lays out every tile unscrolled and moves as a whole to match.
     readonly property real scrollX: {
         var li = ribbonLg ? ribbonLg.currentItem : null, oi = ribbon.currentItem;
         if (li && oi) return oi.x - (li.x - ribbonLg.contentX);
@@ -154,12 +139,10 @@ Item {
 
         TileRibbon {
             id: ribbon
-            // Clear of the header: the group headings, and LG's add-on button 50 above a tile.
             y: head.height + Math.max(Look.px("space-l") + headingSpace, part.lgAddonBand)
             x: -part.scrollX
             width: contentWidth
             tileHeight: part.lgTileH
-            // LG's spacing, so every tile lands on LG's hit area.
             spacing: part.lgSpacing
             follows: false
             focusShown: !part.addonFocused

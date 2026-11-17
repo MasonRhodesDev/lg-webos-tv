@@ -3,12 +3,6 @@ import QtQuick.Window 2.2
 import Preview 1.0
 import "../../ui/Look" as Ours
 
-// Inject.qml against a fake LG root: LG's system UI container loads it, it creates the layer under the root and asks
-// to be unloaded; the layer must keep working after that, a second injection must replace it, and one whose layer
-// does not compile must leave the loaded one. A layer replaced while one of its menus is open (in LG's popup plane, not
-// under the layer) must still give everything back before the new one starts. A loaded layer from before layers could
-// disconnect themselves must be put aside alive, not destroyed. Prints each step and exits 1 on the first failure:
-//   qml Inject.qml -- <a copy of ui/ whose Look/Layer.qml does not compile>
 Window {
     id: win
     width: 1920; height: 1080
@@ -20,14 +14,11 @@ Window {
         Item {
             id: manager
             objectName: "systemUIManager"
-            // LG's system UI table; Hook A swaps the Quick Settings entry for ours.
             property var config: ({ "appinfo": [{ "id": "com.webos.app.quicksettings", "main": "file:///lg/QuickSettings.qml" }] })
         }
         Item { Item { id: overlayView } }
-        // configd's key filter list and the compositor's live chain, bound to it until assigned.
         property var systemSettings: QtObject { property var keyFilters: [{ "handler": "handleSystemKeys", "file": "/lg/systemUi.js" }] }
         property var keyFilter: QtObject { signal backReleased(); property var keyFilters: host.systemSettings.keyFilters }
-        // LG's popup plane (layer 6): our open menus live in it.
         Item {
             id: plane
             anchors.fill: parent
@@ -38,12 +29,10 @@ Window {
             visible: false
         }
     }
-    // Stands in for an LG item a part holds.
     Item { id: stand }
 
     Component {
         id: containerType
-        // StarfishSystemUIContainer: loads `main` with itself as the parent and tells it the overlay's life cycle.
         Item {
             id: box
             property bool exited: false
@@ -54,7 +43,6 @@ Window {
         }
     }
 
-    // A layer from before unlink(): it can retire, and stays connected to what outlives it.
     Component {
         id: olderType
         Item {
@@ -68,7 +56,6 @@ Window {
     property bool olderDestroyed: false
     property bool firstDestroyed: false
 
-    // A copy of ui/ with a Layer.qml that does not compile.
     readonly property string brokenUi: Qt.application.arguments[Qt.application.arguments.indexOf("--") + 1]
     property var container: null
     property int step: 0
@@ -89,14 +76,12 @@ Window {
         for (var i = 0; i < Fixture.commands.length; i++) if (Fixture.commands[i].method === "/setProbe") n++;
         return n;
     }
-    // The probes one layer sent after the first `from` commands (a probe names its layer by `instance`).
     function probesFrom(instance, from) {
         var n = 0;
         for (var i = from; i < Fixture.commands.length; i++)
             if (Fixture.commands[i].method === "/setProbe" && Fixture.commands[i].params.layer === instance) n++;
         return n;
     }
-    // How many Home key filters of ours are in the live chain.
     function homeFilters() {
         var list = host.keyFilter.keyFilters, n = 0;
         for (var i = 0; i < list.length; i++) if (list[i].handler === "themepackHandleHome") n++;
@@ -130,17 +115,13 @@ Window {
         },
         function () {
             gc();
-            // On the TV a destroyed layer that is still connected takes the compositor down at the next signal.
             check(!olderDestroyed && older.retired, "injector unloaded: the older layer, which cannot disconnect itself, is still alive");
             check(layers().length === 1 && layers()[0].waiting.length > 0, "injector unloaded: the layer and its parts are still there");
-            // A waiting part is visible through a binding on what it holds. Bindings stop when the context their
-            // object was created in is destroyed, so this one tells whether the layer depends on the injector.
             var part = layers()[0].waiting[0].part;
             check(!part.visible, "injector unloaded: a waiting part holds nothing and is hidden");
             part.lg = stand;
             check(part.visible, "injector unloaded: the layer's bindings still work");
             part.lg = null;
-            // The layer answers the Look service's probing switch from a handler in its own file.
             Fixture.load(JSON.stringify({ "returnValue": true, "probing": true }));
         },
         function () {
@@ -148,16 +129,12 @@ Window {
             check(homeFilters() === 1, "injected: the Home key filter is in LG's chain");
             var first = layers()[0];
             first.Component.destruction.connect(function () { win.firstDestroyed = true; });
-            // Replaced while the Home dock is open: the dock sits in LG's popup plane, not under the layer.
             Ours.SettingsBus.homeRequested(null);
             check(plane.children.length === 1, "the Home dock is open, in LG's popup plane");
             launch();
             check(!plane.visible && plane.children.length === 0, "injected again: the old dock closed and gave the plane back");
             check(layers().length === 1 && layers()[0] !== first, "injected again: one layer under LG's root, a new one");
             check(reports("ready", "layer created by injection") === 2, "injected again: reported ready again");
-            // The replaced layer is not destroyed yet, and must already have let go of everything that outlives it.
-            // On the TV a function of a destroyed layer that is still connected is still called, in a context that is
-            // gone, and the compositor crashes on the first singleton it names.
             var sent = Fixture.commands.length;
             Fixture.load(JSON.stringify({ "returnValue": true, "probing": false }));
             Fixture.load(JSON.stringify({ "returnValue": true, "probing": true }));
@@ -167,12 +144,10 @@ Window {
             container.destroy();
         },
         function () {
-            // The replaced layer is destroyed by now; what it undoes must not reach the new one.
             check(firstDestroyed && !olderDestroyed, "injected again: the replaced layer, which disconnected itself, is destroyed");
             check(reports("gap", "the old layer cannot disconnect itself") === 1, "injected again: only the older layer was left alive");
             check(gearOpensOurs(), "injected again: the gear still opens our quick sheet once the old layer is destroyed");
             check(homeFilters() === 1, "injected again: one Home key filter in the chain once the old layer is destroyed");
-            // Replaced while our Settings is open.
             Ours.Look.settingsRequested("");
             check(plane.children.length === 1, "our Settings is open, in LG's popup plane");
             launch();
